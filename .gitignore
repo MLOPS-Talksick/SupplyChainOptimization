@@ -18,3 +18,5 @@ ML_Models/.env
 ML_Models/experiments/scripts/mlruns/
 *.h5
 .qodo
+
+ML_Models/SCO_LOG/*
