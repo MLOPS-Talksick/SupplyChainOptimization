@@ -29,13 +29,14 @@ fi
 ######################################
 IAM_MEMBER="serviceAccount:${SA_EMAIL}"
 ROLE="roles/artifactregistry.reader"
-# Encode the slash using %2F instead of ~
+# Encode the slash using %2F
 ENCODED_ROLE=$(echo "$ROLE" | sed 's/\//%2F/g')
 echo "Checking IAM Binding for ${IAM_MEMBER} with role ${ROLE}..."
 if gcloud projects get-iam-policy "${PROJECT_ID}" --flatten="bindings[].members" \
     --format="table(bindings.role)" --filter="bindings.role=${ROLE} AND bindings.members:${IAM_MEMBER}" | grep "${ROLE}" &>/dev/null; then
     echo "IAM Binding exists. Importing..."
-    terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/${ENCODED_ROLE}/${IAM_MEMBER}"
+    # Append a trailing slash to denote an empty condition title
+    terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/${ENCODED_ROLE}/${IAM_MEMBER}/"
 else
     echo "IAM Binding not found. Terraform will create it."
 fi
