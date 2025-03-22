@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Change directory to the folder containing Terraform configuration files
+cd infrastructure
+
 # Variables – adjust these as needed or export them from your environment
 PROJECT_ID="primordial-veld-450618-n4"
 REGION="us-central1"
@@ -23,11 +26,9 @@ fi
 ######################################
 # 2. IAM Binding for Artifact Registry Reader
 ######################################
-# Note: IAM members are imported with the member string and role.
 IAM_MEMBER="serviceAccount:${SA_EMAIL}"
 ROLE="roles/artifactregistry.reader"
 echo "Checking IAM Binding for ${IAM_MEMBER} with role ${ROLE}..."
-# There is no direct gcloud command to check for a single binding. One approach is to list the bindings.
 if gcloud projects get-iam-policy "${PROJECT_ID}" --flatten="bindings[].members" \
     --format="table(bindings.role)" --filter="bindings.role=${ROLE} AND bindings.members:${IAM_MEMBER}" | grep "${ROLE}" &>/dev/null; then
     echo "IAM Binding exists. Importing..."
@@ -75,7 +76,6 @@ fi
 ######################################
 # 6. Instance Template: airflow-instance-template
 ######################################
-# Change this to match the exact name of your instance template if already created.
 INSTANCE_TEMPLATE_NAME="airflow-instance-template"
 echo "Checking Instance Template (${INSTANCE_TEMPLATE_NAME})..."
 if gcloud compute instance-templates describe "${INSTANCE_TEMPLATE_NAME}" --project "${PROJECT_ID}" &>/dev/null; then
