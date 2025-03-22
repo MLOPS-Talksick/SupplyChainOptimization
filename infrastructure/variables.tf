@@ -39,7 +39,7 @@ variable "image_family" {
 # If you want a custom image name that you create from a base VM
 variable "custom_image_name" {
   type        = string
-  default     = "airflow-vm-master-image"
+  default     = ""
 }
 
 # Additional variables for auto-scaling, LB config, etc.
