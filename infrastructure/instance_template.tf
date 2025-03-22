@@ -30,25 +30,39 @@ resource "google_compute_instance_template" "airflow_template" {
     # Startup script to run docker-compose up -d
     startup-script = <<-EOT
       #!/bin/bash
+      exec > /var/log/startup-script.log 2>&1
       set -ex
 
-      # Navigate to the directory containing your docker-compose.yml
-      cd /opt/airflow
-
-      # Install Docker if it's not already installed (if needed)
+      # Install Docker if it's not already installed
       if ! command -v docker &>/dev/null; then
           apt-get update -y
           apt-get install -y docker.io
       fi
 
-      # Optionally install Docker Compose if not available
+      # Install Docker Compose if it's not already installed
       if ! command -v docker-compose &>/dev/null; then
+          apt-get update -y
           apt-get install -y docker-compose
       fi
+
+      # Install Git if it's not already installed
+      if ! command -v git &>/dev/null; then
+          apt-get update -y
+          apt-get install -y git
+      fi
+
+      # Create /opt/airflow if it doesn't exist
+      mkdir -p /opt/airflow
+      cd /opt/airflow
+
+      # Clone your repository (replace the URL with your repo)
+      git clone https://github.com/MLOPS-Talksick/SupplyChainOptimization.git .
+
+      # Optionally, check out a specific branch or tag:
+      # git checkout terraform-infra-meet-2
             
 
       # Run docker-compose to start your services
-      gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
       docker compose pull || true
       docker compose down || true
       docker volume rm airflow_postgres-db-volume || true
