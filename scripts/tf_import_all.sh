@@ -157,4 +157,18 @@ else
     echo "Global Forwarding Rule not found. Terraform will create it."
 fi
 
+
+######################################
+# Autoscaler: airflow-autoscaler
+######################################
+AUTOSCALER_NAME="airflow-autoscaler"
+echo "Checking Autoscaler (${AUTOSCALER_NAME}) in region ${REGION}..."
+if gcloud compute autoscalers describe "${AUTOSCALER_NAME}" --region "${REGION}" --project "${PROJECT_ID}" &>/dev/null; then
+    echo "Autoscaler exists. Importing..."
+    terraform import google_compute_region_autoscaler.airflow_autoscaler "projects/${PROJECT_ID}/regions/${REGION}/autoscalers/${AUTOSCALER_NAME}"
+else
+    echo "Autoscaler not found. Terraform will create it."
+fi
+
+
 echo "=== Import Check Completed ==="

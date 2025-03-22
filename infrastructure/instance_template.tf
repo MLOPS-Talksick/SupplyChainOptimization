@@ -32,6 +32,9 @@ resource "google_compute_instance_template" "airflow_template" {
       #!/bin/bash
       set -ex
 
+      # Navigate to the directory containing your docker-compose.yml
+      cd /opt/airflow
+
       # Install Docker if it's not already installed (if needed)
       if ! command -v docker &>/dev/null; then
           apt-get update -y
@@ -42,11 +45,11 @@ resource "google_compute_instance_template" "airflow_template" {
       if ! command -v docker-compose &>/dev/null; then
           apt-get install -y docker-compose
       fi
-
-      # Navigate to the directory containing your docker-compose.yml
-      cd /opt/airflow
+            
 
       # Run docker-compose to start your services
+      gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+      docker compose pull || true
       docker compose down || true
       docker volume rm airflow_postgres-db-volume || true
       docker compose up -d --remove-orphans
