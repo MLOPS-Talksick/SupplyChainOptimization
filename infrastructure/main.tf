@@ -33,12 +33,14 @@ resource "google_compute_firewall" "airflow_firewall" {
 
 
 
-resource "google_compute_autoscaler" "airflow_autoscaler" {
-  depends_on = [google_compute_region_instance_group_manager.airflow_mig]
-  name       = "airflow-autoscaler"
-  project    = var.project_id
-  zone       = var.zone  # If you're using zone autoscaling; for regional autoscaler, use region instead.
-  
+resource "google_compute_region_autoscaler" "airflow_autoscaler" {
+  name    = "airflow-autoscaler"
+  project = var.project_id
+  region  = var.region  # e.g., "us-central1"
+
+  # Use the computed instance group URL from the regional MIG
+  target = google_compute_region_instance_group_manager.airflow_mig.instance_group
+
   autoscaling_policy {
     cooldown_period = 60
     max_replicas    = 5
@@ -46,11 +48,11 @@ resource "google_compute_autoscaler" "airflow_autoscaler" {
     mode            = "ON"
 
     cpu_utilization {
-      target = 0.6
+      target            = 0.6
       predictive_method = "NONE"
     }
   }
-  
-  target = google_compute_region_instance_group_manager.airflow_mig.id
+
+  depends_on = [google_compute_region_instance_group_manager.airflow_mig]
 }
 
