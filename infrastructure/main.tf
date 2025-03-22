@@ -32,14 +32,12 @@ resource "google_compute_firewall" "airflow_firewall" {
 }
 
 
-
 resource "google_compute_region_autoscaler" "airflow_autoscaler" {
   name    = "airflow-autoscaler"
   project = var.project_id
-  region  = var.region  # e.g., "us-central1"
+  region  = var.region
 
-  # Use the computed instance group URL from the regional MIG
-  target = google_compute_region_instance_group_manager.airflow_mig.instance_group
+  target = google_compute_region_instance_group_manager.airflow_mig.self_link
 
   autoscaling_policy {
     cooldown_period = 60
@@ -55,4 +53,3 @@ resource "google_compute_region_autoscaler" "airflow_autoscaler" {
 
   depends_on = [google_compute_region_instance_group_manager.airflow_mig]
 }
-
