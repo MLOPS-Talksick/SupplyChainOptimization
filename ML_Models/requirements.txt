@@ -4,3 +4,7 @@ optuna==4.2.1  # For hyperparameter optimization
 shap==0.47.0 # For model interpretability
 ipython==8.28.0  # For interactive computing and visualization
 google-cloud-storage==3.0.0 # For cloud storage integration
+xgboost==3.0.0
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.5.2
