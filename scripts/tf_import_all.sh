@@ -23,22 +23,19 @@ else
     echo "Service Account not found. It will be created by Terraform."
 fi
 
-
-######################################
-# 2. IAM Binding for Artifact Registry Reader
-######################################
-IAM_MEMBER="serviceAccount:${SA_EMAIL}"
-# For import, omit the "roles/" prefix. The actual binding in IAM is "roles/artifactregistry.reader"
-ROLE_SUFFIX="artifactregistry.reader"
-echo "Checking IAM Binding for ${IAM_MEMBER} with role roles/${ROLE_SUFFIX}..."
-if gcloud projects get-iam-policy "${PROJECT_ID}" --flatten="bindings[].members" \
-    --format="table(bindings.role)" --filter="bindings.role=roles/${ROLE_SUFFIX} AND bindings.members:${IAM_MEMBER}" | grep "roles/${ROLE_SUFFIX}" &>/dev/null; then
-    echo "IAM Binding exists. Importing..."
-    terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/${ROLE_SUFFIX}/${IAM_MEMBER}"
-else
-    echo "IAM Binding not found. Terraform will create it."
-fi
-
+# ######################################
+# # 2. IAM Binding for Artifact Registry Reader
+# ######################################
+# IAM_MEMBER="serviceAccount:${SA_EMAIL}"
+# ROLE="roles/artifactregistry.reader"
+# echo "Checking IAM Binding for ${IAM_MEMBER} with role ${ROLE}..."
+# if gcloud projects get-iam-policy "${PROJECT_ID}" --flatten="bindings[].members" \
+#     --format="table(bindings.role)" --filter="bindings.role=${ROLE} AND bindings.members:${IAM_MEMBER}" | grep "${ROLE}" &>/dev/null; then
+#     echo "IAM Binding exists. Importing..."
+#     terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/${ROLE}/${IAM_MEMBER}"
+# else
+#     echo "IAM Binding not found. Terraform will create it."
+# fi
 
 ######################################
 # 3. VPC Network: airflow-network
