@@ -28,14 +28,17 @@ fi
 ######################################
 IAM_MEMBER="serviceAccount:${SA_EMAIL}"
 ROLE="roles/artifactregistry.reader"
+# Encode the slash: replace "/" with "~"
+ENCODED_ROLE=$(echo "$ROLE" | sed 's/\//~/g')
 echo "Checking IAM Binding for ${IAM_MEMBER} with role ${ROLE}..."
 if gcloud projects get-iam-policy "${PROJECT_ID}" --flatten="bindings[].members" \
     --format="table(bindings.role)" --filter="bindings.role=${ROLE} AND bindings.members:${IAM_MEMBER}" | grep "${ROLE}" &>/dev/null; then
     echo "IAM Binding exists. Importing..."
-    terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/${ROLE}/${IAM_MEMBER}"
+    terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/${ENCODED_ROLE}/${IAM_MEMBER}"
 else
     echo "IAM Binding not found. Terraform will create it."
 fi
+
 
 ######################################
 # 3. VPC Network: airflow-network
