@@ -28,15 +28,13 @@ fi
 # 2. IAM Binding for Artifact Registry Reader
 ######################################
 IAM_MEMBER="serviceAccount:${SA_EMAIL}"
-ROLE="roles/artifactregistry.reader"
-# Encode the slash using %2F
-ENCODED_ROLE=$(echo "$ROLE" | sed 's/\//%2F/g')
-echo "Checking IAM Binding for ${IAM_MEMBER} with role ${ROLE}..."
+# For import, omit the "roles/" prefix. The actual binding in IAM is "roles/artifactregistry.reader"
+ROLE_SUFFIX="artifactregistry.reader"
+echo "Checking IAM Binding for ${IAM_MEMBER} with role roles/${ROLE_SUFFIX}..."
 if gcloud projects get-iam-policy "${PROJECT_ID}" --flatten="bindings[].members" \
-    --format="table(bindings.role)" --filter="bindings.role=${ROLE} AND bindings.members:${IAM_MEMBER}" | grep "${ROLE}" &>/dev/null; then
+    --format="table(bindings.role)" --filter="bindings.role=roles/${ROLE_SUFFIX} AND bindings.members:${IAM_MEMBER}" | grep "roles/${ROLE_SUFFIX}" &>/dev/null; then
     echo "IAM Binding exists. Importing..."
-    # Append a trailing slash to denote an empty condition title
-    terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/${ENCODED_ROLE}/${IAM_MEMBER}/"
+    terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/${ROLE_SUFFIX}/${IAM_MEMBER}"
 else
     echo "IAM Binding not found. Terraform will create it."
 fi
