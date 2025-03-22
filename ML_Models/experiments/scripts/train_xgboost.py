@@ -8,9 +8,24 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import OneHotEncoder
 import shap
 from Data_Pipeline.scripts.logger import logger
-from Data_Pipeline.scripts.utils import send_email
+from Data_Pipeline.scripts.utils import send_email, setup_gcp_credentials
 # from logger import logger
 # from utils import send_email
+from google.cloud import storage
+from ML_Models.scripts.utils import get_latest_data_from_cloud_sql
+
+
+def save_pkl_to_gcs(data, bucket_name='trained-model-1', destination_blob_name="model.pkl"):
+    setup_gcp_credentials()
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    pkl_data = pickle.dumps(data)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_string(pkl_data)
+
+    print(f'File saved to gs://{bucket_name}/{destination_blob_name}')
+
 
 
 email = "svarunanusheel@gmail.com"
@@ -104,7 +119,7 @@ def get_train_valid_test_split(df: pd.DataFrame, train_frac: float = 0.7, valid_
         logger.info("Starting train-validation-test split")
         unique_dates = df["Date"].drop_duplicates().sort_values()
         n = len(unique_dates)
-        
+
         train_cutoff = unique_dates.iloc[int(n * train_frac)]
         valid_cutoff = unique_dates.iloc[int(n * (train_frac + valid_frac))]
         
@@ -410,6 +425,8 @@ def save_model(model, filename="final_model.pkl"):
             pickle.dump(model, f)
         logger.info(f"Model saved as {filename}")
 
+        save_pkl_to_gcs(model, destination_blob_name = filename)
+
     except Exception as e:
         # Log the error and send an error email
         logger.error(f"An error occurred: {str(e)}")
@@ -442,7 +459,6 @@ def shap_analysis(model, valid_df, feature_columns):
         logger.error(f"An error occurred: {str(e)}")
         send_email(emailid=email, subject="SHAP Analysis Failure", body=f"An error occurred during SHAP analysis: {str(e)}")
 
-# TODO: logs
 # ---------------------------
 # 7. Hybrid Model Wrapper Class
 # ---------------------------
@@ -462,12 +478,18 @@ class HybridTimeSeriesModel:
         """
         Predict using the product-specific model if available; otherwise use the global model.
         """
+        logger.info(f"Prediction requested for product: {product_name}")
         # Prepare X: assume X already has base features and product dummy columns in the correct order.
         if product_name in self.product_models:
             model = self.product_models[product_name]
+            logger.info(f"Using product-specific model for {product_name}")
         else:
             model = self.global_model
-        return model.predict(X)
+            logger.info("No product-specific model found. Falling back to global model.")
+
+        prediction = model.predict(X)
+        logger.info(f"Prediction completed for {product_name}")
+        return prediction
 
 # ==========================================
 # 8. Main Pipeline
@@ -477,14 +499,26 @@ class HybridTimeSeriesModel:
 def main():
     try:
         # 1. Load data
-        df = pd.read_csv(file_path)
+        query = """
+        SELECT 
+            sale_date AS 'Date', 
+            product_name AS 'Product Name', 
+            total_quantity AS 'Total Quantity'
+        FROM SALES
+        ORDER BY sale_date;
+    """
+        
+        df = get_latest_data_from_cloud_sql(query=query)
+
+        # print(new_df.head())
+        # df = pd.read_csv(file_path)
         
         # 2. Create features and target on original data (keep for forecasting)
         logger.info("Extracting features and creating target for the original dataset...")
         original_df = extract_features(df.copy())
         original_df = create_target(original_df, horizon=7)
         original_df = original_df.dropna().reset_index(drop=True)
-        
+
         # For training, work on a copy and then one-hot encode "Product Name"
         logger.info("Preparing training data by extracting features and creating target...")
         df_train = extract_features(df.copy())
@@ -516,7 +550,7 @@ def main():
         
         # ----- Step 3: Hyperparameter Tuning using Optuna -----
         logger.info("Starting hyperparameter tuning with Optuna...")
-        best_params = hyperparameter_tuning(train_df, valid_df, feature_columns, target_column, n_trials=5)
+        best_params = hyperparameter_tuning(train_df, valid_df, feature_columns, target_column, n_trials=15)
         logger.info(f"Best parameters from tuning: {best_params}")
         
         # ----- Step 4: Train Final Model on Train+Validation -----
@@ -542,15 +576,13 @@ def main():
         rmse_per_product = test_df.groupby("Product").apply(lambda d: compute_rmse(d[target_column], d["predicted"]))
         logger.info("Individual RMSE per product:")
         logger.info(rmse_per_product)
-        # -------------------------------
         
-        # TODO: logs
         # Identify biased products (RMSE more than 2 standard deviations from the mean)
         mean_rmse = rmse_per_product.mean()
         std_rmse = rmse_per_product.std()
         threshold = mean_rmse + 2 * std_rmse
         biased_products = rmse_per_product[rmse_per_product > threshold].index.tolist()
-        print("Biased products (to receive product-specific models):", biased_products)
+        logger.info("Biased products (to receive product-specific models):", biased_products)
         
 
         # Train product-specific models for biased products
@@ -559,12 +591,12 @@ def main():
             prod_train_df = train_valid_df[train_valid_df["Product"] == prod].copy()
             # Ensure there is enough data to train a product-specific model
             if len(prod_train_df) < 30:
-                print(f"Not enough data to train a product-specific model for {prod}. Skipping.")
+                logger.info(f"Not enough data to train a product-specific model for {prod}. Skipping.")
                 continue
             # Train using the same hyperparameters (or retune if desired)
             prod_model = model_training(prod_train_df, valid_df, feature_columns, target_column, params=best_params)
             product_specific_models[prod] = prod_model
-            print(f"Trained product-specific model for {prod}.")
+            logger.info(f"Trained product-specific model for {prod}.")
         
         # Create the hybrid model wrapper instance
         hybrid_model = HybridTimeSeriesModel(global_model=final_model,
@@ -574,9 +606,8 @@ def main():
         
         # (Optional) Save the hybrid model to a pickle file
         save_model(hybrid_model, filename="hybrid_model.pkl")
+        logger.info("Hybrid model saved as 'hybrid_model.pkl'.")
         
-
-# #####################################
 
         # ----- Step 5: Iterative Forecasting for Each Product -----
         # For iterative forecasting, use the original_df (which still contains the original "Product Name").
