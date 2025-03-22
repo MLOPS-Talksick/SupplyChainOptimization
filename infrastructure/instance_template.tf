@@ -14,7 +14,11 @@ resource "google_compute_instance_template" "airflow_template" {
   network_interface {
     network    = google_compute_network.airflow_vpc.self_link
     subnetwork = google_compute_subnetwork.airflow_subnet.self_link
+
+    # This block allocates an ephemeral external IP to the instance.
+    access_config {}
   }
+
 
   service_account {
     email  = google_service_account.airflow_sa.email
@@ -28,17 +32,27 @@ resource "google_compute_instance_template" "airflow_template" {
       #!/bin/bash
       set -ex
 
+      # Install Docker if it's not already installed (if needed)
+      if ! command -v docker &>/dev/null; then
+          apt-get update -y
+          apt-get install -y docker.io
+      fi
+
+      # Optionally install Docker Compose if not available
+      if ! command -v docker-compose &>/dev/null; then
+          apt-get install -y docker-compose
+      fi
+
+      # Navigate to the directory containing your docker-compose.yml
       cd /opt/airflow
 
-      # Optional: Configure authentication for Artifact Registry if needed.
-      # gcloud auth configure-docker us-central1-docker.pkg.dev --quiet || true
-
-      # Clean up and bring the stack up
+      # Run docker-compose to start your services
       docker compose down || true
       docker volume rm airflow_postgres-db-volume || true
       docker compose up -d --remove-orphans
 
       echo "✅ Airflow containers are now running!"
+
     EOT
   }
 
