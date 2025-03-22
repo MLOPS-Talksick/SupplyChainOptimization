@@ -23,13 +23,14 @@ else
     echo "Service Account not found. It will be created by Terraform."
 fi
 
+
 ######################################
 # 2. IAM Binding for Artifact Registry Reader
 ######################################
 IAM_MEMBER="serviceAccount:${SA_EMAIL}"
 ROLE="roles/artifactregistry.reader"
-# Encode the slash: replace "/" with "~"
-ENCODED_ROLE=$(echo "$ROLE" | sed 's/\//~/g')
+# Encode the slash using %2F instead of ~
+ENCODED_ROLE=$(echo "$ROLE" | sed 's/\//%2F/g')
 echo "Checking IAM Binding for ${IAM_MEMBER} with role ${ROLE}..."
 if gcloud projects get-iam-policy "${PROJECT_ID}" --flatten="bindings[].members" \
     --format="table(bindings.role)" --filter="bindings.role=${ROLE} AND bindings.members:${IAM_MEMBER}" | grep "${ROLE}" &>/dev/null; then
