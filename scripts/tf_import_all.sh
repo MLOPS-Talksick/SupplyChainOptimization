@@ -32,7 +32,7 @@ echo "Checking IAM Binding for ${IAM_MEMBER} with role ${ROLE}..."
 if gcloud projects get-iam-policy "${PROJECT_ID}" --flatten="bindings[].members" \
     --format="table(bindings.role)" --filter="bindings.role=${ROLE} AND bindings.members:${IAM_MEMBER}" | grep "${ROLE}" &>/dev/null; then
     echo "IAM Binding exists. Importing..."
-    terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/roles~artifactregistry.reader/${IAM_MEMBER}"
+    terraform terraform import google_project_iam_member.airflow_sa_artifact_registry "${PROJECT_ID}/roles%2Fartifactregistry.reader/${IAM_MEMBER}"
 else
     echo "IAM Binding not found. Terraform will create it."
 fi
