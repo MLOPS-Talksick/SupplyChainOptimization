@@ -91,16 +91,18 @@ jobs:
 
       - name: Terraform Plan
         working-directory: infrastructure
-        run: terraform plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}"
+        run: terraform plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
+
 
       - name: Import existing resources if any
         run: |
           chmod +x scripts/tf_import_all.sh
           ./scripts/tf_import_all.sh
 
+
       - name: Terraform Apply
         working-directory: infrastructure
-        run: terraform apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}"
+        run: terraform apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
 
       - name: Get Load Balancer IP
         run: |

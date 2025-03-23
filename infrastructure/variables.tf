@@ -42,4 +42,8 @@ variable "custom_image_name" {
   default     = ""
 }
 
-# Additional variables for auto-scaling, LB config, etc.
+variable "gcp_service_account_key" {
+  type      = string
+  sensitive = true
+  description = "GCP Service Account key in JSON format"
+}

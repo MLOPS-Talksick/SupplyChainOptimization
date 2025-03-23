@@ -28,7 +28,7 @@ resource "google_compute_instance_template" "airflow_template" {
 
   metadata = {
     # Startup script to run docker-compose up -d
-    startup-script = <<-EOT
+    startup-script = <<-EOF
       #!/bin/bash
       exec > /var/log/startup-script.log 2>&1
       set -ex
@@ -78,7 +78,7 @@ resource "google_compute_instance_template" "airflow_template" {
           sudo rm -rf /opt/airflow/gcp-key.json
       fi
       echo "🚀 Creating GCP Key File..."
-      echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' | jq . > /opt/airflow/gcp-key.json
+      echo "${var.gcp_service_account_key}" | jq . > /opt/airflow/gcp-key.json
       chmod 644 /opt/airflow/gcp-key.json
       sudo chown ubuntu:docker /opt/airflow/gcp-key.json
       echo "✅ GCP Key File Created."
@@ -104,7 +104,7 @@ resource "google_compute_instance_template" "airflow_template" {
       docker compose up -d --remove-orphans
 
       echo "✅ Airflow successfully started!"
-    EOT
+    EOF
   }
 
   tags = ["airflow-server"]
