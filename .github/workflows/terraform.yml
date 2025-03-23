@@ -92,7 +92,7 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
-        run: terraform -chdir=infrastructure plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=$(echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}')"
+        run: terraform -chdir=infrastructure plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=$(echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' | sed ':a;N;$!ba;s/\n/\\n/g')"
 
       - name: Import existing resources if any
         env:
@@ -102,7 +102,7 @@ jobs:
           ./scripts/tf_import_all.sh
 
       - name: Terraform Apply
-        run: terraform -chdir=infrastructure apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=$(echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}')"
+        run: terraform -chdir=infrastructure apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=$(echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' | sed ':a;N;$!ba;s/\n/\\n/g')"
 
 
       - name: Get Load Balancer IP
