@@ -87,10 +87,12 @@ jobs:
         uses: hashicorp/setup-terraform@v2
 
       - name: Terraform Init
-        run: terraform -chdir=infrastructure init
+        working-directory: infrastructure
+        run: terraform init
 
       - name: Terraform Plan
-        run: terraform -chdir=infrastructure plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
+        working-directory: infrastructure
+        run: terraform plan -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
 
       - name: Import existing resources if any
         run: |
@@ -98,7 +100,8 @@ jobs:
           ./scripts/tf_import_all.sh
 
       - name: Terraform Apply
-        run: terraform -chdir=infrastructure apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
+        working-directory: infrastructure
+        run: terraform apply -auto-approve -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
 
       - name: Get Load Balancer IP
         run: |
