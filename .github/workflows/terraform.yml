@@ -91,8 +91,7 @@ jobs:
         run: terraform -chdir=infrastructure init
 
       - name: Terraform Plan
-        working-directory: infrastructure
-        run: terraform plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
+        run: terraform -chdir=infrastructure plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
 
       - name: Import existing resources if any
         env:
