@@ -20,15 +20,35 @@ from ML_Models.scripts.utils import get_latest_data_from_cloud_sql
 def save_pkl_to_gcs(
     data, bucket_name="trained-model-1", destination_blob_name="model.pkl"
 ):
-    setup_gcp_credentials()
+    """
+    Saves a Python object as a pickle file to Google Cloud Storage.
+    Will create the bucket if it doesn't exist.
+    """
+    if not setup_gcp_credentials():
+        logger.error("Failed to set up GCP credentials. Cannot save model.")
+        return False
 
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    pkl_data = pickle.dumps(data)
-    blob = bucket.blob(destination_blob_name)
-    blob.upload_from_string(pkl_data)
+    try:
+        storage_client = storage.Client()
 
-    print(f"File saved to gs://{bucket_name}/{destination_blob_name}")
+        # Check if bucket exists, create if it doesn't
+        try:
+            bucket = storage_client.get_bucket(bucket_name)
+        except Exception:
+            logger.info(f"Bucket {bucket_name} does not exist. Creating it...")
+            bucket = storage_client.create_bucket(bucket_name)
+
+        pkl_data = pickle.dumps(data)
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_string(pkl_data)
+
+        logger.info(
+            f"File saved to gs://{bucket_name}/{destination_blob_name}"
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error saving model to GCP: {str(e)}")
+        return False
 
 
 email = "talksick530@gmail.com"
@@ -461,12 +481,18 @@ def iterative_forecast(
 
 
 def save_model(model, filename="model.pkl"):
+    """
+    Save model locally and to GCS bucket.
+    Returns True if successful, False otherwise.
+    """
     try:
         with open(filename, "wb") as f:
             pickle.dump(model, f)
-        logger.info(f"Model saved as {filename}")
+        logger.info(f"Model saved locally as {filename}")
 
-        save_pkl_to_gcs(model, destination_blob_name=filename)
+        # Upload to GCS
+        success = save_pkl_to_gcs(model, destination_blob_name=filename)
+        return success
 
     except Exception as e:
         # Log the error and send an error email
@@ -476,6 +502,7 @@ def save_model(model, filename="model.pkl"):
             subject="Save Model Failure",
             body=f"An error occurred while saving model: {str(e)}",
         )
+        return False
 
 
 # ==========================================
@@ -513,20 +540,32 @@ def shap_analysis(model, valid_df, feature_columns):
             subject="SHAP Analysis Failure",
             body=f"An error occurred during SHAP analysis: {str(e)}",
         )
+
+
 def setup_gcp_credentials():
     """
     Sets up the GCP credentials by setting the GOOGLE_APPLICATION_CREDENTIALS environment variable
     to point to the correct location of the GCP key file.
     """
     # The GCP key is always in the mounted secret directory
-    # gcp_key_path = "/app/secret/gcp-key.json" use when dockerizing
-    gcp_key_path = "secret/gcp-key.json"
+    gcp_key_path = "/app/secret/gcp-key.json"  # Path inside Docker container
+    local_key_path = "secret/gcp-key.json"  # Path for local development
 
-    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") != gcp_key_path:
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gcp_key_path
-        logger.info(f"Set GCP credentials path to: {gcp_key_path}")
+    # Try the Docker container path first, fall back to local path
+    if os.path.exists(gcp_key_path):
+        credentials_path = gcp_key_path
+    elif os.path.exists(local_key_path):
+        credentials_path = local_key_path
     else:
-        logger.info(f"Using existing GCP credentials from: {gcp_key_path}")
+        logger.warning(
+            f"GCP credentials file not found at {gcp_key_path} or {local_key_path}"
+        )
+        return False
+
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+    logger.info(f"Set GCP credentials path to: {credentials_path}")
+    return True
+
 
 def load_model(bucket_name: str, file_name: str):
     """
@@ -537,25 +576,51 @@ def load_model(bucket_name: str, file_name: str):
         file_name (str): The name of the pickle file in the bucket.
 
     Returns:
-        The Python object loaded from the pickle file.
-
-    Raises:
-        Exception: If an error occurs during the download or unpickling process.
+        The Python object loaded from the pickle file, or None if loading fails.
     """
-    setup_gcp_credentials()
+    if not setup_gcp_credentials():
+        logger.error("Failed to set up GCP credentials. Cannot load model.")
+        send_email(
+            emailid=email,
+            subject="Load model Failure",
+            body=f"Failed to set up GCP credentials. Cannot load model from {bucket_name}/{file_name}",
+        )
+        return None
 
     try:
-        bucket = storage.Client().get_bucket(bucket_name)
+        import io  # Add missing import for BytesIO
+
+        # Check if bucket exists
+        storage_client = storage.Client()
+        try:
+            bucket = storage_client.get_bucket(bucket_name)
+        except Exception as e:
+            logger.info(
+                f"Bucket {bucket_name} does not exist or is not accessible: {str(e)}"
+            )
+            return None
+
+        # Check if blob exists
         blob = bucket.blob(file_name)
+        if not blob.exists():
+            logger.info(
+                f"Model file {file_name} does not exist in bucket {bucket_name}"
+            )
+            return None
+
         blob_content = blob.download_as_string()
 
-        file_extension = file_name.split('.')[-1].lower()
-        if file_extension not in ['pkl', 'pickle']:
+        file_extension = file_name.split(".")[-1].lower()
+        if file_extension not in ["pkl", "pickle"]:
             logger.error(f"Unsupported file type for pickle: {file_extension}")
-            raise ValueError(f"Unsupported file type: {file_extension}")
+            return None
 
-        model = pickle.load(io.BytesIO(blob_content))
-        logger.info(f"'{file_name}' from bucket '{bucket_name}' successfully loaded as pickle.")
+        model = pickle.loads(
+            blob_content
+        )  # Use loads instead of load with BytesIO
+        logger.info(
+            f"'{file_name}' from bucket '{bucket_name}' successfully loaded as pickle."
+        )
         return model
     except Exception as e:
         logger.error(f"Error loading model from GCP: {str(e)}")
@@ -564,6 +629,9 @@ def load_model(bucket_name: str, file_name: str):
             subject="Load model Failure",
             body=f"An error occurred while Loading {file_name} model: {str(e)}",
         )
+        return None
+
+
 # ---------------------------
 # 7. Hybrid Model Wrapper Class
 # ---------------------------
@@ -743,7 +811,11 @@ def main():
             "Biased products (to receive product-specific models):",
             biased_products,
         )
-        send_email(body = f"Biased products (to receive product-specific models):{biased_products}",emailid=email,subject='BIAS report')
+        send_email(
+            body=f"Biased products (to receive product-specific models):{biased_products}",
+            emailid=email,
+            subject="BIAS report",
+        )
 
         # Train product-specific models for biased products
         product_specific_models = {}
@@ -777,21 +849,74 @@ def main():
         )
 
         # Compute RMSE for the hybrid model on the test set
-        logger.info("Evaluating the hybrid model performance on the test set...")
-        hybrid_test_pred = hybrid_model.predict(test_df[feature_columns])
+        logger.info(
+            "Evaluating the hybrid model performance on the test set..."
+        )
+        # Get a product name for testing purposes - using the first unique product
+        test_product = original_df["Product Name"].unique()[0]
+        hybrid_test_pred = hybrid_model.predict(
+            test_product, test_df[feature_columns]
+        )
         hybrid_rmse = compute_rmse(test_df[target_column], hybrid_test_pred)
-        logger.info("Hybrid Model RMSE:", hybrid_rmse)
+        logger.info(f"Hybrid Model RMSE: {hybrid_rmse}")
 
         # Compute RMSE for the old model
-        old_model = load_model('trained-model-1', 'model.pkl')
-        logger.info("Evaluating the old model performance on the test set...")
-        old_test_pred = hybrid_model.predict(test_df[feature_columns])
-        old_rmse = compute_rmse(test_df[target_column], old_test_pred)
-        logger.info("Old Model RMSE:", old_rmse)
+        old_model = load_model("trained-model-1", "model.pkl")
+        old_rmse = None
+        if old_model is not None:
+            logger.info(
+                "Evaluating the old model performance on the test set..."
+            )
+            try:
+                # Check if old_model has the predict method directly
+                if hasattr(old_model, "predict"):
+                    old_test_pred = old_model.predict(test_df[feature_columns])
+                    old_rmse = compute_rmse(
+                        test_df[target_column], old_test_pred
+                    )
+                    logger.info(f"Old Model RMSE: {old_rmse}")
+                # Check if it's a HybridTimeSeriesModel
+                elif (
+                    hasattr(old_model, "__class__")
+                    and old_model.__class__.__name__ == "HybridTimeSeriesModel"
+                ):
+                    old_test_pred = old_model.predict(
+                        test_product, test_df[feature_columns]
+                    )
+                    old_rmse = compute_rmse(
+                        test_df[target_column], old_test_pred
+                    )
+                    logger.info(f"Old Model (Hybrid) RMSE: {old_rmse}")
+                else:
+                    logger.error(
+                        f"Loaded model is of unknown type: {type(old_model)}"
+                    )
+            except Exception as e:
+                logger.error(f"Error using old model: {str(e)}")
+                old_rmse = None
+        else:
+            logger.info("No previous model found. This is the first run.")
 
-        # (Optional) Save the hybrid model to a pickle file
-        # save_model(hybrid_model, filename="hybrid_model.pkl")
-        # logger.info("Hybrid model saved as 'hybrid_model.pkl'.")
+        # Decide whether to save the new model
+        if old_rmse is not None and old_rmse < hybrid_rmse:
+            logger.info(
+                "Older model performed better, we won't save the new one..."
+            )
+        else:
+            if old_rmse is None:
+                logger.info(
+                    "First time uploading a model. Saving the new model..."
+                )
+            else:
+                logger.info(
+                    "New model performs better. Saving the new model..."
+                )
+
+            save_success = save_model(final_model)
+            if save_success:
+                logger.info("Model saved successfully to GCS bucket.")
+            else:
+                logger.error("Failed to save model to GCS bucket.")
 
         # ----- Step 5: Iterative Forecasting for Each Product -----
         # For iterative forecasting, use the original_df (which still contains the original "Product Name").
@@ -819,11 +944,6 @@ def main():
         logger.info(all_forecasts_df)
 
         all_forecasts_df.to_csv("7_day_forecasts.csv", index=False)
-        if old_rmse<hybrid_rmse:
-            logger.info("Older model performed better, we wont save new one...")
-        else:
-            logger.info("Saving final model...")
-            save_model(final_model)
 
         logger.info("Performing SHAP analysis on the model...")
         shap_analysis(final_model, valid_df, feature_columns)
