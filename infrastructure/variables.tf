@@ -47,3 +47,7 @@ variable "gcp_service_account_key" {
   sensitive = true
   description = "GCP Service Account key in JSON format"
 }
+
+locals {
+  gcp_key = jsondecode(var.gcp_service_account_key)
+}
