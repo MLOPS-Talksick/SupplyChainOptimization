@@ -68,3 +68,6 @@ separate validation dataset and computes metrics relevant to your task such as R
 8. Rollback mechanism: Code ensures that newer model performs better than old model. 
 9. CI/CD: Meet add
 10. Cloud Infrastructure: Meet add
+
+### Experimentation and Tracking
+- We have used MLFlow for experimenting with different models like XGBoost, LSTMs, SARIMA and DeepAR and Prophet. The scripts for these are in experiments/scripts and Screenshots of experiment visulatizations are available in the artifacts directory. THe mlruns folder have been exluded purposely as we were running into LFS issues. 
