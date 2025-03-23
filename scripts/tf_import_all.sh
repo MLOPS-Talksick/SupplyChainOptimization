@@ -178,7 +178,7 @@ echo "Checking Autoscaler (${AUTOSCALER_NAME}) in region ${REGION}..."
 if terraform state list | grep -q "google_compute_region_autoscaler.airflow_autoscaler"; then
     echo "Autoscaler already in Terraform state. Skipping import."
 else
-    if gcloud compute autoscalers describe "${AUTOSCALER_NAME}" --region "${REGION}" --project "${PROJECT_ID}" &>/dev/null; then
+    if gcloud compute autoscalers describe "${AUTOSCALER_NAME}" --project "${PROJECT_ID}" &>/dev/null; then
         echo "Autoscaler exists in GCP. Importing..."
         terraform import google_compute_region_autoscaler.airflow_autoscaler "projects/${PROJECT_ID}/regions/${REGION}/autoscalers/${AUTOSCALER_NAME}" || echo "Autoscaler already exists; skipping import."
     else
