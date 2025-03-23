@@ -71,3 +71,7 @@ separate validation dataset and computes metrics relevant to your task such as R
 
 ### Experimentation and Tracking
 - We have used MLFlow for experimenting with different models like XGBoost, LSTMs, SARIMA and DeepAR and Prophet. The scripts for these are in experiments/scripts and Screenshots of experiment visulatizations are available in the artifacts directory. THe mlruns folder have been exluded purposely as we were running into LFS issues. 
+1. XGBoost: Performing the best
+2. DeepAR: Model too complex, overfitting in 1st epoch. Needs thousands/tens of thousands of product to be of significant value. Out of current scope.
+3. LSTMs: Experimented with couple different architectures but it was overfitting very early on. Model was not learning anything
+4. Prophet: Model is good but XGBoost is better.
