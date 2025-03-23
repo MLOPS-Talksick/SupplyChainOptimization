@@ -20,3 +20,4 @@ ML_Models/experiments/scripts/mlruns/
 .qodo
 
 ML_Models/SCO_LOG/*
+./mlruns
