@@ -512,8 +512,50 @@ def shap_analysis(model, valid_df, feature_columns):
             subject="SHAP Analysis Failure",
             body=f"An error occurred during SHAP analysis: {str(e)}",
         )
+def setup_gcp_credentials():
+    """
+    Sets up the GCP credentials by setting the GOOGLE_APPLICATION_CREDENTIALS environment variable
+    to point to the correct location of the GCP key file.
+    """
+    # The GCP key is always in the mounted secret directory
+    # gcp_key_path = "/app/secret/gcp-key.json" use when dockerizing
+    gcp_key_path = "secret/gcp-key.json"
 
+    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") != gcp_key_path:
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gcp_key_path
+        logger.info(f"Set GCP credentials path to: {gcp_key_path}")
+    else:
+        logger.info(f"Using existing GCP credentials from: {gcp_key_path}")
 
+def load_model(bucket_name: str, file_name: str):
+    """
+    Loads a pickle file (typically a model) from a GCP bucket and returns the loaded object.
+
+    Args:
+        bucket_name (str): The name of the Google Cloud Storage bucket.
+        file_name (str): The name of the pickle file in the bucket.
+
+    Returns:
+        The Python object loaded from the pickle file.
+
+    Raises:
+        Exception: If an error occurs during the download or unpickling process.
+    """
+    setup_gcp_credentials()
+
+    try:
+        bucket = storage.Client().get_bucket(bucket_name)
+        blob = bucket.blob(file_name)
+        blob_content = blob.download_as_string()
+
+        file_extension = file_name.split('.')[-1].lower()
+        if file_extension not in ['pkl', 'pickle']:
+            logger.error(f"Unsupported file type for pickle: {file_extension}")
+            raise ValueError(f"Unsupported file type: {file_extension}")
+
+        model = pickle.load(io.BytesIO(blob_content))
+        logger.info(f"'{file_name}' from bucket '{bucket_name}' successfully loaded as pickle.")
+        return model
 # ---------------------------
 # 7. Hybrid Model Wrapper Class
 # ---------------------------
@@ -726,9 +768,22 @@ def main():
             product_dummy_columns=product_columns,
         )
 
+        # Compute RMSE for the hybrid model on the test set
+        logger.info("Evaluating the hybrid model performance on the test set...")
+        hybrid_test_pred = hybrid_model.predict(test_df[feature_columns])
+        hybrid_rmse = compute_rmse(test_df[target_column], hybrid_test_pred)
+        logger.info("Hybrid Model RMSE:", hybrid_rmse)
+
+        # Compute RMSE for the old model
+        old_model = load_model('trained-model-1', 'model.pkl')
+        logger.info("Evaluating the old model performance on the test set...")
+        old_test_pred = hybrid_model.predict(test_df[feature_columns])
+        old_rmse = compute_rmse(test_df[target_column], old_test_pred)
+        logger.info("Old Model RMSE:", old_rmse)
+
         # (Optional) Save the hybrid model to a pickle file
-        save_model(hybrid_model, filename="hybrid_model.pkl")
-        logger.info("Hybrid model saved as 'hybrid_model.pkl'.")
+        # save_model(hybrid_model, filename="hybrid_model.pkl")
+        # logger.info("Hybrid model saved as 'hybrid_model.pkl'.")
 
         # ----- Step 5: Iterative Forecasting for Each Product -----
         # For iterative forecasting, use the original_df (which still contains the original "Product Name").
@@ -756,8 +811,11 @@ def main():
         logger.info(all_forecasts_df)
 
         all_forecasts_df.to_csv("7_day_forecasts.csv", index=False)
-        logger.info("Saving final model...")
-        save_model(final_model)
+        if old_rmse<hybrid_rmse:
+            logger.info("Older model performed better, we wont save new one...")
+        else:
+            logger.info("Saving final model...")
+            save_model(final_model)
 
         logger.info("Performing SHAP analysis on the model...")
         shap_analysis(final_model, valid_df, feature_columns)
