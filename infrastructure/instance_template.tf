@@ -38,8 +38,7 @@ resource "google_compute_instance_template" "airflow_template" {
           echo "Adding Docker repository..."
           sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
           curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          # Hardcode "jammy" since that is what $(lsb_release -cs) should return on Ubuntu 22.04.
-          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable"
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $$(lsb_release -cs) stable"
           sudo apt-get update -y
           sudo apt-get install -y docker-ce docker-ce-cli containerd.io
       fi
@@ -47,8 +46,8 @@ resource "google_compute_instance_template" "airflow_template" {
       # Install Docker Compose if it's not already installed
       if ! command -v docker-compose &>/dev/null; then
           echo "Docker Compose not found. Installing latest version..."
-          DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
-          sudo curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          DOCKER_COMPOSE_VERSION=$$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
+          sudo curl -L "https://github.com/docker/compose/releases/download/$${DOCKER_COMPOSE_VERSION}/docker-compose-$$(uname -s)-$$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
           sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
       fi
