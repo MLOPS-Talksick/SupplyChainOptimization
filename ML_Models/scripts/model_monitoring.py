@@ -364,6 +364,7 @@ def main():
        any(d[1] for d in data_drift_list) or \
        any(cd[1] for cd in concept_drift_list):
         logging.warning("Triggering retraining due to performance or drift issues...")
+        subprocess.run(["python", "model_xgboost.py"])
         # trigger_retraining()  # Implement your retraining logic here
     else:
         logging.info(
