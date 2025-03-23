@@ -46,7 +46,7 @@ resource "google_compute_region_autoscaler" "airflow_autoscaler" {
     mode            = "ON"
 
     cpu_utilization {
-      target            = 0.6
+      target            = 0.8
       predictive_method = "NONE"
     }
   }
