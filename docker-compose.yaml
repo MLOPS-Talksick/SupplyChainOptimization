@@ -82,7 +82,7 @@ services:
       timeout: 30s
       retries: 50
     restart: always
-    command: ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
 
   airflow-webserver:
     <<: *airflow-common
