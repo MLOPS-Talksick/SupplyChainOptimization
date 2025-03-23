@@ -39,16 +39,20 @@ resource "google_compute_region_autoscaler" "airflow_autoscaler" {
 
   target = google_compute_region_instance_group_manager.airflow_mig.self_link
 
-  autoscaling_policy {
-    cooldown_period = 60
-    max_replicas    = 5
-    min_replicas    = 1
-    mode            = "ON"
+    autoscaling_policy {
+      cooldown_period = 120
+      max_replicas    = 5
+      min_replicas    = 1
+      mode            = "ON"
 
-    cpu_utilization {
-      target            = 0.8
-      predictive_method = "NONE"
-    }
+      load_balancing_utilization {
+          target = 0.8
+      }
+
+      # cpu_utilization {
+      #   target            = 0.9
+      #   predictive_method = "NONE"
+      # }
   }
 
   depends_on = [google_compute_region_instance_group_manager.airflow_mig]
