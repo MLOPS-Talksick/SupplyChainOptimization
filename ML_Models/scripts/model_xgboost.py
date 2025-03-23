@@ -7,6 +7,7 @@ from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import OneHotEncoder
 import shap
+import os
 from Data_Pipeline.scripts.logger import logger
 from Data_Pipeline.scripts.utils import send_email, setup_gcp_credentials
 
@@ -556,6 +557,13 @@ def load_model(bucket_name: str, file_name: str):
         model = pickle.load(io.BytesIO(blob_content))
         logger.info(f"'{file_name}' from bucket '{bucket_name}' successfully loaded as pickle.")
         return model
+    except Exception as e:
+        logger.error(f"Error loading model from GCP: {str(e)}")
+        send_email(
+            emailid=email,
+            subject="Load model Failure",
+            body=f"An error occurred while Loading {file_name} model: {str(e)}",
+        )
 # ---------------------------
 # 7. Hybrid Model Wrapper Class
 # ---------------------------
