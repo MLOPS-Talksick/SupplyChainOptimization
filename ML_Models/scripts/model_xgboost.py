@@ -30,8 +30,7 @@ def save_pkl_to_gcs(
     print(f"File saved to gs://{bucket_name}/{destination_blob_name}")
 
 
-email = "svarunanusheel@gmail.com"
-file_path = "C:/Users/svaru/Downloads/test.csv"
+email = "talksick530@gmail.com"
 
 
 def compute_rmse(y_true, y_pred):
@@ -694,6 +693,7 @@ def main():
             "Biased products (to receive product-specific models):",
             biased_products,
         )
+        send_email(body = f"Biased products (to receive product-specific models):{biased_products}",emailid=email,subject='BIAS report')
 
         # Train product-specific models for biased products
         product_specific_models = {}
