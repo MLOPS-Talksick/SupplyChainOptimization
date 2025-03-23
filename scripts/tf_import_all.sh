@@ -172,17 +172,7 @@ fi
 # Autoscaler: airflow-autoscaler
 ######################################
 AUTOSCALER_NAME="airflow-autoscaler"
-echo "Checking Autoscaler (${AUTOSCALER_NAME}) in any region..."
-
-# Attempt to find the autoscaler in any region
-EXISTING_REGION=$(gcloud compute autoscalers list --project "${PROJECT_ID}" --filter="name=${AUTOSCALER_NAME}" --format="value(region)" | head -n 1)
-
-if [ -n "$EXISTING_REGION" ]; then
-    echo "Autoscaler found in region: $EXISTING_REGION. Importing..."
-    terraform import google_compute_region_autoscaler.airflow_autoscaler "projects/${PROJECT_ID}/regions/${EXISTING_REGION}/autoscalers/${AUTOSCALER_NAME}" || echo "Autoscaler already exists; skipping import."
-else
-    echo "Autoscaler not found. Terraform will create it."
-fi
-
+echo "Attempting to import Autoscaler (${AUTOSCALER_NAME}) in region ${REGION}..."
+terraform import google_compute_region_autoscaler.airflow_autoscaler "projects/${PROJECT_ID}/regions/${REGION}/autoscalers/${AUTOSCALER_NAME}" || echo "Autoscaler already exists; skipping import."
 
 echo "=== Import Check Completed ==="
