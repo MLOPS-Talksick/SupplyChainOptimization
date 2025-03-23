@@ -42,13 +42,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r Data_Pipeline/tests/requirements-test.txt
-
       - name: Set PYTHONPATH
         run: |
           echo "PYTHONPATH=$(pwd)/Data_Pipeline:$(pwd)" >> $GITHUB_ENV
           echo "PYTHONPATH set to $(pwd)/Data_Pipeline:$(pwd)"
-
-
       - name: Run Unit Tests
         run: python -m unittest discover -s Data_Pipeline/tests -p "test*.py"
 
@@ -67,13 +64,11 @@ jobs:
         run: |
           chmod +x scripts/create_or_ensure_artifact_registry.sh
           ./scripts/create_or_ensure_artifact_registry.sh
-
       - name: Check if Docker Build is Needed
         id: detect-changes
         run: |
           chmod +x scripts/check_docker_build.sh
           ./scripts/check_docker_build.sh
-
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
@@ -82,16 +77,16 @@ jobs:
         run: |
           chmod +x scripts/build_and_push.sh
           ./scripts/build_and_push.sh
-
       # --------- TERRAFORM STEPS ---------
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
 
       - name: Terraform Init
-        run: terraform -chdir=infrastructure init
+        working-directory: infrastructure
+        run: terraform init
 
       - name: Terraform Plan
-        run: terraform -chdir=infrastructure plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
+        run: terraform -chdir=infrastructure plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=$(echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' | tr '\n' ' ')"
 
       - name: Import existing resources if any
         env:
@@ -99,10 +94,9 @@ jobs:
         run: |
           chmod +x scripts/tf_import_all.sh
           ./scripts/tf_import_all.sh
-
       - name: Terraform Apply
-        working-directory: infrastructure
-        run: terraform apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}"
+        run: terraform -chdir=infrastructure apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}" -var="gcp_service_account_key=$(echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' | tr '\n' ' ')"
+
 
       - name: Get Load Balancer IP
         run: |
