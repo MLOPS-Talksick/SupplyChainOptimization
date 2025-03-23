@@ -63,7 +63,7 @@ resource "google_compute_instance_template" "airflow_template" {
           sudo rm -f /opt/airflow/gcp-key.json
       fi
       echo "Creating GCP Key File..."
-      printf '%s' "${var.gcp_service_account_key}" | jq . > /opt/airflow/gcp-key.json
+      printf '%s\n' "${var.gcp_service_account_key}" > /opt/airflow/gcp-key.json
       chmod 644 /opt/airflow/gcp-key.json
       sudo chown ubuntu:docker /opt/airflow/gcp-key.json
       echo "GCP Key File Created."
