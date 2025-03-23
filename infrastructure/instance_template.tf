@@ -27,7 +27,7 @@ resource "google_compute_instance_template" "airflow_template" {
 
 
   metadata = {
-    startup-script = file("startup-script.sh")
+    startup-script = file("scripts\\startup_script.sh")
   }
 
   tags = ["airflow-server"]
