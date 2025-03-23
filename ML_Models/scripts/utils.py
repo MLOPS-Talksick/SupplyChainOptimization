@@ -11,7 +11,9 @@ import polars as pl
 from Data_Pipeline.scripts.logger import logger
 
 
-def extracting_time_series_and_lagged_features_pd(df: pd.DataFrame) -> pd.DataFrame:
+def extracting_time_series_and_lagged_features_pd(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
     """
     For each row, compute additional time-series features:
       - day_of_week, is_weekend, day_of_month, day_of_year, month, week_of_year
@@ -21,16 +23,25 @@ def extracting_time_series_and_lagged_features_pd(df: pd.DataFrame) -> pd.DataFr
     if df.empty:
         return pd.DataFrame(
             columns=[
-                "Date", "Product Name", "Total Quantity", "day_of_week",
-                "is_weekend", "day_of_month", "day_of_year", "month",
-                "week_of_year", "lag_1", "lag_7", "rolling_mean_7"
+                "Date",
+                "Product Name",
+                "Total Quantity",
+                "day_of_week",
+                "is_weekend",
+                "day_of_month",
+                "day_of_year",
+                "month",
+                "week_of_year",
+                "lag_1",
+                "lag_7",
+                "rolling_mean_7",
             ]
         )
 
     # Ensure the 'Date' column is in datetime format
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"])
-        
+
         # Create date-based features
         df["day_of_week"] = df["Date"].dt.dayofweek  # Monday=0, Sunday=6
         df["is_weekend"] = df["day_of_week"].isin([5, 6]).astype(int)
@@ -46,19 +57,21 @@ def extracting_time_series_and_lagged_features_pd(df: pd.DataFrame) -> pd.DataFr
     if "Total Quantity" in df.columns:
         # Sort by product and date
         df = df.sort_values(by=["Product Name", "Date"]).reset_index(drop=True)
-        
+
         # Compute lag features by grouping by 'Product Name'
         df["lag_1"] = df.groupby("Product Name")["Total Quantity"].shift(1)
         df["lag_7"] = df.groupby("Product Name")["Total Quantity"].shift(7)
-        
+
         # Compute a rolling mean of the previous 7 days.
         # Note: We shift by 1 to ensure that the rolling window uses data strictly before the current row.
-        df["rolling_mean_7"] = df.groupby("Product Name")["Total Quantity"].transform(
+        df["rolling_mean_7"] = df.groupby("Product Name")[
+            "Total Quantity"
+        ].transform(
             lambda x: x.shift(1).rolling(window=7, min_periods=1).mean()
         )
     else:
         raise KeyError("Column 'Total Quantity' not found in DataFrame.")
-    
+
     return df
 
 
@@ -116,15 +129,17 @@ def send_email(
         logger.error(f"Failed to send email: {e}")
         raise
 
+
 def compute_rmse(y_true, y_pred):
     """Computes Root Mean Squared Error."""
     return math.sqrt(mean_squared_error(y_true, y_pred))
 
-def get_latest_data_from_cloud_sql(query, port ='3306'):
+
+def get_latest_data_from_cloud_sql(query, port="3306"):
     """
     Connects to a Google Cloud SQL instance using TCP (public IP or Cloud SQL Proxy)
     and returns query results as a DataFrame.
-    
+
     Args:
         host (str): The Cloud SQL instance IP address or localhost (if using Cloud SQL Proxy).
         port (int): The port number (typically 3306 for MySQL).
@@ -132,27 +147,29 @@ def get_latest_data_from_cloud_sql(query, port ='3306'):
         password (str): Database password.
         database (str): Database name.
         query (str): SQL query to execute.
-        
+
     Returns:
         pd.DataFrame: Query results.
     """
     host = os.getenv("MYSQL_HOST")
-    user=os.getenv("MYSQL_USER")
-    password=os.getenv("MYSQL_PASSWORD")
-    database=os.getenv("MYSQL_DATABASE")
+    user = os.getenv("MYSQL_USER")
+    password = os.getenv("MYSQL_PASSWORD")
+    database = os.getenv("MYSQL_DATABASE")
     connector = Connector()
+
     def getconn():
         conn = connector.connect(
-            "primordial-veld-450618-n4:us-central1:mlops-sql", # Cloud SQL instance connection name
-            "pymysql",                    # Database driver
-            user=user,                  # Database user
-            password=password,          # Database password
-            db=database,   
+            "primordial-veld-450618-n4:us-central1:mlops-sql",  # Cloud SQL instance connection name
+            "pymysql",  # Database driver
+            user=user,  # Database user
+            password=password,  # Database password
+            db=database,
         )
         return conn
+
     pool = sqlalchemy.create_engine(
-    "mysql+pymysql://", # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
-    creator=getconn,
+        "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
+        creator=getconn,
     )
     with pool.connect() as db_conn:
         result = db_conn.execute(sqlalchemy.text(query))

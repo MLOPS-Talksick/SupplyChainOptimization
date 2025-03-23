@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  xgboost-model:
+    build:
+      context: ..
+      dockerfile: ML_Models/Dockerfile
+    container_name: xgboost-model-container
+    volumes:
+      - ../secret:/app/secret:ro
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /app/secret/gcp-key.json
+    env_file: 
+      - database.env
+    networks:
+      - default
+    restart: on-failure 
