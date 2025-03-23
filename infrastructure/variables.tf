@@ -43,7 +43,7 @@ variable "custom_image_name" {
 }
 
 variable "gcp_service_account_key" {
-  type        = string
+  type        = any
   sensitive   = true
   description = "GCP Service Account key in JSON format"
 }
