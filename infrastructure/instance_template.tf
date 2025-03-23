@@ -48,7 +48,7 @@ resource "google_compute_instance_template" "airflow_template" {
       if ! command -v docker-compose &>/dev/null; then
           echo "❌ Docker Compose not found. Installing latest version..."
           DOCKER_COMPOSE_VERSION=\$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
-          sudo curl -L "https://github.com/docker/compose/releases/download/\${DOCKER_COMPOSE_VERSION}/docker-compose-\$(uname -s)-\$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo curl -L "https://github.com/docker/compose/releases/download/$${DOCKER_COMPOSE_VERSION}/docker-compose-$$(uname -s)-$$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
           sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
       fi
@@ -86,7 +86,7 @@ resource "google_compute_instance_template" "airflow_template" {
       echo "🚀 Fixing Airflow log directory permissions..."
       sudo mkdir -p /opt/airflow/logs
       sudo chmod -R 777 /opt/airflow/logs
-      sudo chown -R \$USER:\$USER /opt/airflow/logs
+      sudo chown -R ubuntu:ubuntu /opt/airflow/logs
       
       cd /opt/airflow
 
