@@ -459,7 +459,7 @@ def iterative_forecast(
         )
 
 
-def save_model(model, filename="final_model.pkl"):
+def save_model(model, filename="model.pkl"):
     try:
         with open(filename, "wb") as f:
             pickle.dump(model, f)
