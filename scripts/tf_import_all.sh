@@ -1,6 +1,17 @@
 #!/bin/bash
 set -e
 
+
+# Ensure the GCP_SERVICE_ACCOUNT_KEY is set in the environment (from GitHub Secrets)
+if [ -z "$GCP_SERVICE_ACCOUNT_KEY" ]; then
+  echo "GCP_SERVICE_ACCOUNT_KEY is not set"
+  exit 1
+fi
+
+# Export the variable for Terraform
+export TF_VAR_gcp_service_account_key="$GCP_SERVICE_ACCOUNT_KEY"
+
+
 # Change directory to the folder containing Terraform configuration files
 cd infrastructure
 
