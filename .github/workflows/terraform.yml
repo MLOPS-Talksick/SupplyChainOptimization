@@ -2,7 +2,7 @@ name: Deploy Airflow with Terraform
 
 on:
   push:
-    branches: "terraform-infra-meet-2"
+    branches: "main"
   workflow_dispatch:
     inputs:
       deployment_target:
