@@ -49,11 +49,8 @@ variable "gcp_service_account_key" {
 }
 
 
-variable "db_username" {
-  description = "Database username"
-}
-
-variable "db_password" {
-  description = "Database password"
-  sensitive   = true
+variable "database_name" {
+  description = "Name of the database to create"
+  type        = string
+  default     = "transaction"
 }

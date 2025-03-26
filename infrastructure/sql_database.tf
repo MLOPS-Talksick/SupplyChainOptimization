@@ -1,13 +1,12 @@
-# Create a MySQL Cloud SQL instance with private IP (or adjust for authorized networks)
+# Create a MySQL Cloud SQL instance using private IP
 resource "google_sql_database_instance" "mysql_instance" {
-  name             = "transaction-database"
+  name             = "mysql-instance"
   database_version = "MYSQL_8_0"
   region           = var.region
 
   settings {
     tier = "db-f1-micro"
 
-    # Option 1: Using Private IP (if your VM is in the same VPC)
     ip_configuration {
       ipv4_enabled   = false
       private_network = google_compute_network.airflow_vpc.self_link
@@ -17,30 +16,42 @@ resource "google_sql_database_instance" "mysql_instance" {
 
 # Create a database within the instance
 resource "google_sql_database" "database" {
-  name     = "transactions"
+  name     = var.database_name
   instance = google_sql_database_instance.mysql_instance.name
 }
 
-# Create a dedicated SQL user for your application
+# Automatically generate a strong random password
+resource "random_password" "db_password" {
+  length  = 16
+  special = true
+}
+
+# Automatically generate a random string for the username suffix
+resource "random_string" "db_username" {
+  length  = 8
+  special = false
+  upper   = false
+}
+
+# Create a dedicated SQL user with an auto-generated username and password
 resource "google_sql_user" "app_user" {
-  name     = var.db_username
+  name     = "app-${random_string.db_username.result}"
   instance = google_sql_database_instance.mysql_instance.name
-  password = var.db_password
+  password = random_password.db_password.result
 }
 
-# Use a null_resource to run a SQL command and create your table
-resource "null_resource" "create_sales_table_mysql" {
+# Use a null_resource with a local-exec provisioner to create your table
+resource "null_resource" "create_sales_table" {
   depends_on = [
     google_sql_database_instance.mysql_instance,
     google_sql_database.database,
     google_sql_user.app_user
   ]
-
   provisioner "local-exec" {
     command = <<-EOF
-      mysql --host=${google_sql_database_instance.mysql_instance.ip_address[0].ip_address} \
-            --user=${var.db_username} \
-            --password=${var.db_password} \
+      mysql --host=$(gcloud sql instances describe ${google_sql_database_instance.mysql_instance.name} --format="value(ipAddresses.ipAddress)" --quiet) \
+            --user=${google_sql_user.app_user.name} \
+            --password=${random_password.db_password.result} \
             ${google_sql_database.database.name} \
             -e "CREATE TABLE IF NOT EXISTS sales (\`Date\` DATE, \`Product Name\` VARCHAR(255), \`Total Quantity\` INT);"
     EOF
