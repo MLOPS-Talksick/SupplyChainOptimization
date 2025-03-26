@@ -7,6 +7,29 @@ resource "google_compute_network" "airflow_vpc" {
   auto_create_subnetworks = false
 }
 
+
+# Enable the Service Networking API
+resource "google_project_service" "servicenetworking" {
+  service = "servicenetworking.googleapis.com"
+}
+
+# Reserve an internal IP address range for Cloud SQL
+resource "google_compute_global_address" "private_ip" {
+  name          = "mysql-private-ip"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = google_compute_network.airflow_vpc.self_link
+}
+
+# Establish VPC peering between your VPC and Google’s Service Networking
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network                 = google_compute_network.airflow_vpc.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip.name]
+}
+
+
 # -------------------------------
 # 2) Create a Subnet
 # -------------------------------

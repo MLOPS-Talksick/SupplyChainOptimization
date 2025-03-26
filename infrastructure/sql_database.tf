@@ -10,6 +10,7 @@ resource "google_sql_database_instance" "mysql_instance" {
     ip_configuration {
       ipv4_enabled   = false
       private_network = google_compute_network.airflow_vpc.self_link
+      allocated_ip_range = google_compute_global_address.private_ip.name
     }
   }
 }
