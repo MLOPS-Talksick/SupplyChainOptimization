@@ -22,9 +22,9 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 
 resource "google_sql_database_instance" "instance" {
   provider         = google-beta
-  name             = "mysql-instance"
-  database_version = "MYSQL_8_0"
-  region           = var.region
+  name             = "private-instance-${random_id.db_name_suffix.hex}"
+  region           = "us-central1"
+  database_version = "MYSQL_5_7"
 
   depends_on = [google_service_networking_connection.private_vpc_connection]
 
@@ -32,12 +32,9 @@ resource "google_sql_database_instance" "instance" {
     tier = "db-f1-micro"
 
     ip_configuration {
-      ipv4_enabled = false
-      private_network = google_compute_network.private_network.self_link
-      
-      # This line is required to assign an IP from your reserved range:
-      allocated_ip_range = google_compute_global_address.private_ip_address.name
-      
+      ipv4_enabled                                  = false
+      private_network                               = google_compute_network.private_network.self_link
+      allocated_ip_range                            = google_compute_global_address.private_ip_address.name
       enable_private_path_for_google_cloud_services = true
     }
   }
@@ -70,17 +67,16 @@ resource "google_sql_user" "app_user" {
   password = random_password.db_password.result
 }
 
-# Use a null_resource to run a SQL command that creates the 'sales' table
 resource "null_resource" "create_sales_table" {
   depends_on = [
-    google_sql_database_instance.mysql_instance,
+    google_sql_database_instance.instance,
     google_sql_database.database,
     google_sql_user.app_user
   ]
-
+  
   provisioner "local-exec" {
     command = <<-EOF
-      mysql --host=${google_sql_database_instance.mysql_instance.ip_address[0].ip_address} \
+      mysql --host=${google_sql_database_instance.instance.ip_address[0].ip_address} \
             --user=${google_sql_user.app_user.name} \
             --password=${random_password.db_password.result} \
             ${google_sql_database.database.name} \
