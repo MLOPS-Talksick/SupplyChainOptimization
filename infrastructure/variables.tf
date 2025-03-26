@@ -47,3 +47,13 @@ variable "gcp_service_account_key" {
   sensitive   = true
   description = "GCP Service Account key in JSON format"
 }
+
+
+variable "db_username" {
+  description = "Database username"
+}
+
+variable "db_password" {
+  description = "Database password"
+  sensitive   = true
+}
