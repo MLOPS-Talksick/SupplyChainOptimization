@@ -22,7 +22,7 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 
 resource "google_sql_database_instance" "instance" {
   provider         = google-beta
-  name             = "private-instance-${random_id.db_name_suffix.hex}"
+  name             = "transaction-database"
   region           = "us-central1"
   database_version = "MYSQL_5_7"
 
