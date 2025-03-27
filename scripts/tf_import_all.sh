@@ -175,4 +175,15 @@ AUTOSCALER_NAME="airflow-autoscaler"
 echo "Attempting to import Autoscaler (${AUTOSCALER_NAME}) in region ${REGION}..."
 terraform import google_compute_region_autoscaler.airflow_autoscaler "projects/${PROJECT_ID}/regions/${REGION}/autoscalers/${AUTOSCALER_NAME}" || echo "Autoscaler already exists; skipping import."
 
+
+GLOBAL_ADDRESS_NAME="private-ip-range"
+echo "Checking Global Address (${GLOBAL_ADDRESS_NAME})..."
+if gcloud compute addresses describe "${GLOBAL_ADDRESS_NAME}" --global --project "${PROJECT_ID}" &>/dev/null; then
+    echo "Global Address exists. Importing..."
+    terraform import google_compute_global_address.private_ip_address "projects/${PROJECT_ID}/global/addresses/${GLOBAL_ADDRESS_NAME}"
+else
+    echo "Global Address not found. Terraform will create it."
+fi
+
+
 echo "=== Import Check Completed ==="
