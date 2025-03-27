@@ -94,7 +94,9 @@ resource "null_resource" "create_sales_table" {
       echo "Testing Cloud SQL Proxy Connectivity..."
       mysql --host=127.0.0.1 --user=${google_sql_user.app_user.name} --password=${random_password.db_password.result} -e "SELECT 1;" || exit 1
       echo "Connectivity confirmed. Creating sales table..."
-      mysql --host=127.0.0.1 --user=${google_sql_user.app_user.name} --password=${random_password.db_password.result} ${google_sql_database.database.name} -e "CREATE TABLE IF NOT EXISTS sales (\`Date\` DATE, \`Product Name\` VARCHAR(255), \`Total Quantity\` INT);"
+      SQL_QUERY='CREATE TABLE IF NOT EXISTS sales (`Date` DATE, `Product Name` VARCHAR(255), `Total Quantity` INT);'
+      mysql --host=127.0.0.1 --user=${google_sql_user.app_user.name} --password=${random_password.db_password.result} ${google_sql_database.database.name} -e "$SQL_QUERY"
     EOF
   }
 }
+
