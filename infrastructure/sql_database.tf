@@ -7,7 +7,7 @@ resource "google_compute_global_address" "private_ip_address" {
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16
-  network       = data.google_compute_network.existing_vpc.self_link
+  network       = google_compute_network.airflow_vpc.self_link
   project       = var.project_id
 }
 
@@ -16,7 +16,7 @@ resource "google_compute_global_address" "private_ip_address" {
 #################################################################
 resource "google_service_networking_connection" "private_vpc_connection" {
   provider                = google-beta
-  network                 = data.google_compute_network.existing_vpc.id
+  network                 = google_compute_network.airflow_vpc.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
