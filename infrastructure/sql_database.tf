@@ -22,29 +22,6 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 }
 
 
-#########################################################
-# Create Cloud SQL Instance with Private Connectivity
-#########################################################
-resource "google_sql_database_instance" "instance" {
-  provider         = google-beta
-  name             = "transaction-database"
-  region           = var.region
-  project          = var.project_id
-  database_version = "MYSQL_8_0"
-
-  depends_on = [google_service_networking_connection.private_vpc_connection]
-
-  settings {
-    tier = "db-f1-micro"
-    ip_configuration {
-      ipv4_enabled      = false
-      private_network   = data.google_compute_network.existing_vpc.self_link
-      allocated_ip_range = google_compute_global_address.private_ip_address.name
-    }
-  }
-}
-
-
 
 resource "google_sql_database_instance" "instance" {
   provider         = google-beta
