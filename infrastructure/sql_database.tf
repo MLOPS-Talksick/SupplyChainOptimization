@@ -1,17 +1,45 @@
+##############################################################
+# Reserve an internal IP range for Cloud SQL private connectivity
+##############################################################
+resource "google_compute_global_address" "private_ip_address" {
+  provider      = google-beta
+  name          = var.allocated_ip_range_name  # e.g., "sql-private-ip-range"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = data.google_compute_network.existing_vpc.self_link
+  project       = var.project_id
+}
+
+#################################################################
+# Create the VPC peering connection with Service Networking
+#################################################################
+resource "google_service_networking_connection" "private_vpc_connection" {
+  provider                = google-beta
+  network                 = data.google_compute_network.existing_vpc.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+}
+
+
+#########################################################
+# Create Cloud SQL Instance with Private Connectivity
+#########################################################
 resource "google_sql_database_instance" "instance" {
   provider         = google-beta
   name             = "transaction-database"
   region           = var.region
+  project          = var.project_id
   database_version = "MYSQL_8_0"
+
+  depends_on = [google_service_networking_connection.private_vpc_connection]
 
   settings {
     tier = "db-f1-micro"
     ip_configuration {
-      ipv4_enabled = true
-      authorized_networks {
-        name  = "allowed-network"
-        value = "0.0.0.0/0"  # e.g., "203.0.113.45/32" or "0.0.0.0/0" (for demo only)
-      }
+      ipv4_enabled      = false
+      private_network   = data.google_compute_network.existing_vpc.self_link
+      allocated_ip_range = google_compute_global_address.private_ip_address.name
     }
   }
 }
@@ -21,6 +49,7 @@ resource "google_sql_database_instance" "instance" {
 resource "google_sql_database" "database" {
   name     = var.database_name
   instance = google_sql_database_instance.instance.name
+  project  = var.project_id
 }
 
 # Automatically generate a strong random password

@@ -54,3 +54,9 @@ variable "database_name" {
   type        = string
   default     = "transaction"
 }
+
+variable "allocated_ip_range_name" {
+  description = "Name for the reserved IP range for Cloud SQL private connectivity"
+  type        = string
+  default     = "sql-private-ip-range"
+}
