@@ -38,7 +38,7 @@ resource "google_sql_database_instance" "instance" {
     tier = "db-f1-micro"
     ip_configuration {
       ipv4_enabled      = false
-      private_network   = data.google_compute_network.existing_vpc.self_link
+      private_network   = google_compute_network.airflow_vpc.self_link
       allocated_ip_range = google_compute_global_address.private_ip_address.name
     }
   }
