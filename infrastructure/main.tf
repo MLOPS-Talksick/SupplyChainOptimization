@@ -28,7 +28,7 @@ resource "google_compute_firewall" "airflow_firewall" {
   network = google_compute_network.airflow_vpc.self_link
   allow {
     protocol = "tcp"
-    ports    = ["8080", "22"]  # open SSH + Airflow UI
+    ports    = ["8080", "22", "3306"]  # open SSH + Airflow UI + "SQL Server"
   }
   source_ranges = ["0.0.0.0/0"] # for demo, allow all
 }

@@ -5,6 +5,11 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 4.0"  # or latest stable
     }
+
+    mysql = {
+      source  = "petoju/mysql"
+      version = "~> 3.0"
+    }
   }
 }
 
