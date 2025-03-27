@@ -1,12 +1,3 @@
-#############################################
-# 1) Lookup your existing VPC network
-#############################################
-data "google_compute_network" "existing_vpc" {
-  name    = var.network_name  # Replace with your VPC name
-  project = var.project_id
-}
-
-
 ##############################################################
 # Reserve an internal IP range for Cloud SQL private connectivity
 ##############################################################
@@ -54,11 +45,30 @@ resource "google_sql_database_instance" "instance" {
 }
 
 
+
+resource "google_sql_database_instance" "instance" {
+  provider         = google-beta
+  name             = "transaction-database"
+  region           = var.region
+  database_version = "MYSQL_8_0"
+
+  settings {
+    tier = "db-f1-micro"
+    ip_configuration {
+      ipv4_enabled = true
+      authorized_networks {
+        name  = "allowed-network"
+        value = "0.0.0.0/0"  # e.g., "203.0.113.45/32" or "0.0.0.0/0" (for demo only)
+      }
+    }
+  }
+}
+
+
 # Create a database within the instance
 resource "google_sql_database" "database" {
   name     = var.database_name
   instance = google_sql_database_instance.instance.name
-  project  = var.project_id
 }
 
 # Automatically generate a strong random password
@@ -79,7 +89,6 @@ resource "google_sql_user" "app_user" {
   name     = "app-${random_string.db_username.result}"
   instance = google_sql_database_instance.instance.name
   password = random_password.db_password.result
-  project  = var.project_id
 }
 
 resource "null_resource" "create_sales_table" {
@@ -91,12 +100,11 @@ resource "null_resource" "create_sales_table" {
   
   provisioner "local-exec" {
     command = <<-EOF
-      echo "Testing Cloud SQL Proxy Connectivity..."
-      mysql --host=127.0.0.1 --user=${google_sql_user.app_user.name} --password=${random_password.db_password.result} -e "SELECT 1;" || exit 1
-      echo "Connectivity confirmed. Creating sales table..."
-      SQL_QUERY='CREATE TABLE IF NOT EXISTS sales (`Date` DATE, `Product Name` VARCHAR(255), `Total Quantity` INT);'
-      mysql --host=127.0.0.1 --user=${google_sql_user.app_user.name} --password=${random_password.db_password.result} ${google_sql_database.database.name} -e "$SQL_QUERY"
+      mysql --host=${google_sql_database_instance.instance.ip_address[0].ip_address} \
+            --user=${google_sql_user.app_user.name} \
+            --password=${random_password.db_password.result} \
+            ${google_sql_database.database.name} \
+            -e "CREATE TABLE IF NOT EXISTS sales (\`Date\` DATE, \`Product Name\` VARCHAR(255), \`Total Quantity\` INT);"
     EOF
   }
 }
-
