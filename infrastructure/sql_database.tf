@@ -1,28 +1,3 @@
-##############################################################
-# Reserve an internal IP range for Cloud SQL private connectivity
-##############################################################
-resource "google_compute_global_address" "private_ip_address" {
-  provider      = google-beta
-  name          = var.allocated_ip_range_name  # e.g., "sql-private-ip-range"
-  purpose       = "VPC_PEERING"
-  address_type  = "INTERNAL"
-  prefix_length = 16
-  network       = data.google_compute_network.existing_vpc.self_link
-  project       = var.project_id
-}
-
-#################################################################
-# Create the VPC peering connection with Service Networking
-#################################################################
-resource "google_service_networking_connection" "private_vpc_connection" {
-  provider                = google-beta
-  network                 = data.google_compute_network.existing_vpc.id
-  service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
-}
-
-
-
 resource "google_sql_database_instance" "instance" {
   provider         = google-beta
   name             = "transaction-database"
