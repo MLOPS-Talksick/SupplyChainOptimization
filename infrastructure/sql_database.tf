@@ -1,3 +1,12 @@
+#############################################
+# 1) Lookup your existing VPC network
+#############################################
+data "google_compute_network" "existing_vpc" {
+  name    = var.network_name  # Replace with your VPC name
+  project = var.project_id
+}
+
+
 ##############################################################
 # Reserve an internal IP range for Cloud SQL private connectivity
 ##############################################################
@@ -7,7 +16,7 @@ resource "google_compute_global_address" "private_ip_address" {
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16
-  network       = google_compute_network.airflow_vpc.self_link
+  network       = data.google_compute_network.existing_vpc.self_link
   project       = var.project_id
 }
 
@@ -16,7 +25,7 @@ resource "google_compute_global_address" "private_ip_address" {
 #################################################################
 resource "google_service_networking_connection" "private_vpc_connection" {
   provider                = google-beta
-  network                 = google_compute_network.airflow_vpc.id
+  network                 = data.google_compute_network.existing_vpc.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
@@ -38,7 +47,7 @@ resource "google_sql_database_instance" "instance" {
     tier = "db-f1-micro"
     ip_configuration {
       ipv4_enabled      = false
-      private_network   = google_compute_network.airflow_vpc.self_link
+      private_network   = data.google_compute_network.existing_vpc.self_link
       allocated_ip_range = google_compute_global_address.private_ip_address.name
     }
   }
@@ -70,6 +79,7 @@ resource "google_sql_user" "app_user" {
   name     = "app-${random_string.db_username.result}"
   instance = google_sql_database_instance.instance.name
   password = random_password.db_password.result
+  project  = var.project_id
 }
 
 resource "null_resource" "create_sales_table" {
