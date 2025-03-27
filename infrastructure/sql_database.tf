@@ -4,6 +4,8 @@ resource "google_sql_database_instance" "instance" {
   region           = var.region
   database_version = "MYSQL_8_0"
 
+  deletion_protection = true
+
   settings {
     tier = "db-f1-micro"
     ip_configuration {

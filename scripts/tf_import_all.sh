@@ -210,19 +210,5 @@ else
     echo "Cloud SQL Database not found. Terraform will create it."
 fi
 
-######################################
-# 15. Cloud SQL User: app_user
-######################################
-# Note: The username might be dynamic (e.g., "app-${random_string}").
-# You may need to extract or define the username here accordingly.
-SQL_USER_NAME=$(terraform output -raw sql_user_name 2>/dev/null || echo "your_app_user")
-echo "Checking Cloud SQL User (${SQL_USER_NAME})..."
-if gcloud sql users describe "${SQL_USER_NAME}" --instance="${INSTANCE_NAME}" --project "${PROJECT_ID}" &>/dev/null; then
-    echo "Cloud SQL User exists. Importing..."
-    terraform import google_sql_user.app_user "${INSTANCE_NAME}/${SQL_USER_NAME}"
-else
-    echo "Cloud SQL User not found. Terraform will create it."
-fi
-
 
 echo "=== Import Check Completed ==="
