@@ -55,3 +55,49 @@ resource "google_compute_region_autoscaler" "airflow_autoscaler" {
 
   depends_on = [google_compute_region_instance_group_manager.airflow_mig]
 }
+
+
+
+
+
+resource "google_compute_network" "my_network" {
+  name                    = "my-vpc-network"
+  auto_create_subnetworks = false
+}
+
+resource "google_compute_subnetwork" "my_subnet" {
+  name          = "my-subnet"
+  ip_cidr_range = "10.0.0.0/16"
+  network       = google_compute_network.my_network.self_link
+  region        = var.region
+}
+
+
+resource "google_compute_global_address" "private_ip_range" {
+  name          = "private-ip-range"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = google_compute_network.my_network.self_link
+}
+
+
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network                 = google_compute_network.my_network.self_link
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_range.name]
+}
+
+
+resource "google_compute_firewall" "allow_internal_sql" {
+  name    = "allow-internal-sql"
+  network = google_compute_network.my_network.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["3306"]
+  }
+
+  # Allow all resources in your VPC (adjust source_ranges as needed)
+  source_ranges = ["10.0.0.0/16"]
+}

@@ -7,11 +7,8 @@ resource "google_sql_database_instance" "instance" {
   settings {
     tier = "db-f1-micro"
     ip_configuration {
-      ipv4_enabled = true
-      authorized_networks {
-        name  = "allowed-network"
-        value = "0.0.0.0/0"  # e.g., "203.0.113.45/32" or "0.0.0.0/0" (for demo only)
-      }
+      ipv4_enabled    = false
+      private_network = google_compute_network.my_network.self_link
     }
   }
 }
