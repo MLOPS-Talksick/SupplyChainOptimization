@@ -1,8 +1,8 @@
 resource "google_sql_database_instance" "instance" {
   provider         = google-beta
-  name             = "public-instance-${random_id.db_name_suffix.hex}"
-  region           = "us-central1"
-  database_version = "MYSQL_5_7"
+  name             = "transaction-database"
+  region           = var.region
+  database_version = "MYSQL_8_0"
 
   settings {
     tier = "db-f1-micro"
