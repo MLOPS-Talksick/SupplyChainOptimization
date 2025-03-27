@@ -91,7 +91,7 @@ resource "null_resource" "create_sales_table" {
   
   provisioner "local-exec" {
     command = <<-EOF
-      mysql --host=${google_sql_database_instance.instance.ip_address[0].ip_address} \
+      mysql --host=127.0.0.1 \
             --user=${google_sql_user.app_user.name} \
             --password=${random_password.db_password.result} \
             ${google_sql_database.database.name} \
