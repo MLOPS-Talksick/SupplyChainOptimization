@@ -54,11 +54,18 @@ resource "null_resource" "create_sales_table" {
   
   provisioner "local-exec" {
     command = <<-EOF
+      echo "Testing MySQL Connectivity..."
+      mysql --host=${google_sql_database_instance.instance.ip_address[0].ip_address} \
+            --user=${google_sql_user.app_user.name} \
+            --password=${random_password.db_password.result} \
+            -e "SELECT 1;" || exit 1
+      echo "Connectivity confirmed. Creating sales table..."
+      SQL_QUERY='CREATE TABLE IF NOT EXISTS sales (`Date` DATE, `Product Name` VARCHAR(255), `Total Quantity` INT);'
       mysql --host=${google_sql_database_instance.instance.ip_address[0].ip_address} \
             --user=${google_sql_user.app_user.name} \
             --password=${random_password.db_password.result} \
             ${google_sql_database.database.name} \
-            -e "CREATE TABLE IF NOT EXISTS sales (\`Date\` DATE, \`Product Name\` VARCHAR(255), \`Total Quantity\` INT);"
+            -e "$SQL_QUERY"
     EOF
   }
 }
