@@ -60,3 +60,9 @@ variable "allocated_ip_range_name" {
   type        = string
   default     = "sql-private-ip-range"
 }
+
+
+variable "bucket_names" {
+  type    = set(string)
+  default = ["full-raw-data-test", "fully-processed-data-test"]
+}
