@@ -60,6 +60,18 @@ else
 fi
 
 ######################################
+# 3.1 VPC Network: my-vpc-network (my_network)
+######################################
+MY_NETWORK_NAME="my-vpc-network"
+echo "Checking VPC network (${MY_NETWORK_NAME})..."
+if gcloud compute networks describe "${MY_NETWORK_NAME}" --project "${PROJECT_ID}" &>/dev/null; then
+    echo "VPC network ${MY_NETWORK_NAME} exists. Importing..."
+    terraform import google_compute_network.my_network "projects/${PROJECT_ID}/global/networks/${MY_NETWORK_NAME}"
+else
+    echo "VPC network ${MY_NETWORK_NAME} not found. Terraform will create it."
+fi
+
+######################################
 # 4. Subnetwork: airflow-subnet
 ######################################
 SUBNET_NAME="airflow-subnet"
