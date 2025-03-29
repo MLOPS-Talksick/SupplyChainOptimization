@@ -84,6 +84,31 @@ else
 fi
 
 ######################################
+# 4.1 Subnetwork: my-subnet (my_subnet)
+######################################
+MY_SUBNET="my-subnet"
+echo "Checking Subnetwork (${MY_SUBNET}) in region ${REGION}..."
+if gcloud compute networks subnets describe "${MY_SUBNET}" --region "${REGION}" --project "${PROJECT_ID}" &>/dev/null; then
+    echo "Subnetwork ${MY_SUBNET} exists. Importing..."
+    terraform import google_compute_subnetwork.my_subnet "projects/${PROJECT_ID}/regions/${REGION}/subnetworks/${MY_SUBNET}"
+else
+    echo "Subnetwork ${MY_SUBNET} not found. Terraform will create it."
+fi
+
+
+######################################
+# 4.2 Global Address: private-ip-range
+######################################
+GLOBAL_ADDRESS="private-ip-range"
+echo "Checking Global Address (${GLOBAL_ADDRESS})..."
+if gcloud compute addresses describe "${GLOBAL_ADDRESS}" --global --project "${PROJECT_ID}" &>/dev/null; then
+    echo "Global Address ${GLOBAL_ADDRESS} exists. Importing..."
+    terraform import google_compute_global_address.private_ip_range "projects/${PROJECT_ID}/global/addresses/${GLOBAL_ADDRESS}"
+else
+    echo "Global Address ${GLOBAL_ADDRESS} not found. Terraform will create it."
+fi
+
+######################################
 # 5. Firewall Rule: allow-airflow-server
 ######################################
 FIREWALL_NAME="allow-airflow-server"
@@ -94,6 +119,20 @@ if gcloud compute firewall-rules describe "${FIREWALL_NAME}" --project "${PROJEC
 else
     echo "Firewall Rule not found. Terraform will create it."
 fi
+
+
+######################################
+# 5.1 Firewall: allow-internal-sql (allow_internal_sql)
+######################################
+SQL_FIREWALL="allow-internal-sql"
+echo "Checking Firewall (${SQL_FIREWALL})..."
+if gcloud compute firewall-rules describe "${SQL_FIREWALL}" --project "${PROJECT_ID}" &>/dev/null; then
+    echo "Firewall ${SQL_FIREWALL} exists. Importing..."
+    terraform import google_compute_firewall.allow_internal_sql "projects/${PROJECT_ID}/global/firewalls/${SQL_FIREWALL}"
+else
+    echo "Firewall ${SQL_FIREWALL} not found. Terraform will create it."
+fi
+
 
 ######################################
 # 6. Instance Template: airflow-instance-template
@@ -106,6 +145,7 @@ if gcloud compute instance-templates describe "${INSTANCE_TEMPLATE_NAME}" --proj
 else
     echo "Instance Template not found. Terraform will create it."
 fi
+
 
 ######################################
 # 7. Instance Group Manager: airflow-mig
