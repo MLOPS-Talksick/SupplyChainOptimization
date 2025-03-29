@@ -66,8 +66,7 @@ else
     echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} not found. Terraform will create it."
 fi
 
-
-# Declare an associative array mapping secret names to their Terraform resource addresses.
+# Declare an associative array mapping secret names to their Terraform secret resource addresses.
 declare -A secrets=(
   ["postgres_user"]="google_secret_manager_secret.postgres_user"
   ["postgres_password"]="google_secret_manager_secret.postgres_password"
@@ -88,7 +87,10 @@ declare -A secrets=(
 import_secret() {
   local secret_name="$1"
   local resource_address="$2"
-  local version_resource_address="${resource_address}_version"
+  # Extract the suffix from the resource address (e.g., "postgres_db" from "google_secret_manager_secret.postgres_db")
+  local resource_suffix="${resource_address#*.}"
+  # Build the version resource address with the correct type prefix.
+  local version_resource_address="google_secret_manager_secret_version.${resource_suffix}_version"
   local secret_id="projects/${PROJECT_ID}/secrets/${secret_name}"
 
   # Check if the secret exists in GCP.
