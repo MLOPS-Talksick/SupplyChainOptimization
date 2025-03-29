@@ -21,7 +21,7 @@ jobs:
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
       ARTIFACT_REGISTRY_NAME: airflow-docker-image
-      REPO_FORMAT: docker
+      REPO_FORMAT: DOCKER
       DOCKER_IMAGE_NAME: data-pipeline
       DOCKER_IMAGE_TAG: latest
       MACHINE_TYPE: e2-standard-4

@@ -52,7 +52,7 @@ fi
 # Artifact Registry: airflow-docker-image
 ######################################
 ARTIFACT_REGISTRY_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
-REPO_FORMAT="${REPO_FORMAT:-docker}"
+REPO_FORMAT="${REPO_FORMAT:-DOCKER}"
 echo "Checking Artifact Registry (${ARTIFACT_REGISTRY_NAME})..."
 EXISTING_REPO=$(gcloud artifacts repositories list \
   --project="${PROJECT_ID}" \
