@@ -67,6 +67,63 @@ else
 fi
 
 
+# Declare an associative array mapping secret names to their Terraform resource addresses.
+declare -A secrets=(
+  ["postgres_user"]="google_secret_manager_secret.postgres_user"
+  ["postgres_password"]="google_secret_manager_secret.postgres_password"
+  ["postgres_db"]="google_secret_manager_secret.postgres_db"
+  ["airflow_database_password"]="google_secret_manager_secret.airflow_database_password"
+  ["redis_password"]="google_secret_manager_secret.redis_password"
+  ["airflow_fernet_key"]="google_secret_manager_secret.airflow_fernet_key"
+  ["airflow_admin_username"]="google_secret_manager_secret.airflow_admin_username"
+  ["airflow_admin_password"]="google_secret_manager_secret.airflow_admin_password"
+  ["airflow_admin_firstname"]="google_secret_manager_secret.airflow_admin_firstname"
+  ["airflow_admin_lastname"]="google_secret_manager_secret.airflow_admin_lastname"
+  ["airflow_admin_email"]="google_secret_manager_secret.airflow_admin_email"
+  ["airflow_uid"]="google_secret_manager_secret.airflow_uid"
+  ["docker_gid"]="google_secret_manager_secret.docker_gid"
+)
+
+# Function: Import a secret and its version if it exists in GCP and isn't already in Terraform state.
+import_secret() {
+  local secret_name="$1"
+  local resource_address="$2"
+  local version_resource_address="${resource_address}_version"
+  local secret_id="projects/${PROJECT_ID}/secrets/${secret_name}"
+
+  # Check if the secret exists in GCP.
+  if gcloud secrets describe "${secret_name}" --project="${PROJECT_ID}" &>/dev/null; then
+    echo "Secret ${secret_name} exists in GCP."
+
+    # Import the secret if not already in Terraform state.
+    if ! terraform state list | grep -q "${resource_address}"; then
+      echo "Importing ${resource_address}..."
+      terraform import "${resource_address}" "${secret_id}"
+    else
+      echo "${resource_address} is already imported."
+    fi
+
+    # Import the secret version (assumed to be version 1) if not already imported.
+    local version_id="${secret_id}/versions/1"
+    if ! terraform state list | grep -q "${version_resource_address}"; then
+      echo "Importing ${version_resource_address}..."
+      terraform import "${version_resource_address}" "${version_id}"
+    else
+      echo "${version_resource_address} is already imported."
+    fi
+  else
+    echo "Secret ${secret_name} does not exist in GCP. Skipping import."
+  fi
+}
+
+echo "Starting secret import process..."
+for secret in "${!secrets[@]}"; do
+  import_secret "$secret" "${secrets[$secret]}"
+  echo "---------------------------------------------"
+done
+echo "Secret import process completed."
+
+
 ######################################
 # 3. VPC Network: airflow-network
 ######################################

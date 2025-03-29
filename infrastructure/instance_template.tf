@@ -118,5 +118,21 @@ resource "google_compute_instance_template" "airflow_template" {
   EOF
 }
 
+depends_on = [
+    google_secret_manager_secret.postgres_user,
+    google_secret_manager_secret.postgres_password,
+    google_secret_manager_secret.postgres_db,
+    google_secret_manager_secret.airflow_database_password,
+    google_secret_manager_secret.redis_password,
+    google_secret_manager_secret.airflow_fernet_key,
+    google_secret_manager_secret.airflow_admin_username,
+    google_secret_manager_secret.airflow_admin_password,
+    google_secret_manager_secret.airflow_admin_firstname,
+    google_secret_manager_secret.airflow_admin_lastname,
+    google_secret_manager_secret.airflow_admin_email,
+    google_secret_manager_secret.airflow_uid,
+    google_secret_manager_secret.docker_gid,
+  ]
+
   tags = ["airflow-server"]
 }
