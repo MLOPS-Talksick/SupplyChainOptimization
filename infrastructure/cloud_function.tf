@@ -14,7 +14,7 @@ resource "google_cloudfunctions_function" "process_data_function" {
   name                  = "processDataFunction"
   description           = "Triggered when a file is ingested into fully-processed-data-test bucket"
   runtime               = "python39"                                  # Update runtime if needed
-  available_memory_mb   = 256                                         # Adjust memory if needed
+  available_memory_mb   = 512                                         # Adjust memory if needed
   source_archive_bucket = google_storage_bucket.buckets["fully-processed-data-test"].name
   source_archive_object = google_storage_bucket_object.cloud_function_zip.name
   entry_point           = "main"                                      # Update with your function's entry point
