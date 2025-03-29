@@ -205,13 +205,13 @@ fi
 # 16. GCS Buckets
 ######################################
 # List of GCS bucket names managed by Terraform
-BUCKETS=("full-raw-data-test", "fully-processed-data-test")
+BUCKETS=("full-raw-data-test" "fully-processed-data-test")
 
 for bucket in "${BUCKETS[@]}"; do
     echo "Checking GCS Bucket (${bucket})..."
-    if gsutil ls -b gs://"${bucket}" &>/dev/null; then
+    if gsutil ls -b "gs://${bucket}" &>/dev/null; then
         echo "Bucket ${bucket} exists. Importing..."
-        terraform import google_storage_bucket.buckets["${bucket}"] "${bucket}"
+        terraform import "google_storage_bucket.buckets[\"${bucket}\"]" "${bucket}"
     else
         echo "Bucket ${bucket} not found. Terraform will create it."
     fi
