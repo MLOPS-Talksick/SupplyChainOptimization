@@ -66,3 +66,16 @@ variable "bucket_names" {
   type    = set(string)
   default = ["full-raw-data-test", "fully-processed-data-test"]
 }
+
+
+variable "artifact_registry_name" {
+  description = "Name of the artifact registry repository."
+  type        = string
+  default     = "airflow-docker-image-test"
+}
+
+variable "repo_format" {
+  description = "Format for the repository. For Docker, use 'docker'."
+  type        = string
+  default     = "DOCKER"
+}

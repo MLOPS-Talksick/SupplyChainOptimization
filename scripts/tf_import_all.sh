@@ -47,6 +47,26 @@ fi
 #     echo "IAM Binding not found. Terraform will create it."
 # fi
 
+
+######################################
+# Artifact Registry: airflow-docker-image
+######################################
+ARTIFACT_REGISTRY_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image-test}"
+REPO_FORMAT="${REPO_FORMAT:-docker}"
+echo "Checking Artifact Registry (${ARTIFACT_REGISTRY_NAME})..."
+EXISTING_REPO=$(gcloud artifacts repositories list \
+  --project="${PROJECT_ID}" \
+  --location="${REGION}" \
+  --filter="name=projects/${PROJECT_ID}/locations/${REGION}/repositories/${ARTIFACT_REGISTRY_NAME}" \
+  --format="value(name)")
+if [[ -n "$EXISTING_REPO" ]]; then
+    echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} exists. Importing..."
+    terraform import google_artifact_registry_repository.airflow_docker_repo "projects/${PROJECT_ID}/locations/${REGION}/repositories/${ARTIFACT_REGISTRY_NAME}"
+else
+    echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} not found. Terraform will create it."
+fi
+
+
 ######################################
 # 3. VPC Network: airflow-network
 ######################################
