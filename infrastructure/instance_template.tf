@@ -4,11 +4,9 @@ resource "google_compute_instance_template" "airflow_template" {
   machine_type = var.machine_type
 
   disk {
-    # Use a custom image that already has Docker and Docker Compose installed,
-    # or if you want to install them at boot, use a base image (e.g., Ubuntu)
-    source_image = var.custom_image_name != "" ? var.custom_image_name : "projects/ubuntu-os-cloud/global/images/family/${var.image_family}"
-    auto_delete  = true
     boot         = true
+    auto_delete  = true
+    source_image = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
   }
 
   network_interface {
@@ -25,6 +23,12 @@ resource "google_compute_instance_template" "airflow_template" {
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
+  lifecycle {
+    ignore_changes = [
+      metadata_fingerprint,
+      self_link
+    ]
+  }
 
   metadata = {
   startup-script = <<-EOF
