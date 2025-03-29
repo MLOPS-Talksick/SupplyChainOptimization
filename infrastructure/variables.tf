@@ -71,11 +71,11 @@ variable "bucket_names" {
 variable "artifact_registry_name" {
   description = "Name of the artifact registry repository."
   type        = string
-  default     = "airflow-docker-image-test"
+  default     = "airflow-docker-image"
 }
 
 variable "repo_format" {
-  description = "Format for the repository. For Docker, use 'docker'."
+  description = "Format for the repository. For Docker, use 'DOCKER'."
   type        = string
   default     = "DOCKER"
 }

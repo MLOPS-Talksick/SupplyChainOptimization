@@ -63,25 +63,12 @@ jobs:
       - name: Update gcloud components
         run: gcloud components update --quiet
 
-      - name: Ensure Artifact Registry
-        run: |
-          chmod +x scripts/create_or_ensure_artifact_registry.sh
-          ./scripts/create_or_ensure_artifact_registry.sh
+      # - name: Ensure Artifact Registry
+      #   run: |
+      #     chmod +x scripts/create_or_ensure_artifact_registry.sh
+      #     ./scripts/create_or_ensure_artifact_registry.sh
 
-      - name: Check if Docker Build is Needed
-        id: detect-changes
-        run: |
-          chmod +x scripts/check_docker_build.sh
-          ./scripts/check_docker_build.sh
-          
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      - name: Build & Push Docker Image
-        if: steps.detect-changes.outputs.build_required == 'true'
-        run: |
-          chmod +x scripts/build_and_push.sh
-          ./scripts/build_and_push.sh
       # --------- TERRAFORM STEPS ---------
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
@@ -103,6 +90,21 @@ jobs:
       - name: Terraform Apply
         run: terraform -chdir=infrastructure apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}"
 
+
+      - name: Check if Docker Build is Needed
+        id: detect-changes
+        run: |
+          chmod +x scripts/check_docker_build.sh
+          ./scripts/check_docker_build.sh
+          
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build & Push Docker Image
+        if: steps.detect-changes.outputs.build_required == 'true'
+        run: |
+          chmod +x scripts/build_and_push.sh
+          ./scripts/build_and_push.sh
 
       - name: Get Load Balancer IP
         run: |
