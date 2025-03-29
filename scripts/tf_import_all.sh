@@ -57,7 +57,7 @@ echo "Checking Artifact Registry (${ARTIFACT_REGISTRY_NAME})..."
 EXISTING_REPO=$(gcloud artifacts repositories list \
   --project="${PROJECT_ID}" \
   --location="${REGION}" \
-  --filter="name=projects/${PROJECT_ID}/locations/${REGION}/repositories/${ARTIFACT_REGISTRY_NAME}" \
+  --filter="repositoryId=${ARTIFACT_REGISTRY_NAME}" \
   --format="value(name)")
 if [[ -n "$EXISTING_REPO" ]]; then
     echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} exists. Importing..."
