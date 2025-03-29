@@ -2,7 +2,7 @@
 resource "google_storage_bucket_object" "cloud_function_zip" {
   name   = "cloud_function_source.zip"                                 # Object name in the bucket
   bucket = google_storage_bucket.buckets["fully-processed-data-test"].name # Reference to your bucket using for_each key
-  source = "${path.module}/Cloudrun_Function/GCS_TO_SQL.zip"                  # Local path to your ZIP file
+  source = "${path.module}/../Cloudrun_Function/GCS_TO_SQL.zip"
 
   depends_on = [
     google_storage_bucket.buckets["fully-processed-data-test"]
