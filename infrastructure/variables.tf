@@ -79,3 +79,88 @@ variable "repo_format" {
   type        = string
   default     = "DOCKER"
 }
+
+
+variable "postgres_user" {
+  description = "PostgreSQL user"
+  type        = string
+  sensitive   = true
+}
+
+variable "postgres_password" {
+  description = "PostgreSQL password"
+  type        = string
+  sensitive   = true
+}
+
+variable "postgres_db" {
+  description = "PostgreSQL database name"
+  type        = string
+  sensitive   = true
+}
+
+variable "airflow_database_password" {
+  description = "Airflow DB password"
+  type        = string
+  sensitive   = true
+}
+
+variable "redis_password" {
+  description = "Redis password"
+  type        = string
+  sensitive   = true
+}
+
+variable "airflow_fernet_key" {
+  description = "Airflow Fernet key"
+  type        = string
+  sensitive   = true
+}
+
+variable "airflow_admin_username" {
+  description = "Airflow admin username"
+  type        = string
+  sensitive   = true
+}
+
+variable "airflow_admin_password" {
+  description = "Airflow admin password"
+  type        = string
+  sensitive   = true
+}
+
+variable "airflow_admin_firstname" {
+  description = "Airflow admin first name"
+  type        = string
+  sensitive   = true
+}
+
+variable "airflow_admin_lastname" {
+  description = "Airflow admin last name"
+  type        = string
+  sensitive   = true
+}
+
+variable "airflow_admin_email" {
+  description = "Airflow admin email"
+  type        = string
+  sensitive   = true
+}
+
+variable "airflow_uid" {
+  description = "Airflow UID"
+  type        = string
+  sensitive   = true
+}
+
+variable "docker_gid" {
+  description = "Docker group ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "airflow_image_name" {
+  description = "Docker group ID"
+  type        = string
+  default     = "apache/airflow:2.7.3-python3.10"
+}

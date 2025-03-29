@@ -27,6 +27,20 @@ jobs:
       MACHINE_TYPE: e2-standard-4
       GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
       TF_VAR_gcp_service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
+      TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+      TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
+      TF_VAR_airflow_database_password: ${{ secrets.AIRFLOW_DATABASE_PASSWORD }}
+      TF_VAR_redis_password: ${{ secrets.REDIS_PASSWORD }}
+      TF_VAR_airflow_fernet_key: ${{ secrets.AIRFLOW_FERNET_KEY }}
+      TF_VAR_airflow_admin_username: ${{ secrets.AIRFLOW_ADMIN_USERNAME }}
+      TF_VAR_airflow_admin_password: ${{ secrets.AIRFLOW_ADMIN_PASSWORD }}
+      TF_VAR_airflow_admin_firstname: ${{ secrets.AIRFLOW_ADMIN_FIRSTNAME }}
+      TF_VAR_airflow_admin_lastname: ${{ secrets.AIRFLOW_ADMIN_LASTNAME }}
+      TF_VAR_airflow_admin_email: ${{ secrets.AIRFLOW_ADMIN_EMAIL }}
+      TF_VAR_airflow_uid: ${{ secrets.AIRFLOW_UID }}
+      TF_VAR_docker_gid: ${{ secrets.DOCKER_GID }}
+      # TF_VAR_airflow_image_name: ${{ secrets.AIRFLOW_IMAGE_NAME }}
 
     steps:
       - name: Checkout Repository

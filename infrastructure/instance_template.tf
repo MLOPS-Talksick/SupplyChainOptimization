@@ -36,6 +36,22 @@ resource "google_compute_instance_template" "airflow_template" {
       exec > /var/log/startup-script.log 2>&1
       set -ex
 
+      # Retrieve secrets from GCP Secret Manager and export them as environment variables
+      export POSTGRES_USER=$(gcloud secrets versions access latest --secret="postgres_user")
+      export POSTGRES_PASSWORD=$(gcloud secrets versions access latest --secret="postgres_password")
+      export POSTGRES_DB=$(gcloud secrets versions access latest --secret="postgres_db")
+      export AIRFLOW_DATABASE_PASSWORD=$(gcloud secrets versions access latest --secret="airflow_database_password")
+      export REDIS_PASSWORD=$(gcloud secrets versions access latest --secret="redis_password")
+      export AIRFLOW_FERNET_KEY=$(gcloud secrets versions access latest --secret="airflow_fernet_key")
+      export AIRFLOW_ADMIN_USERNAME=$(gcloud secrets versions access latest --secret="airflow_admin_username")
+      export AIRFLOW_ADMIN_PASSWORD=$(gcloud secrets versions access latest --secret="airflow_admin_password")
+      export AIRFLOW_ADMIN_FIRSTNAME=$(gcloud secrets versions access latest --secret="airflow_admin_firstname")
+      export AIRFLOW_ADMIN_LASTNAME=$(gcloud secrets versions access latest --secret="airflow_admin_lastname")
+      export AIRFLOW_ADMIN_EMAIL=$(gcloud secrets versions access latest --secret="airflow_admin_email")
+      export AIRFLOW_UID=$(gcloud secrets versions access latest --secret="airflow_uid")
+      export DOCKER_GID=$(gcloud secrets versions access latest --secret="docker_gid")
+
+
       # Update package lists and install Docker, Docker Compose, and Git using apt-get
       sudo apt-get update -y
       sudo apt-get install -y docker.io docker-compose git
@@ -52,7 +68,7 @@ resource "google_compute_instance_template" "airflow_template" {
       git clone https://github.com/MLOPS-Talksick/SupplyChainOptimization.git .
 
       # Optionally, check out a specific branch or tag:
-      git checkout terraform-infra-meet-2
+      git checkout testing-bucket-infra
 
       # Add the ubuntu user to the docker group and adjust permissions
       sudo usermod -aG docker ubuntu
