@@ -17,3 +17,6 @@ SCO_LOG
 ML_Models/.env
 
 /Data.csv
+
+backend/.env
+backend/node_modules
