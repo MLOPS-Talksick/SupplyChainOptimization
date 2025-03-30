@@ -17,7 +17,7 @@ resource "google_cloudfunctions_function" "process_data_function" {
   available_memory_mb   = 512                                         # Adjust memory if needed
   source_archive_bucket = google_storage_bucket.buckets["fully-processed-data-test"].name
   source_archive_object = google_storage_bucket_object.cloud_function_zip.name
-  entry_point           = "main.py"                                      # Update with your function's entry point
+  entry_point           = "main"                                      # Update with your function's entry point
 
   # Set up the trigger so the function is invoked when an object is finalized in the bucket.
   event_trigger {
