@@ -20,3 +20,5 @@ ML_Models/.env
 
 backend/.env
 backend/node_modules
+backend/secret/*
+backend/uploads
