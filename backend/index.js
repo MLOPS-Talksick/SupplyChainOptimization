@@ -115,7 +115,7 @@ app.get('/data', async (req, res) => {
   
     try {
       // Query to get last N records, assuming 'records' table and 'id' is an auto-increment primary key
-      const query = `SELECT * FROM records ORDER BY id DESC LIMIT ?`;
+      const query = `SELECT * FROM SALES ORDER BY sale_date DESC LIMIT ?`;
       const [rows] = await pool.query(query, [N]);  // use parameter binding to prevent SQL injection
       // The query returns an array of rows
       return res.status(200).json({ data: rows });
