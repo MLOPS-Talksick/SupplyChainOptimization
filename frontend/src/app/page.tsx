@@ -9,15 +9,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UploadForm from "@/components/upload-form";
 import DataTable from "@/components/data-table";
 import ForecastSection from "@/components/forecast-section";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
+        <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">
             Supply Chain Optimization
           </h2>
+          <ThemeToggle />
         </div>
         <Tabs defaultValue="dashboard" className="space-y-4">
           <TabsList>
