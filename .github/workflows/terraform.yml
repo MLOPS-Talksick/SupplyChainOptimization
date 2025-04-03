@@ -15,9 +15,40 @@ on:
           - compute_engine
 
 jobs:
+  bootstrap:
+    name: Bootstrap - Create Service Account and Key
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Terraform (bootstrap)
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init (bootstrap)
+        working-directory: bootstrap
+        run: terraform init
+
+      - name: Terraform Apply (bootstrap)
+        working-directory: bootstrap
+        run: terraform apply -auto-approve
+
+      - name: Extract Service Account Key
+        id: extract_sa_key
+        working-directory: bootstrap
+        run: echo "::set-output name=sa_key::$(terraform output -raw terraform_sa_private_key)"
+
+    outputs:
+      terraform_sa_private_key: ${{ steps.extract_sa_key.outputs.sa_key }}
+
   deploy:
+    name: Deploy Infrastructure
+    needs: bootstrap
     runs-on: ubuntu-latest
     env:
+      # Use the key generated in the bootstrap job as your GCP credentials
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
       ARTIFACT_REGISTRY_NAME: airflow-docker-image
@@ -25,8 +56,9 @@ jobs:
       DOCKER_IMAGE_NAME: data-pipeline
       DOCKER_IMAGE_TAG: latest
       MACHINE_TYPE: e2-standard-4
-      GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-      TF_VAR_gcp_service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      # Use the new key output from bootstrap for authentication
+      GCP_SERVICE_ACCOUNT_KEY: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
+      TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
@@ -40,7 +72,6 @@ jobs:
       TF_VAR_airflow_admin_email: ${{ secrets.AIRFLOW_ADMIN_EMAIL }}
       TF_VAR_airflow_uid: ${{ secrets.AIRFLOW_UID }}
       TF_VAR_docker_gid: ${{ secrets.DOCKER_GID }}
-      # TF_VAR_airflow_image_name: ${{ secrets.AIRFLOW_IMAGE_NAME }}
 
     steps:
       - name: Checkout Repository
@@ -48,28 +79,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Install Python Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r Data_Pipeline/tests/requirements-test.txt
-
-      # - name: Set PYTHONPATH
-      #   run: |
-      #     echo "PYTHONPATH=$(pwd)/Data_Pipeline:$(pwd)" >> $GITHUB_ENV
-      #     echo "PYTHONPATH set to $(pwd)/Data_Pipeline:$(pwd)"
-
-      # - name: Run Unit Tests
-      #   run: python -m unittest discover -s Data_Pipeline/tests -p "test*.py"
-
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          credentials_json: ${{ env.GCP_SERVICE_ACCOUNT_KEY }}
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
@@ -77,33 +90,26 @@ jobs:
       - name: Update gcloud components
         run: gcloud components update --quiet
 
-      # - name: Ensure Artifact Registry
-      #   run: |
-      #     chmod +x scripts/create_or_ensure_artifact_registry.sh
-      #     ./scripts/create_or_ensure_artifact_registry.sh
-
-
       # --------- TERRAFORM STEPS ---------
-      - name: Set up Terraform
+      - name: Set up Terraform (deploy)
         uses: hashicorp/setup-terraform@v2
 
-      - name: Terraform Init
+      - name: Terraform Init (deploy)
         working-directory: infrastructure
         run: terraform init
 
       - name: Terraform Plan
         run: terraform -chdir=infrastructure plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}"
 
-      - name: Import existing resources if any
+      - name: Import Existing Resources (if any)
         env:
-          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          GCP_SERVICE_ACCOUNT_KEY: ${{ env.GCP_SERVICE_ACCOUNT_KEY }}
         run: |
           chmod +x scripts/tf_import_all.sh
           ./scripts/tf_import_all.sh
 
       - name: Terraform Apply
         run: terraform -chdir=infrastructure apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}"
-
 
       - name: Check if Docker Build is Needed
         id: detect-changes

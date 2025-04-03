@@ -1,19 +1,20 @@
-# resource "google_service_account" "airflow_sa" {
-#   account_id   = "airflow-service-account"
-#   display_name = "Airflow VM Service Account"
-# }
-
-# resource "google_project_iam_member" "airflow_sa_artifact_registry" {
-#   project = var.project_id
-#   role    = "roles/artifactregistry.reader"
-#   member  = "serviceAccount:${google_service_account.airflow_sa.email}"
-# }
-
-
 resource "google_service_account" "terraform_sa" {
   account_id   = "terraform-service-account"
   display_name = "Terraform Service Account"
+  project      = var.project_id
 }
+
+
+resource "google_service_account_key" "terraform_sa_key" {
+  service_account_id = google_service_account.terraform_sa.name
+  key_algorithm      = "KEY_ALG_RSA_2048"
+  private_key_type   = "TYPE_GOOGLE_CREDENTIALS_FILE"
+
+  keepers = {
+    force_new_key = timestamp()
+  }
+}
+
 
 locals {
   roles = [
@@ -37,7 +38,6 @@ locals {
   ]
 }
 
-
 resource "google_project_iam_member" "terraform_sa_roles" {
   for_each = toset(local.roles)
   project  = var.project_id
@@ -45,8 +45,12 @@ resource "google_project_iam_member" "terraform_sa_roles" {
   member   = "serviceAccount:${google_service_account.terraform_sa.email}"
 }
 
-
-
+// Create the VM service account
+resource "google_service_account" "vm_service_account" {
+  account_id   = "vm-service-account"
+  display_name = "VM Service Account for Inter-Service Communication"
+  project      = var.project_id
+}
 
 locals {
   vm_service_account_roles = [
@@ -61,11 +65,6 @@ locals {
     "roles/storage.objectAdmin",            // Storage Object Admin
     "roles/storage.objectViewer"            // Storage Object Viewer
   ]
-}
-
-resource "google_service_account" "vm_service_account" {
-  account_id   = "vm-service-account"
-  display_name = "VM Service Account for Inter-Service Communication"
 }
 
 resource "google_project_iam_member" "vm_service_account_roles" {
