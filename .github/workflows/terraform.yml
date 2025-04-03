@@ -41,8 +41,9 @@ jobs:
         id: extract_sa_key
         working-directory: bootstrap
         run: |
-          key=$(terraform output -raw terraform_sa_private_key)
-          echo "sa_key=${key}" >> $GITHUB_OUTPUT
+          echo "sa_key<<EOF" >> $GITHUB_OUTPUT
+          terraform output -raw terraform_sa_private_key >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
 
     outputs:
