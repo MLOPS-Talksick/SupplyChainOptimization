@@ -42,7 +42,7 @@ jobs:
         run: terraform output -raw terraform_sa_private_key > key.json
 
       - name: Upload Service Account Key Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: gcp-key
           path: bootstrap/key.json
@@ -79,7 +79,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download Service Account Key Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: gcp-key
           path: key-artifact
