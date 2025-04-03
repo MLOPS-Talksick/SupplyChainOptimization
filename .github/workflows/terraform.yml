@@ -18,6 +18,8 @@ jobs:
   bootstrap:
     name: Bootstrap - Create Service Account and Key
     runs-on: ubuntu-latest
+    env:
+      TF_VAR_bootstrap_gcp_key: ${{ secrets.BOOTSTRAP_GCP_KEY }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3

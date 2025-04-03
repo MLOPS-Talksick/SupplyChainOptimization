@@ -9,3 +9,9 @@ variable "region" {
   description = "GCP region"
   default     = "us-central1"
 }
+
+variable "bootstrap_gcp_key" {
+  description = "Bootstrap service account key (in JSON format)"
+  type        = string
+  sensitive   = true
+}
