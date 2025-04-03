@@ -38,16 +38,14 @@ jobs:
         run: terraform apply -auto-approve
 
       - name: Extract Service Account Key
-        id: extract_sa_key
         working-directory: bootstrap
-        run: |
-          echo "sa_key<<EOF" >> $GITHUB_OUTPUT
-          terraform output -raw terraform_sa_private_key >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+        run: terraform output -raw terraform_sa_private_key > key.json
 
-
-    outputs:
-      terraform_sa_private_key: ${{ steps.extract_sa_key.outputs.sa_key }}
+      - name: Upload Service Account Key Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: gcp-key
+          path: bootstrap/key.json
 
   deploy:
     name: Deploy Infrastructure
@@ -74,21 +72,26 @@ jobs:
       TF_VAR_airflow_admin_email: ${{ secrets.AIRFLOW_ADMIN_EMAIL }}
       TF_VAR_airflow_uid: ${{ secrets.AIRFLOW_UID }}
       TF_VAR_docker_gid: ${{ secrets.DOCKER_GID }}
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Create GCP Key File (safe multiline write)
-        run: |
-          echo "$GCP_SERVICE_ACCOUNT_KEY" > /tmp/gcp-key.json
-        env:
-          GCP_SERVICE_ACCOUNT_KEY: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
+      - name: Download Service Account Key Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: gcp-key
+          path: key-artifact
 
-      - name: Authenticate with gcloud manually
-        run: gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+      - name: Set TF_VAR_gcp_service_account_key from Artifact
+        run: |
+          echo "TF_VAR_gcp_service_account_key<<EOF" >> $GITHUB_ENV
+          cat key-artifact/key.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Authenticate with gcloud using downloaded key
+        run: gcloud auth activate-service-account --key-file=key-artifact/key.json
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
@@ -107,7 +110,7 @@ jobs:
         run: terraform -chdir=infrastructure plan \
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.GCP_LOCATION }}" \
-          -var="gcp_service_account_key_file=/tmp/gcp-key.json"
+          -var="gcp_service_account_key=${{ env.TF_VAR_gcp_service_account_key }}"
 
       - name: Import Existing Resources (if any)
         run: |
@@ -118,14 +121,14 @@ jobs:
         run: terraform -chdir=infrastructure apply -auto-approve \
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.GCP_LOCATION }}" \
-          -var="gcp_service_account_key_file=/tmp/gcp-key.json"
+          -var="gcp_service_account_key=${{ env.TF_VAR_gcp_service_account_key }}"
 
       - name: Check if Docker Build is Needed
         id: detect-changes
         run: |
           chmod +x scripts/check_docker_build.sh
           ./scripts/check_docker_build.sh
-
+          
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
