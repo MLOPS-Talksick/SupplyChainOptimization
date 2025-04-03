@@ -37,16 +37,16 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      - name: Extract Service Account Key
+      - name: Extract Service Account Key (encoded)
         working-directory: bootstrap
-        run: terraform output -raw terraform_sa_private_key > key.json
+        run: terraform output -raw terraform_sa_private_key | base64 > key.b64
 
-      - name: Upload Service Account Key Artifact
+      - name: Upload Service Account Key Artifact (encoded)
         uses: actions/upload-artifact@v4
         with:
           name: gcp-key
-          # Change working-directory so only the file is uploaded, not its folder structure.
-          path: bootstrap/key.json
+          path: bootstrap/key.b64
+
 
   deploy:
     name: Deploy Infrastructure
@@ -99,10 +99,10 @@ jobs:
           name: gcp-key
           path: key-artifact
 
-      # …and override the environment variables for authentication and Terraform.
-      - name: Override Service Account Key from Bootstrap
+      - name: Override Service Account Key from Bootstrap (decode)
         run: |
-          key=$(cat key-artifact/key.json)
+          # Decode the key so that its formatting is preserved exactly
+          key=$(cat key-artifact/key.b64 | base64 --decode)
           echo "GCP_SERVICE_ACCOUNT_KEY<<EOF" >> $GITHUB_ENV
           echo "$key" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
