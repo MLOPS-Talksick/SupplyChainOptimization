@@ -88,7 +88,8 @@ jobs:
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ env.GCP_SERVICE_ACCOUNT_KEY }}
+          credentials_json: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
+
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
@@ -109,7 +110,7 @@ jobs:
 
       - name: Import Existing Resources (if any)
         env:
-          GCP_SERVICE_ACCOUNT_KEY: ${{ env.GCP_SERVICE_ACCOUNT_KEY }}
+          GCP_SERVICE_ACCOUNT_KEY: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
         run: |
           chmod +x scripts/tf_import_all.sh
           ./scripts/tf_import_all.sh
