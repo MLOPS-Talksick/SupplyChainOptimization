@@ -23,7 +23,7 @@ locals {
     "roles/artifactregistry.reader",                          // Artifact Registry Reader
     "roles/artifactregistry.repoAdmin",                       // Artifact Registry Repository Administrator
     "roles/artifactregistry.writer",                          // Artifact Registry Writer
-    "roles/artifact-admin",                                   // artifact-admin (custom role; adjust if needed)
+    # "roles/artifact-admin",                                   // artifact-admin (custom role; adjust if needed)
     "roles/composer.admin",                                   // Cloud Composer Admin Role
     "roles/cloudfunctions.admin",                             // Cloud Functions Admin
     "roles/cloudsql.admin",                                   // Cloud SQL Admin
