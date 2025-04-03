@@ -40,7 +40,10 @@ jobs:
       - name: Extract Service Account Key
         id: extract_sa_key
         working-directory: bootstrap
-        run: echo "::set-output name=sa_key::$(terraform output -raw terraform_sa_private_key)"
+        run: |
+          key=$(terraform output -raw terraform_sa_private_key)
+          echo "sa_key=${key}" >> $GITHUB_OUTPUT
+
 
     outputs:
       terraform_sa_private_key: ${{ steps.extract_sa_key.outputs.sa_key }}
