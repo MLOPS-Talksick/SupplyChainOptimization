@@ -84,19 +84,23 @@ jobs:
           name: gcp-key
           path: key-artifact
 
-      - name: Set TF_VAR_gcp_service_account_key from Artifact
+      - name: Set TF_VAR_gcp_service_account_key and write key file
         run: |
+          # Read the key from the downloaded artifact
+          key=$(cat key-artifact/key.json)
+          # Write the key to a temporary file for gcloud authentication
+          printf '%s' "$key" > /tmp/gcp-key.json
+          # Set the TF_VAR so Terraform can pick it up automatically
           echo "TF_VAR_gcp_service_account_key<<EOF" >> $GITHUB_ENV
-          cat key-artifact/key.json >> $GITHUB_ENV
+          echo "$key" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          echo "$TF_VAR_gcp_service_account_key"
+
 
       # - name: Write key file from env variable
       #   run: echo "$TF_VAR_gcp_service_account_key" > /tmp/gcp-key.json
 
       # - name: Authenticate with gcloud using key file
       #   run: gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
-
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
@@ -114,8 +118,7 @@ jobs:
       - name: Terraform Plan
         run: terraform -chdir=infrastructure plan \
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
-          -var="region=${{ env.GCP_LOCATION }}" \
-          -var="gcp_service_account_key=${{ env.TF_VAR_gcp_service_account_key }}"
+          -var="region=${{ env.GCP_LOCATION }}"
 
       - name: Import Existing Resources (if any)
         run: |
@@ -125,8 +128,7 @@ jobs:
       - name: Terraform Apply
         run: terraform -chdir=infrastructure apply -auto-approve \
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
-          -var="region=${{ env.GCP_LOCATION }}" \
-          -var="gcp_service_account_key=${{ env.TF_VAR_gcp_service_account_key }}"
+          -var="region=${{ env.GCP_LOCATION }}"
 
       - name: Check if Docker Build is Needed
         id: detect-changes
