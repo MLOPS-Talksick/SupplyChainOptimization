@@ -2,7 +2,7 @@ name: Deploy Airflow with Terraform
 
 on:
   push:
-    branches: "testing-bucket-infra"
+    branches: "testing-service-account-terraform"
   workflow_dispatch:
     inputs:
       deployment_target:
