@@ -18,6 +18,9 @@ from Data_Pipeline.scripts.utils import send_email, setup_gcp_credentials
 # from utils import send_email
 from google.cloud import storage
 from ML_Models.scripts.utils import get_latest_data_from_cloud_sql
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def save_pkl_to_gcs(
@@ -488,58 +491,62 @@ def iterative_forecast(
             subject="Iterative Forecast Failure",
             body=f"An error occurred while iterative forecast: {str(e)}",
         )
-
 def save_model_to_model_registry(model, model_name="model.pkl"):
-    project_id = "primordial-veld-450618-n4"
-    location = "us-central1"
-    aiplatform.init(project=project_id, location=location)
-    print("------------------------------------------")
-    artifact_uri = "gs://trained-model-1"
-    serving_container_image_uri = "gcr.io/cloud-aiplatform/prediction/xgboost-cpu.1-1:latest"
-    existing_models = aiplatform.Model.list(
-        filter=f'display_name="{model_name}"',
-        order_by="create_time desc",
-    )
-
-    if existing_models:
-        parent_model = existing_models[0]  # Get latest model version
-        version_id = len(existing_models) + 1  # Increment version number
-        print(f"Updating {model_name} with version {version_id}...")
-        vertex_model = aiplatform.Model.upload(
-            parent_model=parent_model.resource_name,
-            display_name=model_name,
-            artifact_uri=artifact_uri,
-            serving_container_image_uri=serving_container_image_uri,  # Change based on your ML framework
-        )
-    else:
-        version_id = 1  # First version
-        vertex_model = aiplatform.Model.upload(
-            display_name=model_name,
-            artifact_uri=artifact_uri,
-            serving_container_image_uri=serving_container_image_uri,
-            labels={"source": "gcs", "framework": "xg_boost"}
-        )
+    try:
+        project_id = os.environ.get("PROJECT_ID", "primordial-veld-450618-n4")
+        location = os.environ.get("LOCATION", "us-central1")
+        aiplatform.init(project=project_id, location=location)
+        artifact_uri = os.environ.get("TRAINED_MODEL_BUCKET_URI", "gs://trained-model-1")
+        serving_container_image_uri = os.environ.get("SERVING_CONTAINER_IMAGE_URI", "gcr.io/cloud-aiplatform/prediction/xgboost-cpu.1-1:latest")
         
-        print(f"Model {vertex_model.display_name} registered to Vertex AI with ID: {vertex_model.name}")
-        print(f"Model resource path: {vertex_model.resource_name}")
+        # List existing models
+        existing_models = aiplatform.Model.list(
+            filter=f'display_name="{model_name}"',
+            order_by="create_time desc",
+        )
 
-    # endpoint = aiplatform.Endpoint.create(
-    #     display_name=model_name,
-    #     project=project_id,
-    #     location=location,
-    # )
+        if existing_models:
+            parent_model = existing_models[0]  # Get latest model version
+            version_id = len(existing_models) + 1  # Increment version number
+            logger.info(f"Updating {model_name} with version {version_id}...")
+            vertex_model = aiplatform.Model.upload(
+                parent_model=parent_model.resource_name,
+                display_name=model_name,
+                artifact_uri=artifact_uri,
+                serving_container_image_uri=serving_container_image_uri,  # Change based on your ML framework
+            )
+        else:
+            version_id = 1  # First version
+            vertex_model = aiplatform.Model.upload(
+                display_name=model_name,
+                artifact_uri=artifact_uri,
+                serving_container_image_uri=serving_container_image_uri,
+                labels={"source": "gcs", "framework": "xg_boost"}
+            )
 
-    # endpoint.deploy(
-    #     model=vertex_model,
-    #     deployed_model_display_name=model_name,
-    #     machine_type="n1-standard-4",
-    #     traffic_percentage=100,  # Ensures only the new version serves traffic
-    # )
-    # print(f"Uploaded and Deployed {model_name} with version # {version_id}.")
+            logger.info(f"Model {vertex_model.display_name} registered to Vertex AI with ID: {vertex_model.name}")
+            logger.info(f"Model resource path: {vertex_model.resource_name}")
 
-    
-    return vertex_model
-    
+        # Uncomment below to enable deployment if needed
+        # endpoint = aiplatform.Endpoint.create(
+        #     display_name=model_name,
+        #     project=project_id,
+        #     location=location,
+        # )
+
+        # endpoint.deploy(
+        #     model=vertex_model,
+        #     deployed_model_display_name=model_name,
+        #     machine_type="n1-standard-4",
+        #     traffic_percentage=100,  # Ensures only the new version serves traffic
+        # )
+        # logger.info(f"Uploaded and Deployed {model_name} with version # {version_id}.")
+
+        return vertex_model
+
+    except Exception as e:
+        logger.error(f"An error occurred while saving the model to the registry: {str(e)}")
+        raise
 
 def save_model(model, filename="model.pkl"):
     """

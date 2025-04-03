@@ -77,20 +77,41 @@ def reload_model():
     """
     global model
     try:
-        # Check if this is a Pub/Sub push request
-        envelope = request.get_json()
-        if envelope and 'message' in envelope:
-            # Extract the message from the Pub/Sub envelope
-            pubsub_message = envelope['message']
+
+        if request.headers.get('Content-Type') == 'application/json' and not request.headers.get('X-Pubsub-Message'):
+            try:
+                model = load_latest_model()
+                return jsonify({"message": f"Model reloaded successfully: {model.display_name}, version: {model.version_id}"}), 200
             
-            if 'data' in pubsub_message:
-                # Decode the message data if it exists
-                message_data = base64.b64decode(pubsub_message['data']).decode('utf-8')
-                print(f"Received Pub/Sub message: {message_data}")
+            except Exception as e:
+                print(f"Error processing direct API call: {e}")
+                return f"Error: {e}", 500
+
+        envelope = request.get_json()
+        if not envelope:
+            return "No Pub/Sub message received", 400
         
-        # Reload the model regardless of trigger source
-        model = load_latest_model()
-        return jsonify({"message": f"Model reloaded successfully: {model.display_name}, version: {model.version_id}"}), 200
+        if not isinstance(envelope, dict) or "message" not in envelope:
+            return "Invalid Pub/Sub message format", 400
+        
+        # Extract the message data
+        pubsub_message = envelope["message"]
+        if isinstance(pubsub_message, dict) and "data" in pubsub_message:
+            try:
+                # Decode the Pub/Sub data
+                data = base64.b64decode(pubsub_message["data"]).decode("utf-8")
+                print(f"Received Pub/Sub message: {data}")
+                event_data = json.loads(data)
+                print(f"Event Data from Pub/Sub message: {event_data}")
+                
+                model = load_latest_model()
+                return jsonify({"message": f"Model reloaded successfully: {model.display_name}, version: {model.version_id}"}), 200
+            except Exception as e:
+                print(f"Error processing Pub/Sub message: {e}")
+                return f"Error: {e}", 500
+        
+        return "No message data found", 400
+        
     except Exception as e:
         return jsonify({"error": f"Failed to reload model: {str(e)}"}), 500
 

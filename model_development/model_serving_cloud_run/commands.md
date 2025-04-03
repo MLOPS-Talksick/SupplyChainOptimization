@@ -1,0 +1,4 @@
+-> Build the docker file ```docker build -f model_development\model_serving_cloud_run\Dockerfile -t model_serving .```
+-> List docker images ```docker images```
+-> Tag the docker file ```docker tag model_serving us-central1-docker.pkg.dev/primordial-veld-450618-n4/ml-models/model_serving:latest```
+-> Push the docker file ```docker push us-central1-docker.pkg.dev/primordial-veld-450618-n4/ml-models/model_serving```
