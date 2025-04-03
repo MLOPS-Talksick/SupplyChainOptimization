@@ -54,7 +54,6 @@ jobs:
     needs: bootstrap
     runs-on: ubuntu-latest
     env:
-      # Use the key generated in the bootstrap job as your GCP credentials
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
       ARTIFACT_REGISTRY_NAME: airflow-docker-image
@@ -62,9 +61,6 @@ jobs:
       DOCKER_IMAGE_NAME: data-pipeline
       DOCKER_IMAGE_TAG: latest
       MACHINE_TYPE: e2-standard-4
-      # Use the new key output from bootstrap for authentication
-      GCP_SERVICE_ACCOUNT_KEY: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
-      TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
@@ -85,10 +81,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      # - name: Authenticate with Google Cloud
-      #   uses: google-github-actions/auth@v1
-      #   with:
-      #     credentials_json: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
+      - name: Create GCP Key File
+        run: |
+          echo "Creating GCP key file..."
+          cat > /tmp/gcp-key.json <<EOKEY
+              ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
+              EOKEY
+
+      - name: Authenticate with gcloud manually
+        run: gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
@@ -96,7 +97,6 @@ jobs:
       - name: Update gcloud components
         run: gcloud components update --quiet
 
-      # --------- TERRAFORM STEPS ---------
       - name: Set up Terraform (deploy)
         uses: hashicorp/setup-terraform@v2
 
@@ -105,24 +105,28 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
-        run: terraform -chdir=infrastructure plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}"
+        run: terraform -chdir=infrastructure plan \
+          -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+          -var="region=${{ env.GCP_LOCATION }}" \
+          -var="gcp_service_account_key_file=/tmp/gcp-key.json"
 
       - name: Import Existing Resources (if any)
-        env:
-          GCP_SERVICE_ACCOUNT_KEY: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
         run: |
           chmod +x scripts/tf_import_all.sh
           ./scripts/tf_import_all.sh
 
       - name: Terraform Apply
-        run: terraform -chdir=infrastructure apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}"
+        run: terraform -chdir=infrastructure apply -auto-approve \
+          -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+          -var="region=${{ env.GCP_LOCATION }}" \
+          -var="gcp_service_account_key_file=/tmp/gcp-key.json"
 
       - name: Check if Docker Build is Needed
         id: detect-changes
         run: |
           chmod +x scripts/check_docker_build.sh
           ./scripts/check_docker_build.sh
-          
+
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
