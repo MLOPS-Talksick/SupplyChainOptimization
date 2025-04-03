@@ -91,7 +91,7 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
 
       - name: Authenticate with gcloud using downloaded key
-        run: gcloud auth activate-service-account --key-file=key-artifact/key.json
+        run: gcloud auth activate-service-account --key-file=${{ env.TF_VAR_gcp_service_account_key }}
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
