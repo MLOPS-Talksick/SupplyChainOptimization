@@ -19,7 +19,7 @@ resource "google_service_account_key" "terraform_sa_key" {
 locals {
   roles = [
     "roles/artifactregistry.admin",                         // Artifact Registry Administrator
-    "roles/artifactregistry.createOnPushRepositoryAdmin",     // Artifact Registry Create-on-Push Repository Administrator (custom role; adjust if needed)
+    "roles/artifactregistry.createOnPushRepoAdmin",     // Artifact Registry Create-on-Push Repository Administrator (custom role; adjust if needed)
     "roles/artifactregistry.reader",                          // Artifact Registry Reader
     "roles/artifactregistry.repoAdmin",                       // Artifact Registry Repository Administrator
     "roles/artifactregistry.writer",                          // Artifact Registry Writer
@@ -33,7 +33,7 @@ locals {
     "roles/iam.serviceAccountCreator",                        // Create Service Accounts
     "roles/resourcemanager.projectIamAdmin",                  // Project IAM Admin
     "roles/secretmanager.admin",                              // Secret Manager Admin
-    "roles/servicenetworking.admin",                          // Service Networking Admin
+    "roles/servicenetworking.networksAdmin",                          // Service Networking Admin
     "roles/storage.admin"                                     // Storage Admin
   ]
 }
