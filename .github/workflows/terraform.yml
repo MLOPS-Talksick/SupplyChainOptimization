@@ -85,11 +85,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Authenticate with Google Cloud
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
-
+      # - name: Authenticate with Google Cloud
+      #   uses: google-github-actions/auth@v1
+      #   with:
+      #     credentials_json: ${{ needs.bootstrap.outputs.terraform_sa_private_key }}
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
