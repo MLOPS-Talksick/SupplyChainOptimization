@@ -19,7 +19,7 @@ resource "google_compute_instance_template" "airflow_template" {
 
 
   service_account {
-    email  = google_service_account.airflow_sa.email
+    email  = google_service_account.terraform_sa.email
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
