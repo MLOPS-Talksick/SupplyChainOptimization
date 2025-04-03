@@ -33,36 +33,18 @@ jobs:
         working-directory: bootstrap
         run: terraform init
 
-      - name: Conditionally Apply Terraform for Service Account
-        id: maybe_apply
-        working-directory: bootstrap
-        run: |
-          PROJECT_ID="primordial-veld-450618-n4"
-          SA_EMAIL="airflow-service-account@${PROJECT_ID}.iam.gserviceaccount.com"
-
-          echo "Checking if service account ${SA_EMAIL} already exists..."
-          if gcloud iam service-accounts describe "${SA_EMAIL}" --project="${PROJECT_ID}" &>/dev/null; then
-            echo "Service account already exists. Skipping terraform apply."
-            echo "apply_skipped=true" >> $GITHUB_OUTPUT
-          else
-            echo "Service account not found. Running terraform apply..."
-            terraform apply -auto-approve
-            echo "apply_skipped=false" >> $GITHUB_OUTPUT
-          fi
-
-
       - name: Terraform Apply (bootstrap)
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
       - name: Extract Service Account Key
-        if: steps.maybe_apply.outputs.apply_skipped == 'false'
         id: extract_sa_key
         working-directory: bootstrap
         run: |
           echo "sa_key<<EOF" >> $GITHUB_OUTPUT
           terraform output -raw terraform_sa_private_key >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
 
     outputs:
       terraform_sa_private_key: ${{ steps.extract_sa_key.outputs.sa_key }}
