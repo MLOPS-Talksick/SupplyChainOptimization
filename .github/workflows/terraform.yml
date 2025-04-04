@@ -59,7 +59,7 @@ jobs:
         run: terraform apply -auto-approve
 
       - name: Upload key file for debugging
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: service-account-key
           path: $GITHUB_WORKSPACE/key.json
