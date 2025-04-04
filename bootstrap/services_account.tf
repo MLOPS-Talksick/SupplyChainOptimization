@@ -21,7 +21,7 @@ resource "google_service_account_key" "terraform_sa_key" {
 ######################################################
 resource "local_file" "sa_key_file" {
   # "private_key" is already valid JSON for a GCP credentials file
-  content  = google_service_account_key.terraform_sa_key.private_key
+  content = base64decode(google_service_account_key.terraform_sa_key.private_key)
   filename = "${path.module}/sa_key.json"
 }
 

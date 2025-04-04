@@ -1,5 +1,6 @@
 provider "google" {
-  credentials = var.bootstrap_gcp_key
-  project     = var.project_id
-  region      = var.region
+  project = var.project_id
+  region  = var.region
+  # Intentionally no "credentials = ..." line,
+  # so it picks up credentials from the environment.
 }
