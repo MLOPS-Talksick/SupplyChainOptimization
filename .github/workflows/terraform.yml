@@ -58,18 +58,12 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      - name: Upload key file for debugging
-        uses: actions/upload-artifact@v4
-        with:
-          name: service-account-key
-          path: $GITHUB_WORKSPACE/key.json
-
 
       - name: Extract Service Account Key and write to file
         working-directory: bootstrap
         run: |
           # If your Terraform output is base64, decode it:
-          terraform output -raw terraform_sa_private_key | base64 --decode > $GITHUB_WORKSPACE/key.json
+          terraform output -raw terraform_sa_private_key > $GITHUB_WORKSPACE/key.json
           
           # Check that the file is non-empty
           if [ ! -s "$GITHUB_WORKSPACE/key.json" ]; then
