@@ -68,6 +68,7 @@ jobs:
       - name: Export service account email to file
         working-directory: bootstrap
         run: |
+          unset TF_LOG
           terraform output -json | jq -r '.terraform_service_account_email.value' > sa_email.txt
 
       - name: Debug service account email file
