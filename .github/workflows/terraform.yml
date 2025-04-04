@@ -58,22 +58,38 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      - name: Write Service Account Key to File
+      - name: Extract Service Account Key
         working-directory: bootstrap
         run: |
-          # Output the key, but encode it first to preserve format
-          terraform output -json terraform_sa_private_key | jq -r . > key.json.b64
-          # Decode the base64-encoded key back to JSON
-          cat key.json.b64 | base64 --decode > key.json
-          # Verify the key is valid JSON without printing it to logs
-          jq . key.json > /dev/null || echo "Warning: Key is not valid JSON"
-
-      - name: Use Service Account Key
-        run: |
-          # Set the file path rather than the content directly
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/bootstrap/key.json" >> $GITHUB_ENV
-          # Also set the bootstrap var to point to the file
-          echo "TF_VAR_bootstrap_gcp_key=$(cat bootstrap/key.json)" >> $GITHUB_ENV
+          # Create a temporary file to store the Terraform output
+          terraform output -json > tf_output.json
+          
+          # Use a Python script to correctly extract and format the key
+          python - <<EOF
+          import json
+          import os
+          
+          # Read the Terraform output
+          with open('tf_output.json', 'r') as f:
+              tf_output = json.load(f)
+          
+          # Extract the key (could be a string or an object)
+          key_data = tf_output['terraform_sa_private_key']['value']
+          
+          # If it's a string that looks like JSON, parse it
+          if isinstance(key_data, str) and key_data.strip().startswith('{'):
+              try:
+                  key_data = json.loads(key_data)
+              except:
+                  pass
+          
+          # Write the key to a file
+          with open(os.environ['GITHUB_WORKSPACE'] + '/key.json', 'w') as f:
+              json.dump(key_data, f, indent=2)
+          EOF
+          
+          # Set the path to this file as an environment variable
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
