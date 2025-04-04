@@ -85,10 +85,9 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: Debug - Print GCP Key Info
+      - name: Debug - Print GCP Key Hash
         run: |
-          echo "GCP key length: ${#GCP_SERVICE_ACCOUNT_KEY}"
-          echo "GCP key preview (first 50 chars): ${GCP_SERVICE_ACCOUNT_KEY:0:50}"
+          echo "GCP key hash: $(echo -n "$GCP_SERVICE_ACCOUNT_KEY" | sha256sum)"
       
       - name: Set up Python
         uses: actions/setup-python@v4
