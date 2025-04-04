@@ -139,9 +139,12 @@ jobs:
         id: export-email
         working-directory: bootstrap
         run: |
-          email=$(terraform output -no-color -json terraform_service_account_email | jq -r .)
+          # Disable any Terraform debug logging
+          unset TF_LOG
+          # Use -no-color to avoid ANSI escape codes
+          email=$(terraform output -no-color -raw terraform_service_account_email)
           echo "service_account_email=$email" >> $GITHUB_OUTPUT
-          
+
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
