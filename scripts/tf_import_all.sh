@@ -11,17 +11,17 @@ GLOBAL_FLAG="--global"
 
 echo "=== Checking and Importing Existing Resources into Terraform State ==="
 
-######################################
-# 1. Service Account: airflow-service-account
-######################################
-SA_EMAIL="airflow-service-account@${PROJECT_ID}.iam.gserviceaccount.com"
-echo "Checking Service Account (${SA_EMAIL})..."
-if gcloud iam service-accounts describe "${SA_EMAIL}" --project "${PROJECT_ID}" &>/dev/null; then
-    echo "Service Account exists. Importing..."
-    terraform import google_service_account.terraform_sa "projects/${PROJECT_ID}/serviceAccounts/${SA_EMAIL}"
-else
-    echo "Service Account not found. It will be created by Terraform."
-fi
+# ######################################
+# # 1. Service Account: airflow-service-account
+# ######################################
+# SA_EMAIL="airflow-service-account@${PROJECT_ID}.iam.gserviceaccount.com"
+# echo "Checking Service Account (${SA_EMAIL})..."
+# if gcloud iam service-accounts describe "${SA_EMAIL}" --project "${PROJECT_ID}" &>/dev/null; then
+#     echo "Service Account exists. Importing..."
+#     terraform import google_service_account.terraform_sa "projects/${PROJECT_ID}/serviceAccounts/${SA_EMAIL}"
+# else
+#     echo "Service Account not found. It will be created by Terraform."
+# fi
 
 # ######################################
 # # 2. IAM Binding for Artifact Registry Reader
