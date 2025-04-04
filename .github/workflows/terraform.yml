@@ -70,7 +70,13 @@ jobs:
             exit 1
           fi
           
-          # Set environment variable for the key file path
+          # Read the key content into an environment variable (for auth)
+          KEY_CONTENT=$(cat $GITHUB_WORKSPACE/key.json)
+          echo "GCP_CREDENTIALS<<EOF" >> $GITHUB_ENV
+          echo "$KEY_CONTENT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          # Keep the file path too (for other uses)
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
           
           # Let's also debug the file format without revealing the content
