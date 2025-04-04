@@ -137,24 +137,18 @@ jobs:
           name: sa-email
           path: email-download
 
+      - name: Debug SA Email Content
+        run: |
+          echo "Contents of sa_email.txt:"
+          cat $GITHUB_WORKSPACE/email-download/sa_email.txt
+
 
       - name: Export service account key for TF and Auth
         run: |
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key-download/key.json" >> $GITHUB_ENV
           echo "TF_VAR_gcp_service_account_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
-          EMAIL=$(cat email-download/sa_email.txt)
+          EMAIL=$(cat $GITHUB_WORKSPACE/email-download/sa_email.txt)
           echo "TF_VAR_service_account_email=$EMAIL" >> $GITHUB_ENV
-
-
-      - name: Export service account email
-        id: export-email
-        working-directory: bootstrap
-        run: |
-          # Disable any Terraform debug logging
-          unset TF_LOG
-          # Use -no-color to avoid ANSI escape codes
-          email=$(terraform output -no-color -raw terraform_service_account_email)
-          echo "service_account_email=$email" >> $GITHUB_OUTPUT
 
 
       - name: Authenticate with Google Cloud
