@@ -6,7 +6,7 @@ resource "google_service_account" "terraform_sa" {
 
 
 resource "google_service_account_key" "terraform_sa_key" {
-  service_account_id = google_service_account.terraform_sa.name
+  service_account_id = google_service_account.terraform_sa.email
   key_algorithm      = "KEY_ALG_RSA_2048"
   private_key_type   = "TYPE_GOOGLE_CREDENTIALS_FILE"
 
