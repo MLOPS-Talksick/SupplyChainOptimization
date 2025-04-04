@@ -61,22 +61,24 @@ jobs:
       - name: Write Service Account Key to File
         working-directory: bootstrap
         run: |
-          # Make sure to escape properly and handle newlines correctly
-          terraform output -raw terraform_sa_private_key > key.json
-          # Verify the key is valid JSON
-          cat key.json | jq . || echo "Warning: Key is not valid JSON"
+          # Output the key, but encode it first to preserve format
+          terraform output -json terraform_sa_private_key | jq -r . > key.json.b64
+          # Decode the base64-encoded key back to JSON
+          cat key.json.b64 | base64 --decode > key.json
+          # Verify the key is valid JSON without printing it to logs
+          jq . key.json > /dev/null || echo "Warning: Key is not valid JSON"
 
       - name: Use Service Account Key
         run: |
-          # Use the key directly without base64 encoding/decoding
-          export GOOGLE_CREDENTIALS=$(cat bootstrap/key.json)
-          echo "GOOGLE_CREDENTIALS=$GOOGLE_CREDENTIALS" >> $GITHUB_ENV
-          echo "TF_VAR_bootstrap_gcp_key=$GOOGLE_CREDENTIALS" >> $GITHUB_ENV
+          # Set the file path rather than the content directly
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/bootstrap/key.json" >> $GITHUB_ENV
+          # Also set the bootstrap var to point to the file
+          echo "TF_VAR_bootstrap_gcp_key=$(cat bootstrap/key.json)" >> $GITHUB_ENV
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ env.GOOGLE_CREDENTIALS }}
+          credentials_file: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
