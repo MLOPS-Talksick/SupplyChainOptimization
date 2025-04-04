@@ -65,16 +65,12 @@ jobs:
       #     cat $GITHUB_WORKSPACE/key.json >> $GITHUB_OUTPUT
       #     echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Export service account email to file
+      - name: Export service account email
+        id: export-email
         working-directory: bootstrap
         run: |
-          unset TF_LOG
-          terraform output -json | jq -r '.terraform_service_account_email.value' > sa_email.txt
-
-      - name: Debug service account email file
-        run: |
-          echo "Email file contents:"
-          cat bootstrap/sa_email.txt | od -c
+          email=$(terraform output -raw terraform_service_account_email)
+          echo "service_account_email=$email" >> $GITHUB_OUTPUT
 
 
       - name: Upload service account key artifact
@@ -83,12 +79,6 @@ jobs:
           name: sa-key
           path: key.json 
           retention-days: 1
-
-      - name: Upload service account email
-        uses: actions/upload-artifact@v4
-        with:
-          name: sa-email
-          path: bootstrap/sa_email.txt
 
 
   # -------------------------------------------------------------
@@ -103,6 +93,7 @@ jobs:
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
       # TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.service_account_key }}
+      TF_VAR_service_account_email: ${{ needs.bootstrap.outputs.service_account_email }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
