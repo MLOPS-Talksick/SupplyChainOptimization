@@ -69,7 +69,7 @@ resource "google_compute_instance_template" "airflow_template" {
       git clone https://github.com/MLOPS-Talksick/SupplyChainOptimization.git .
 
       # Optionally, check out a specific branch or tag:
-      git checkout testing-bucket-infra
+      git checkout testing-service-account-terraform
 
       # Add the ubuntu user to the docker group and adjust permissions
       sudo usermod -aG docker ubuntu
