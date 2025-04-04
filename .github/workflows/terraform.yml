@@ -69,9 +69,11 @@ jobs:
             echo "Error: Key is empty!"
             exit 1
           fi
-
-          # Export the key so that subsequent steps can access it
-          echo "GCP_KEY=$RAW_KEY" >> $GITHUB_ENV
+          
+          # Use GitHub Actions multiline environment variable syntax
+          echo "GCP_KEY<<EOF" >> $GITHUB_ENV
+          echo "$RAW_KEY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
