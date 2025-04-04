@@ -1,9 +1,8 @@
 resource "google_service_account" "terraform_sa" {
+  project      = var.project_id
   account_id   = "terraform-service-account"
   display_name = "Terraform Service Account"
-  project      = var.project_id
 }
-
 
 resource "google_service_account_key" "terraform_sa_key" {
   service_account_id = google_service_account.terraform_sa.email
@@ -11,6 +10,7 @@ resource "google_service_account_key" "terraform_sa_key" {
   private_key_type   = "TYPE_GOOGLE_CREDENTIALS_FILE"
 
   keepers = {
+    # Forces key rotation if desired
     force_new_key = timestamp()
   }
 }
