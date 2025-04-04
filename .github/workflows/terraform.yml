@@ -64,8 +64,10 @@ jobs:
           # Use -json with jq -c to produce a compact, one-line JSON string
           GCP_KEY=$(terraform output -json terraform_sa_private_key | jq -c .)
           echo "::add-mask::$GCP_KEY"
-          # Export the key to the job's environment
+          # Export the key to the job's environment for later steps
           echo "GCP_KEY=$GCP_KEY" >> $GITHUB_ENV
+          # Also set the Terraform variable for bootstrap key so Terraform in infrastructure picks it up
+          echo "TF_VAR_bootstrap_gcp_key=$GCP_KEY" >> $GITHUB_ENV
 
       - name: Debug - Print GCP Key Hash
         run: |
@@ -85,7 +87,7 @@ jobs:
       - name: Set up Terraform (deploy)
         uses: hashicorp/setup-terraform@v2
 
-      - name: Terraform Init
+      - name: Terraform Init (deploy)
         working-directory: infrastructure
         run: terraform init
 
@@ -99,7 +101,7 @@ jobs:
           chmod +x scripts/tf_import_all.sh
           ./scripts/tf_import_all.sh
 
-      - name: Terraform Apply
+      - name: Terraform Apply (deploy)
         run: terraform -chdir=infrastructure apply -auto-approve \
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.GCP_LOCATION }}"
