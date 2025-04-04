@@ -339,7 +339,7 @@ for bucket in "${BUCKETS[@]}"; do
 done
 
 
-15. Cloud Function: processDataFunction
+# 15. Cloud Function: processDataFunction
 FUNCTION_NAME="processDataFunction"
 echo "Checking Cloud Function (${FUNCTION_NAME}) in region ${REGION}..."
 if gcloud functions describe "${FUNCTION_NAME}" --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
