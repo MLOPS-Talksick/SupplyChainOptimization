@@ -138,7 +138,7 @@ jobs:
       - name: Export SA email as job output
         id: export-email
         run: |
-          echo "service_account_email=$(cat email-download/sa_email.txt)" >> $GITHUB_OUTPUT
+          echo "service_account_email=$(cat email-download/sa_email.txt | tr -d '\n')" >> $GITHUB_OUTPUT
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
@@ -164,7 +164,7 @@ jobs:
       - name: Terraform Plan
         run: |
           export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
-          export TF_VAR_service_account_email="$(cat email-download/sa_email.txt)"
+          export TF_VAR_service_account_email="$(cat email-download/sa_email.txt | tr -d '\n')"
           cd infrastructure
           terraform plan \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
@@ -178,7 +178,7 @@ jobs:
       - name: Terraform Apply (deploy)
         run: |
           export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
-          export TF_VAR_service_account_email="$(cat email-download/sa_email.txt)"
+          export TF_VAR_service_account_email="$(cat email-download/sa_email.txt | tr -d '\n')"
           cd infrastructure
           terraform apply -auto-approve \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
