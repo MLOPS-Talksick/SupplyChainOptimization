@@ -58,20 +58,23 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      - name: Extract and Compress GCP Service Account Key
+      - name: Extract and Preserve GCP Service Account Key
         id: extract
         working-directory: bootstrap
         run: |
           echo "Reading generated service account key"
-          # Compress the (possibly multiline) JSON into one line using jq -c
-          echo "Reading generated service account key"
-          # Compress the (possibly multiline) JSON into one line using jq -c (not -Rs)
-          GCP_KEY=$(terraform output -raw terraform_sa_private_key 2>/dev/null | jq -c .)
+          # Get the raw key (which is in JSON format)
+          GCP_KEY=$(terraform output -raw terraform_sa_private_key 2>/dev/null)
           echo "::add-mask::$GCP_KEY"
-          # Export the generated key for subsequent steps
-          echo "GCP_KEY=$GCP_KEY" >> $GITHUB_ENV
-          # Update the Terraform variable for bootstrap with the generated key
-          echo "TF_VAR_bootstrap_gcp_key=$GCP_KEY" >> $GITHUB_ENV
+          # Preserve the multi-line formatting using a here document to set the environment variable
+          echo "GCP_KEY<<EOF" >> $GITHUB_ENV
+          echo "$GCP_KEY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          # Also update the Terraform variable for bootstrap with the same value
+          echo "TF_VAR_bootstrap_gcp_key<<EOF" >> $GITHUB_ENV
+          echo "$GCP_KEY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
 
       - name: Debug - Print GCP Key Hash
         run: |
