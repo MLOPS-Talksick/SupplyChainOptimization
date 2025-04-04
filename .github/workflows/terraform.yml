@@ -61,8 +61,8 @@ jobs:
       - name: Extract Service Account Key
         working-directory: bootstrap
         run: |
-          # Get the key and properly format it
-          terraform output terraform_sa_private_key | jq -r > $GITHUB_WORKSPACE/key.json
+          # Get the key using raw output from Terraform
+          terraform output -raw terraform_sa_private_key > $GITHUB_WORKSPACE/key.json
           
           # Check file contents and size
           if [ ! -s "$GITHUB_WORKSPACE/key.json" ]; then
@@ -70,7 +70,7 @@ jobs:
             exit 1
           fi
           
-          # Set credentials path
+          # Set credentials path for subsequent steps
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
 
       - name: Authenticate with Google Cloud
