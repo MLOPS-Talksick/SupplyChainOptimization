@@ -75,7 +75,7 @@ jobs:
     env:
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
-      TF_VAR_bootstrap_gcp_key: ${{ needs.bootstrap.outputs.service_account_key }}
+      # TF_VAR_bootstrap_gcp_key: ${{ needs.bootstrap.outputs.service_account_key }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
@@ -96,9 +96,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set bootstrap_gcp_key environment variable
+      - name: Inject TF_VAR_bootstrap_gcp_key from bootstrap output
         run: |
-          echo 'TF_VAR_bootstrap_gcp_key=${{ needs.bootstrap.outputs.service_account_key }}' >> $GITHUB_ENV
+          echo 'TF_VAR_bootstrap_gcp_key<<EOF' >> $GITHUB_ENV
+          echo "${{ needs.bootstrap.outputs.service_account_key }}" >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
