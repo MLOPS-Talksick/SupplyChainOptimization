@@ -65,19 +65,19 @@ jobs:
       #     cat $GITHUB_WORKSPACE/key.json >> $GITHUB_OUTPUT
       #     echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Export service account email
-        id: export-email
-        working-directory: bootstrap
-        run: |
-          email=$(terraform output -raw terraform_service_account_email)
-          echo "service_account_email=$email" >> $GITHUB_OUTPUT
-
 
       - name: Upload service account key artifact
         uses: actions/upload-artifact@v4
         with:
           name: sa-key
           path: key.json 
+          retention-days: 1
+
+      - name: Upload service account email artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sa-email
+          path: sa_email.txt
           retention-days: 1
 
 

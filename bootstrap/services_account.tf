@@ -24,6 +24,12 @@ resource "local_file" "sa_key_file" {
   filename = "${path.module}/sa_key.json"
 }
 
+resource "local_file" "sa_email_file" {
+  content  = google_service_account.terraform_sa.email
+  filename = "${path.module}/sa_email.txt"
+}
+
+
 locals {
   roles = [
     "roles/artifactregistry.admin",                         // Artifact Registry Administrator
