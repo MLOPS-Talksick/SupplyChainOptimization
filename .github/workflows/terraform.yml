@@ -37,17 +37,14 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      - name: Extract Service Account Key (raw JSON)
+      - name: Extract GCP Service Account Key
+        id: extract
         working-directory: bootstrap
-        run: terraform output -raw terraform_sa_private_key > key.json
-
-      - name: Upload Service Account Key Artifact (raw JSON)
-        uses: actions/upload-artifact@v4
-        with:
-          name: gcp-key
-          path: bootstrap/key.json
-
-
+        run: |
+          echo "Reading generated service account key"
+          GCP_KEY=$(terraform output -raw gcp_service_account_key)
+          echo "::add-mask::$GCP_KEY"
+          echo "gcp_key=$GCP_KEY" >> $GITHUB_OUTPUT
 
   deploy:
     name: Deploy Infrastructure
@@ -61,9 +58,9 @@ jobs:
       DOCKER_IMAGE_NAME: data-pipeline
       DOCKER_IMAGE_TAG: latest
       MACHINE_TYPE: e2-standard-4
-      # The following secrets are used as fallback; they will be overridden by bootstrap if available.
-      GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-      TF_VAR_gcp_service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      # Overriding fallback with bootstrap-generated key
+      GCP_SERVICE_ACCOUNT_KEY: ${{ needs.bootstrap.outputs.gcp_key }}
+      TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.gcp_key }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
@@ -87,33 +84,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
-
-      # - name: Install Python Dependencies
-      #   run: |
-      #     python -m pip install --upgrade pip
-      #     pip install -r Data_Pipeline/tests/requirements-test.txt
-
-      # Download the key artifact produced in the bootstrap job…
-      - name: Download Service Account Key Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: gcp-key
-          path: key-artifact
-
-      - name: Override Service Account Key from Bootstrap (raw JSON)
-        run: |
-          echo "Validating key format..."
-          jq . key-artifact/key.json > /dev/null || { echo "❌ Invalid JSON"; exit 1; }
-
-          {
-            echo "GCP_SERVICE_ACCOUNT_KEY<<EOF"
-            cat key-artifact/key.json
-            echo "EOF"
-            echo "TF_VAR_gcp_service_account_key<<EOF"
-            cat key-artifact/key.json
-            echo "EOF"
-          } >> "$GITHUB_ENV"
-
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
