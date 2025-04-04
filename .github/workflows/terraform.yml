@@ -140,10 +140,11 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: infrastructure
-        run: terraform plan \
-          -var="project_id=${{ env.GCP_PROJECT_ID }}" \
-          -var="region=${{ env.GCP_LOCATION }}"
+        run: |
+          cd infrastructure
+          terraform plan \
+            -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+            -var="region=${{ env.GCP_LOCATION }}"
 
       - name: Import existing resources if any
         run: |
@@ -151,10 +152,11 @@ jobs:
           ./scripts/tf_import_all.sh
 
       - name: Terraform Apply (deploy)
-        working-directory: infrastructure
-        run: terraform apply -auto-approve \
-          -var="project_id=${{ env.GCP_PROJECT_ID }}" \
-          -var="region=${{ env.GCP_LOCATION }}"
+        run: |
+          cd infrastructure
+          terraform apply -auto-approve \
+            -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+            -var="region=${{ env.GCP_LOCATION }}"
 
       - name: Check if Docker Build is Needed
         id: detect-changes
