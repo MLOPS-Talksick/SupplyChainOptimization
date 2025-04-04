@@ -61,32 +61,22 @@ jobs:
       - name: Extract Service Account Key
         working-directory: bootstrap
         run: |
-          # Output the specific key directly (no JSON parsing)
-          terraform output -raw terraform_sa_private_key > $GITHUB_WORKSPACE/key.json
+          # Get the key and properly format it
+          terraform output terraform_sa_private_key | jq -r > $GITHUB_WORKSPACE/key.json
           
-          # Verify file exists
+          # Check file contents and size
           if [ ! -s "$GITHUB_WORKSPACE/key.json" ]; then
             echo "Error: Key file is empty or doesn't exist!"
             exit 1
           fi
           
-          # Read the key content into an environment variable (for auth)
-          KEY_CONTENT=$(cat $GITHUB_WORKSPACE/key.json)
-          echo "GCP_CREDENTIALS<<EOF" >> $GITHUB_ENV
-          echo "$KEY_CONTENT" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          
-          # Keep the file path too (for other uses)
+          # Set credentials path
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
-          
-          # Let's also debug the file format without revealing the content
-          echo "Key file size: $(wc -c < $GITHUB_WORKSPACE/key.json) bytes"
-          echo "Key file first 10 chars (sanitized): $(head -c 10 $GITHUB_WORKSPACE/key.json | sed 's/./X/g')"
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ env.GCP_CREDENTIALS }}
+          credentials_json: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
