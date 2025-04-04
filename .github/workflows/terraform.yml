@@ -69,6 +69,21 @@ jobs:
           fi
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
 
+      - name: Debug Terraform Output
+        working-directory: bootstrap
+        run: |
+          echo "##[group]Debug: Terraform outputs"
+          echo "List of outputs (non-raw):"
+          terraform output
+          echo
+          echo "Value of terraform_sa_private_key (non-raw):"
+          terraform output terraform_sa_private_key || true
+          echo 
+          echo "Value of terraform_sa_private_key (raw):"
+          terraform output -raw terraform_sa_private_key || true
+          echo "##[endgroup]"
+
+
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
