@@ -136,8 +136,9 @@ jobs:
 
       - name: Export SA email as TF_VAR
         run: |
-          SA_EMAIL=$(cat email-download/sa_email.txt)
-          echo "TF_VAR_service_account_email=$SA_EMAIL" >> $GITHUB_ENV
+          echo "TF_VAR_service_account_email<<EOF" >> $GITHUB_ENV
+          cat email-download/sa_email.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
 
       - name: Authenticate with Google Cloud
