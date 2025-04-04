@@ -135,12 +135,13 @@ jobs:
           echo "TF_VAR_service_account_email=$EMAIL" >> $GITHUB_ENV
 
 
-      - name: Export SA email as job output
+      - name: Export service account email
         id: export-email
+        working-directory: bootstrap
         run: |
-          echo "service_account_email<<EOF" >> $GITHUB_OUTPUT
-          cat email-download/sa_email.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          email=$(terraform output -no-color -json terraform_service_account_email | jq -r .)
+          echo "service_account_email=$email" >> $GITHUB_OUTPUT
+          
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
