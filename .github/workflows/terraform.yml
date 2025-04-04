@@ -58,6 +58,17 @@ jobs:
           fi
           cp ./sa_key.json ../key.json
 
+
+      - name: Copy service account email from local_file
+        working-directory: bootstrap
+        run: |
+          if [ ! -f ./sa_email.txt ]; then
+            echo "ERROR: bootstrap/sa_email.txt not found!"
+            ls -la .
+            exit 1
+          fi
+          cp ./sa_email.txt ../sa_email.txt
+
       # - name: Export service account key to output
       #   id: export-key
       #   run: |
