@@ -58,27 +58,21 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      - name: Extract Service Account Key and set env variable
+      - name: Extract Service Account Key and write to file
         working-directory: bootstrap
         run: |
-          # Get the raw service account key using Terraform's -raw flag
-          RAW_KEY=$(terraform output -raw terraform_sa_private_key)
-          
-          # Verify the key is not empty
-          if [ -z "$RAW_KEY" ]; then
-            echo "Error: Key is empty!"
+          terraform output -raw terraform_sa_private_key > $GITHUB_WORKSPACE/key.json
+          if [ ! -s "$GITHUB_WORKSPACE/key.json" ]; then
+            echo "Error: Key file is empty!"
             exit 1
           fi
-          
-          # Use GitHub Actions multiline environment variable syntax
-          echo "GCP_KEY<<EOF" >> $GITHUB_ENV
-          echo "$RAW_KEY" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ secrets.BOOTSTRAP_GCP_KEY }}
+          credentials_json: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
