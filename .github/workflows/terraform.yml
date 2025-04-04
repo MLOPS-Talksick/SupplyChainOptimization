@@ -58,32 +58,44 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      - name: Extract and Preserve GCP Service Account Key
-        id: extract
-        working-directory: bootstrap
-        run: |
-          echo "Reading generated service account key"
-          # Get the raw key (which is in JSON format)
-          GCP_KEY=$(terraform output -raw terraform_sa_private_key 2>/dev/null)
-          echo "::add-mask::$GCP_KEY"
-          # Preserve the multi-line formatting using a here document to set the environment variable
-          echo "GCP_KEY<<EOF" >> $GITHUB_ENV
-          echo "$GCP_KEY" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          # Also update the Terraform variable for bootstrap with the same value
-          echo "TF_VAR_bootstrap_gcp_key<<EOF" >> $GITHUB_ENV
-          echo "$GCP_KEY" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+      # - name: Extract and Preserve GCP Service Account Key
+      #   id: extract
+      #   working-directory: bootstrap
+      #   run: |
+      #     echo "Reading generated service account key"
+      #     # Get the raw key (which is in JSON format)
+      #     GCP_KEY=$(terraform output -raw terraform_sa_private_key 2>/dev/null)
+      #     echo "::add-mask::$GCP_KEY"
+      #     # Preserve the multi-line formatting using a here document to set the environment variable
+      #     echo "GCP_KEY<<EOF" >> $GITHUB_ENV
+      #     echo "$GCP_KEY" >> $GITHUB_ENV
+      #     echo "EOF" >> $GITHUB_ENV
+      #     # Also update the Terraform variable for bootstrap with the same value
+      #     echo "TF_VAR_bootstrap_gcp_key<<EOF" >> $GITHUB_ENV
+      #     echo "$GCP_KEY" >> $GITHUB_ENV
+      #     echo "EOF" >> $GITHUB_ENV
 
 
-      - name: Debug - Print GCP Key Hash
-        run: |
-          echo "GCP key hash: $(echo -n "${{ env.GCP_KEY }}" | sha256sum)"
+      # - name: Debug - Print GCP Key Hash
+      #   run: |
+      #     echo "GCP key hash: $(echo -n "${{ env.GCP_KEY }}" | sha256sum)"
 
       - name: Write Service Account Key to File
+        working-directory: bootstrap
+        run: terraform output -raw terraform_sa_private_key > key.json
+
+      - name: Load Service Account Key into Environment
         run: |
-          # Use printf to preserve the exact formatting of the JSON key
-          printf '%s' "${{ env.GCP_KEY }}" > key.json
+          # Use a here document to set GCP_KEY exactly as it is
+          echo "GCP_KEY<<EOF" >> $GITHUB_ENV
+          cat key.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          # Also update the Terraform variable if needed
+          echo "TF_VAR_bootstrap_gcp_key<<EOF" >> $GITHUB_ENV
+          cat key.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+
 
 
       - name: Authenticate with Google Cloud
