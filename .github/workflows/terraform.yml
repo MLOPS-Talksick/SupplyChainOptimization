@@ -102,12 +102,12 @@ jobs:
       - name: Update gcloud components
         run: gcloud components update --quiet
 
-      - name: Set up Terraform (deploy)
-        uses: hashicorp/setup-terraform@v2
-
       - name: Set bootstrap_gcp_key from key.json
         run: |
           echo "TF_VAR_bootstrap_gcp_key=$(cat $GITHUB_WORKSPACE/key.json | jq -c .)" >> $GITHUB_ENV
+
+      - name: Set up Terraform (deploy)
+        uses: hashicorp/setup-terraform@v2
 
       - name: Terraform Init (deploy)
         working-directory: infrastructure
