@@ -57,12 +57,20 @@ jobs:
           cp sa_key.json $GITHUB_WORKSPACE/key.json
           chmod 600 $GITHUB_WORKSPACE/key.json
 
-      - name: Export service account key to output
-        id: export-key
-        run: |
-          echo "key<<EOF" >> $GITHUB_OUTPUT
-          cat $GITHUB_WORKSPACE/key.json >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+      # - name: Export service account key to output
+      #   id: export-key
+      #   run: |
+      #     echo "key<<EOF" >> $GITHUB_OUTPUT
+      #     cat $GITHUB_WORKSPACE/key.json >> $GITHUB_OUTPUT
+      #     echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload service account key artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sa-key
+          path: $GITHUB_WORKSPACE/key.json
+          retention-days: 1
+
 
   # -------------------------------------------------------------
   # 🟩 Job 2: DEPLOY - uses key from bootstrap
@@ -96,11 +104,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Inject TF_VAR_bootstrap_gcp_key from bootstrap output
+      - name: Download service account key
+        uses: actions/download-artifact@v3
+        with:
+          name: sa-key
+          path: $GITHUB_WORKSPACE
+
+      - name: Export service account key for TF and Auth
         run: |
-          echo 'TF_VAR_bootstrap_gcp_key<<EOF' >> $GITHUB_ENV
-          echo "${{ needs.bootstrap.outputs.service_account_key }}" >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
+          echo "TF_VAR_bootstrap_gcp_key=$(cat $GITHUB_WORKSPACE/key.json | jq -c .)" >> $GITHUB_ENV
+
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
