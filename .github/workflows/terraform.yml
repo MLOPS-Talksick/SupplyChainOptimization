@@ -64,7 +64,7 @@ jobs:
         run: |
           echo "Reading generated service account key"
           # Compress the (possibly multiline) JSON into one line using jq -c
-          GCP_KEY=$(terraform output -json terraform_sa_private_key | jq -c .)
+          GCP_KEY=$(terraform output -raw terraform_sa_private_key 2>/dev/null | jq -Rs .)
           echo "::add-mask::$GCP_KEY"
           # Export the generated key for subsequent steps
           echo "GCP_KEY=$GCP_KEY" >> $GITHUB_ENV
