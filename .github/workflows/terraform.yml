@@ -60,19 +60,13 @@ jobs:
 
 
       - name: Extract Service Account Key and write to file
-        working-directory: bootstrap
         run: |
-          # If your Terraform output is base64, decode it:
           terraform output -raw terraform_sa_private_key > $GITHUB_WORKSPACE/key.json
-          
-          # Check that the file is non-empty
           if [ ! -s "$GITHUB_WORKSPACE/key.json" ]; then
             echo "Error: Key file is empty!"
             exit 1
           fi
-          
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
-
 
 
       - name: Authenticate with Google Cloud
