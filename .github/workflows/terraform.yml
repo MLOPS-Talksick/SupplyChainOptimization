@@ -68,7 +68,12 @@ jobs:
       - name: Export service account email to file
         working-directory: bootstrap
         run: |
-          terraform output -raw terraform_service_account_email > sa_email.txt
+          terraform output -raw terraform_service_account_email 2>/dev/null | tr -d '\n' > sa_email.txt
+
+      - name: Debug service account email file
+        run: |
+          echo "Email file contents:"
+          cat bootstrap/sa_email.txt | od -c
 
 
       - name: Upload service account key artifact
@@ -134,6 +139,7 @@ jobs:
         run: |
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key-download/key.json" >> $GITHUB_ENV
           echo "TF_VAR_gcp_service_account_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
+          echo "TF_VAR_service_account_email="$(cat email-download/sa_email.txt | tr -d '\n')" >> $GITHUB_ENV
 
       - name: Export SA email as job output
         id: export-email
@@ -141,10 +147,6 @@ jobs:
           echo "service_account_email<<EOF" >> $GITHUB_OUTPUT
           cat email-download/sa_email.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Set TF_VAR_service_account_email env
-        run: |
-          echo "TF_VAR_service_account_email=$(cat email-download/sa_email.txt | tr -d '\n')" >> $GITHUB_ENV
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
@@ -170,7 +172,7 @@ jobs:
       - name: Terraform Plan
         run: |
           export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
-          echo "TF_VAR_service_account_email=$(cat email-download/sa_email.txt | tr -d '\n')"
+          export TF_VAR_service_account_email="$(cat email-download/sa_email.txt | tr -d '\n')"
           cd infrastructure
           terraform plan \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
