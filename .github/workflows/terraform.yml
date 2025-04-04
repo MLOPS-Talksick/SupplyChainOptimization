@@ -88,10 +88,10 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install Python Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r Data_Pipeline/tests/requirements-test.txt
+      # - name: Install Python Dependencies
+      #   run: |
+      #     python -m pip install --upgrade pip
+      #     pip install -r Data_Pipeline/tests/requirements-test.txt
 
       # Download the key artifact produced in the bootstrap job…
       - name: Download Service Account Key Artifact
@@ -102,17 +102,15 @@ jobs:
 
       - name: Override Service Account Key from Bootstrap (raw JSON)
         run: |
-          key=$(cat key-artifact/key.json)
-
           echo "Validating key format..."
-          echo "$key" | jq . > /dev/null || { echo "❌ Invalid JSON"; exit 1; }
+          jq . key-artifact/key.json > /dev/null || { echo "❌ Invalid JSON"; exit 1; }
 
           {
             echo "GCP_SERVICE_ACCOUNT_KEY<<EOF"
-            echo "$key"
+            cat key-artifact/key.json
             echo "EOF"
             echo "TF_VAR_gcp_service_account_key<<EOF"
-            echo "$key"
+            cat key-artifact/key.json
             echo "EOF"
           } >> "$GITHUB_ENV"
 
