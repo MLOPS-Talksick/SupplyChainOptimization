@@ -189,7 +189,7 @@ jobs:
       - name: Terraform Apply (deploy)
         run: |
           # export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
-          export TF_VAR_gcp_service_account_key=$GITHUB_WORKSPACE/key-download/key.json"
+          export TF_VAR_gcp_service_account_key="$GITHUB_WORKSPACE/key-download/key.json"
           export TF_VAR_service_account_email="$(cat $GITHUB_WORKSPACE/email-download/sa_email.txt)"
           cd infrastructure
           terraform apply -auto-approve \
