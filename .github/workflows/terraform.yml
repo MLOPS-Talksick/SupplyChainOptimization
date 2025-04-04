@@ -25,7 +25,7 @@ jobs:
     env:
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
-      TF_VAR_bootstrap_gcp_key: ${{ secrets.BOOTSTRAP_GCP_KEY }}
+      TF_VAR_gcp_service_account_key: ${{ secrets.gcp_service_account_key }}
 
     outputs:
       service_account_key: ${{ steps.export-key.outputs.key }}
@@ -84,7 +84,7 @@ jobs:
     env:
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
-      # TF_VAR_bootstrap_gcp_key: ${{ needs.bootstrap.outputs.service_account_key }}
+      # TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.service_account_key }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
@@ -115,13 +115,13 @@ jobs:
       - name: Export service account key for TF and Auth
         run: |
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key-download/key.json" >> $GITHUB_ENV
-          echo "TF_VAR_bootstrap_gcp_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
+          echo "TF_VAR_gcp_service_account_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
 
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ env.TF_VAR_bootstrap_gcp_key }}
+          credentials_json: ${{ env.TF_VAR_gcp_service_account_key }}
           create_credentials_file: true
           export_environment_variables: true
           cleanup_credentials: true
@@ -141,7 +141,7 @@ jobs:
 
       - name: Terraform Plan
         run: |
-          export TF_VAR_bootstrap_gcp_key="$(cat key-download/key.json | jq -c .)"
+          export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
           cd infrastructure
           terraform plan \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
@@ -154,7 +154,7 @@ jobs:
 
       - name: Terraform Apply (deploy)
         run: |
-          export TF_VAR_bootstrap_gcp_key="$(cat key-download/key.json | jq -c .)"
+          export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
           cd infrastructure
           terraform apply -auto-approve \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
