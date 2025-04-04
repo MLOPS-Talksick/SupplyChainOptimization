@@ -26,6 +26,8 @@ jobs:
       DOCKER_IMAGE_NAME: data-pipeline
       DOCKER_IMAGE_TAG: latest
       MACHINE_TYPE: e2-standard-4
+      # IMPORTANT: Provide the initial bootstrap key from your secret
+      TF_VAR_bootstrap_gcp_key: ${{ secrets.BOOTSTRAP_GCP_KEY }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
@@ -61,22 +63,25 @@ jobs:
         working-directory: bootstrap
         run: |
           echo "Reading generated service account key"
-          # Use -json with jq -c to produce a compact, one-line JSON string
+          # Compress the (possibly multiline) JSON into one line using jq -c
           GCP_KEY=$(terraform output -json terraform_sa_private_key | jq -c .)
           echo "::add-mask::$GCP_KEY"
-          # Export the key to the job's environment for later steps
+          # Export the generated key for subsequent steps
           echo "GCP_KEY=$GCP_KEY" >> $GITHUB_ENV
-          # Also set the Terraform variable for bootstrap key so Terraform in infrastructure picks it up
+          # Update the Terraform variable for bootstrap with the generated key
           echo "TF_VAR_bootstrap_gcp_key=$GCP_KEY" >> $GITHUB_ENV
 
       - name: Debug - Print GCP Key Hash
         run: |
-          echo "GCP key hash: $(echo -n "$GCP_KEY" | sha256sum)"
+          echo "GCP key hash: $(echo -n "${{ env.GCP_KEY }}" | sha256sum)"
+
+      - name: Write Service Account Key to File
+        run: echo "${{ env.GCP_KEY }}" > key.json
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ env.GCP_KEY }}
+          credentials_file: key.json
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
