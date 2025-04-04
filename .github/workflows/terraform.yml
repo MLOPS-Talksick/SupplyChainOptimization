@@ -96,6 +96,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set bootstrap_gcp_key environment variable
+        run: |
+          echo 'TF_VAR_bootstrap_gcp_key=${{ needs.bootstrap.outputs.service_account_key }}' >> $GITHUB_ENV
+
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
