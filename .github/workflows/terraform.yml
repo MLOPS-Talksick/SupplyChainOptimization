@@ -104,6 +104,7 @@ jobs:
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
       # TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.service_account_key }}
+      # TF_VAR_service_account_email: ${{ needs.bootstrap.outputs.service_account_email }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
