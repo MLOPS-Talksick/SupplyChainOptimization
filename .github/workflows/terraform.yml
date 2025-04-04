@@ -16,6 +16,8 @@ on:
 
 jobs:
   bootstrap:
+    outputs:
+      gcp_key: ${{ steps.extract.outputs.gcp_key }}
     name: Bootstrap - Create Service Account and Key
     runs-on: ubuntu-latest
     env:
