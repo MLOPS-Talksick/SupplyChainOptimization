@@ -25,7 +25,7 @@ jobs:
     env:
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
-      TF_VAR_gcp_service_account_key: ${{ secrets.gcp_service_account_key }}
+      TF_VAR_gcp_service_account_key: ${{ secrets.BOOTSTRAP_GCP_KEY }}
 
     outputs:
       service_account_key: ${{ steps.export-key.outputs.key }}
