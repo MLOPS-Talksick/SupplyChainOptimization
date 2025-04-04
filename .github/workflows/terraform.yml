@@ -74,6 +74,9 @@ jobs:
           # Provide the file path as an environment variable
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
 
+      - name: Debug key.json content
+        run: head -n 1 $GITHUB_WORKSPACE/key.json
+
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:

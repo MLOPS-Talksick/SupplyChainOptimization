@@ -3,13 +3,13 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 4.0"  # or latest stable
+      version = "~> 4.61.0"
     }
   }
 }
 
 provider "google" {
-  credentials = file(var.bootstrap_gcp_key)
+  credentials = var.bootstrap_gcp_key
   project     = var.project_id
   region      = var.region
 }
