@@ -58,51 +58,28 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      # - name: Extract and Preserve GCP Service Account Key
-      #   id: extract
-      #   working-directory: bootstrap
-      #   run: |
-      #     echo "Reading generated service account key"
-      #     # Get the raw key (which is in JSON format)
-      #     GCP_KEY=$(terraform output -raw terraform_sa_private_key 2>/dev/null)
-      #     echo "::add-mask::$GCP_KEY"
-      #     # Preserve the multi-line formatting using a here document to set the environment variable
-      #     echo "GCP_KEY<<EOF" >> $GITHUB_ENV
-      #     echo "$GCP_KEY" >> $GITHUB_ENV
-      #     echo "EOF" >> $GITHUB_ENV
-      #     # Also update the Terraform variable for bootstrap with the same value
-      #     echo "TF_VAR_bootstrap_gcp_key<<EOF" >> $GITHUB_ENV
-      #     echo "$GCP_KEY" >> $GITHUB_ENV
-      #     echo "EOF" >> $GITHUB_ENV
-
-
-      # - name: Debug - Print GCP Key Hash
-      #   run: |
-      #     echo "GCP key hash: $(echo -n "${{ env.GCP_KEY }}" | sha256sum)"
-
       - name: Write Service Account Key to File
         working-directory: bootstrap
         run: terraform output -raw terraform_sa_private_key > key.json
 
-      - name: Load Service Account Key into Environment
+      - name: Base64 Encode Service Account Key and Load into Environment
         run: |
-          # Use a here document to set GCP_KEY exactly as it is
-          echo "GCP_KEY<<EOF" >> $GITHUB_ENV
-          cat key.json >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          # Also update the Terraform variable if needed
-          echo "TF_VAR_bootstrap_gcp_key<<EOF" >> $GITHUB_ENV
-          cat key.json >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          # Encode the key.json file into a single-line base64 string
+          BASE64_KEY=$(base64 -w0 bootstrap/key.json)
+          echo "GCP_KEY_BASE64=$BASE64_KEY" >> $GITHUB_ENV
 
-
-
+      - name: Decode Base64 Service Account Key for Authentication
+        run: |
+          # Decode the base64 string back into valid JSON
+          echo "$GCP_KEY_BASE64" | base64 --decode > decoded_key.json
+          DECODED_KEY=$(cat decoded_key.json)
+          echo "GCP_KEY=$DECODED_KEY" >> $GITHUB_ENV
+          echo "TF_VAR_bootstrap_gcp_key=$DECODED_KEY" >> $GITHUB_ENV
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ env.GCP_KEY }}
-
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
