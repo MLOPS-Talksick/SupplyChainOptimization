@@ -61,35 +61,21 @@ jobs:
       - name: Extract Service Account Key
         working-directory: bootstrap
         run: |
-          # Create a temporary file to store the Terraform output
-          terraform output -json > tf_output.json
+          # Output the specific key directly (no JSON parsing)
+          terraform output -raw terraform_sa_private_key > $GITHUB_WORKSPACE/key.json
           
-          # Use a Python script to correctly extract and format the key
-          python - <<EOF
-          import json
-          import os
+          # Verify file exists
+          if [ ! -s "$GITHUB_WORKSPACE/key.json" ]; then
+            echo "Error: Key file is empty or doesn't exist!"
+            exit 1
+          fi
           
-          # Read the Terraform output
-          with open('tf_output.json', 'r') as f:
-              tf_output = json.load(f)
-          
-          # Extract the key (could be a string or an object)
-          key_data = tf_output['terraform_sa_private_key']['value']
-          
-          # If it's a string that looks like JSON, parse it
-          if isinstance(key_data, str) and key_data.strip().startswith('{'):
-              try:
-                  key_data = json.loads(key_data)
-              except:
-                  pass
-          
-          # Write the key to a file
-          with open(os.environ['GITHUB_WORKSPACE'] + '/key.json', 'w') as f:
-              json.dump(key_data, f, indent=2)
-          EOF
-          
-          # Set the path to this file as an environment variable
+          # Set environment variable for the key file path
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
+          
+          # Let's also debug the file format without revealing the content
+          echo "Key file size: $(wc -c < $GITHUB_WORKSPACE/key.json) bytes"
+          echo "Key file first 10 chars (sanitized): $(head -c 10 $GITHUB_WORKSPACE/key.json | sed 's/./X/g')"
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
