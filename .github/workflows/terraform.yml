@@ -64,6 +64,12 @@ jobs:
       #     cat $GITHUB_WORKSPACE/key.json >> $GITHUB_OUTPUT
       #     echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Export service account email to file
+        working-directory: bootstrap
+        run: |
+          terraform output -raw terraform_service_account_email > sa_email.txt
+
+
       - name: Upload service account key artifact
         uses: actions/upload-artifact@v4
         with:
@@ -71,6 +77,11 @@ jobs:
           path: key.json 
           retention-days: 1
 
+      - name: Upload service account email
+        uses: actions/upload-artifact@v4
+        with:
+          name: sa-email
+          path: bootstrap/sa_email.txt
 
 
   # -------------------------------------------------------------
@@ -111,11 +122,22 @@ jobs:
           name: sa-key
           path: key-download
 
+      - name: Download SA email
+        uses: actions/download-artifact@v4
+        with:
+          name: sa-email
+          path: email-download
+
 
       - name: Export service account key for TF and Auth
         run: |
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key-download/key.json" >> $GITHUB_ENV
           echo "TF_VAR_gcp_service_account_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
+
+      - name: Export SA email as TF_VAR
+        run: |
+          SA_EMAIL=$(cat email-download/sa_email.txt)
+          echo "TF_VAR_service_account_email=$SA_EMAIL" >> $GITHUB_ENV
 
 
       - name: Authenticate with Google Cloud

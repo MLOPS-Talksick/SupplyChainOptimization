@@ -48,6 +48,11 @@ variable "gcp_service_account_key" {
   description = "GCP Service Account key in JSON format"
 }
 
+variable "service_account_email" {
+  description = "Email of the Terraform service account"
+  type        = string
+}
+
 
 variable "database_name" {
   description = "Name of the database to create"
