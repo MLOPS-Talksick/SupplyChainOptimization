@@ -96,9 +96,6 @@ jobs:
           export_environment_variables: true
           cleanup_credentials: true
 
-
-
-
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
 
@@ -108,14 +105,20 @@ jobs:
       - name: Set up Terraform (deploy)
         uses: hashicorp/setup-terraform@v2
 
+      - name: Set bootstrap_gcp_key from key.json
+        run: |
+          echo "TF_VAR_bootstrap_gcp_key=$(cat $GITHUB_WORKSPACE/key.json | jq -c .)" >> $GITHUB_ENV
+
       - name: Terraform Init (deploy)
         working-directory: infrastructure
         run: terraform init
 
       - name: Terraform Plan
-        run: terraform -chdir=infrastructure plan \
+        working-directory: infrastructure
+        run: terraform plan \
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.GCP_LOCATION }}"
+
 
       - name: Import existing resources if any
         run: |
@@ -123,7 +126,8 @@ jobs:
           ./scripts/tf_import_all.sh
 
       - name: Terraform Apply (deploy)
-        run: terraform -chdir=infrastructure apply -auto-approve \
+        working-directory: infrastructure
+        run: terraform -auto-approve \
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.GCP_LOCATION }}"
 
