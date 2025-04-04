@@ -75,10 +75,10 @@ jobs:
           echo "$RAW_KEY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      # - name: Authenticate with Google Cloud
-      #   uses: google-github-actions/auth@v1
-      #   with:
-      #     credentials_json: ${{ env.GCP_KEY }}
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.BOOTSTRAP_GCP_KEY }}
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
