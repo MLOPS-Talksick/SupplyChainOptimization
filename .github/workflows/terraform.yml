@@ -58,6 +58,13 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
+      - name: Upload key file for debugging
+        uses: actions/upload-artifact@v2
+        with:
+          name: service-account-key
+          path: $GITHUB_WORKSPACE/key.json
+
+
       - name: Extract Service Account Key and write to file
         working-directory: bootstrap
         run: |
