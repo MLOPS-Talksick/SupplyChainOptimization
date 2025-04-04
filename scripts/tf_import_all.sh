@@ -18,7 +18,7 @@ SA_EMAIL="airflow-service-account@${PROJECT_ID}.iam.gserviceaccount.com"
 echo "Checking Service Account (${SA_EMAIL})..."
 if gcloud iam service-accounts describe "${SA_EMAIL}" --project "${PROJECT_ID}" &>/dev/null; then
     echo "Service Account exists. Importing..."
-    terraform import google_service_account.airflow_sa "projects/${PROJECT_ID}/serviceAccounts/${SA_EMAIL}"
+    terraform import google_service_account.terraform_sa "projects/${PROJECT_ID}/serviceAccounts/${SA_EMAIL}"
 else
     echo "Service Account not found. It will be created by Terraform."
 fi
