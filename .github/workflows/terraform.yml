@@ -134,11 +134,15 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key-download/key.json" >> $GITHUB_ENV
           echo "TF_VAR_gcp_service_account_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
 
+      # - name: Export SA email as TF_VAR
+      #   run: |
+      #     echo "TF_VAR_service_account_email<<EOF" >> $GITHUB_ENV
+      #     cat email-download/sa_email.txt >> $GITHUB_ENV
+      #     echo "EOF" >> $GITHUB_ENV
+
       - name: Export SA email as TF_VAR
         run: |
-          echo "TF_VAR_service_account_email<<EOF" >> $GITHUB_ENV
-          cat email-download/sa_email.txt >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          echo "TF_VAR_service_account_email=$(cat email-download/sa_email.txt)" >> $GITHUB_ENV
 
 
       - name: Authenticate with Google Cloud
