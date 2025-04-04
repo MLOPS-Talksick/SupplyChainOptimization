@@ -139,7 +139,9 @@ jobs:
         run: |
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key-download/key.json" >> $GITHUB_ENV
           echo "TF_VAR_gcp_service_account_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
-          echo TF_VAR_service_account_email="$(cat email-download/sa_email.txt)" >> $GITHUB_ENV
+          EMAIL=$(cat email-download/sa_email.txt)
+          echo "TF_VAR_service_account_email=$EMAIL" >> $GITHUB_ENV
+
 
       - name: Export SA email as job output
         id: export-email
@@ -172,7 +174,8 @@ jobs:
       - name: Terraform Plan
         run: |
           export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
-          TF_VAR_service_account_email="$(cat email-download/sa_email.txt)"
+          EMAIL=$(cat email-download/sa_email.txt)
+          export TF_VAR_service_account_email=$EMAIL >> $GITHUB_ENV
           cd infrastructure
           terraform plan \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
@@ -186,7 +189,8 @@ jobs:
       - name: Terraform Apply (deploy)
         run: |
           export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
-          TF_VAR_service_account_email="$(cat email-download/sa_email.txt)"
+          EMAIL=$(cat email-download/sa_email.txt)
+          export TF_VAR_service_account_email=$EMAIL >> $GITHUB_ENV
           cd infrastructure
           terraform apply -auto-approve \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
