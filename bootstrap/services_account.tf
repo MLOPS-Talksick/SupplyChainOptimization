@@ -82,7 +82,3 @@ resource "google_project_iam_member" "vm_service_account_roles" {
   member   = "serviceAccount:${google_service_account.vm_service_account.email}"
 }
 
-
-output "terraform_service_account_email" {
-  value = google_service_account.terraform_sa.email
-}
