@@ -47,15 +47,15 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      - name: Copy Service Account Key to workspace
+      - name: Copy service account key from local_file
         working-directory: bootstrap
         run: |
-          if [ ! -f sa_key.json ]; then
-            echo "ERROR: sa_key.json not found!"
+          if [ ! -f ./sa_key.json ]; then
+            echo "ERROR: bootstrap/sa_key.json not found!"
+            ls -la .
             exit 1
           fi
-          cp sa_key.json $GITHUB_WORKSPACE/key.json
-          chmod 600 $GITHUB_WORKSPACE/key.json
+          cp ./sa_key.json ../key.json
 
       # - name: Export service account key to output
       #   id: export-key
@@ -68,8 +68,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sa-key
-          path: $GITHUB_WORKSPACE/key.json
+          path: key.json 
           retention-days: 1
+
 
 
   # -------------------------------------------------------------
@@ -108,12 +109,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sa-key
-          path: $GITHUB_WORKSPACE
+          path: key-download
+
 
       - name: Export service account key for TF and Auth
         run: |
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
-          echo "TF_VAR_bootstrap_gcp_key=$(cat $GITHUB_WORKSPACE/key.json | jq -c .)" >> $GITHUB_ENV
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key-download/key.json" >> $GITHUB_ENV
+          echo "TF_VAR_bootstrap_gcp_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
 
 
       - name: Authenticate with Google Cloud
