@@ -15,45 +15,8 @@ on:
           - compute_engine
 
 jobs:
-  bootstrap:
-    outputs:
-      gcp_key: ${{ steps.extract.outputs.gcp_key }}
-    name: Bootstrap - Create Service Account and Key
-    runs-on: ubuntu-latest
-    env:
-      TF_VAR_bootstrap_gcp_key: ${{ secrets.BOOTSTRAP_GCP_KEY }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Set up Terraform (bootstrap)
-        uses: hashicorp/setup-terraform@v2
-
-      - name: Terraform Init (bootstrap)
-        working-directory: bootstrap
-        run: terraform init
-
-      - name: Terraform Apply (bootstrap)
-        working-directory: bootstrap
-        run: terraform apply -auto-approve
-
-      - name: Extract GCP Service Account Key
-        id: extract
-        working-directory: bootstrap
-        run: |
-          echo "Reading generated service account key"
-          GCP_KEY=$(terraform output -raw terraform_sa_private_key)
-          echo "::add-mask::$GCP_KEY"
-          echo "gcp_key<<EOF" >> $GITHUB_OUTPUT
-          echo "$GCP_KEY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-
   deploy:
     name: Deploy Infrastructure
-    needs: bootstrap
     runs-on: ubuntu-latest
     env:
       GCP_PROJECT_ID: primordial-veld-450618-n4
@@ -63,9 +26,6 @@ jobs:
       DOCKER_IMAGE_NAME: data-pipeline
       DOCKER_IMAGE_TAG: latest
       MACHINE_TYPE: e2-standard-4
-      # Overriding fallback with bootstrap-generated key
-      GCP_SERVICE_ACCOUNT_KEY: ${{ needs.bootstrap.outputs.gcp_key }}
-      TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.gcp_key }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
@@ -84,20 +44,37 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      
+
+      - name: Set up Terraform (bootstrap)
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init (bootstrap)
+        working-directory: bootstrap
+        run: terraform init
+
+      - name: Terraform Apply (bootstrap)
+        working-directory: bootstrap
+        run: terraform apply -auto-approve
+
+      - name: Extract and Compress GCP Service Account Key
+        id: extract
+        working-directory: bootstrap
+        run: |
+          echo "Reading generated service account key"
+          # Use -json with jq -c to produce a compact, one-line JSON string
+          GCP_KEY=$(terraform output -json terraform_sa_private_key | jq -c .)
+          echo "::add-mask::$GCP_KEY"
+          # Export the key to the job's environment
+          echo "GCP_KEY=$GCP_KEY" >> $GITHUB_ENV
+
       - name: Debug - Print GCP Key Hash
         run: |
-          echo "GCP key hash: $(echo -n "$GCP_SERVICE_ACCOUNT_KEY" | sha256sum)"
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
+          echo "GCP key hash: $(echo -n "$GCP_KEY" | sha256sum)"
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ env.GCP_SERVICE_ACCOUNT_KEY }}
+          credentials_json: ${{ env.GCP_KEY }}
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
@@ -105,7 +82,7 @@ jobs:
       - name: Update gcloud components
         run: gcloud components update --quiet
 
-      - name: Set up Terraform
+      - name: Set up Terraform (deploy)
         uses: hashicorp/setup-terraform@v2
 
       - name: Terraform Init
