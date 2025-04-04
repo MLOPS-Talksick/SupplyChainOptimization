@@ -28,12 +28,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Debug - Print GCP Key Info
-        run: |
-          echo "GCP key length: ${#GCP_SERVICE_ACCOUNT_KEY}"
-          echo "GCP key preview (first 50 chars): ${GCP_SERVICE_ACCOUNT_KEY:0:50}"
-      
-      
       - name: Set up Terraform (bootstrap)
         uses: hashicorp/setup-terraform@v2
 
@@ -90,7 +84,12 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
+      
+      - name: Debug - Print GCP Key Info
+        run: |
+          echo "GCP key length: ${#GCP_SERVICE_ACCOUNT_KEY}"
+          echo "GCP key preview (first 50 chars): ${GCP_SERVICE_ACCOUNT_KEY:0:50}"
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
