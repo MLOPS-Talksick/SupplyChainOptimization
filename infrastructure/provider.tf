@@ -3,7 +3,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 4.0"  # or latest stable
+      version = "~> 6.27.0"
     }
 
     mysql = {
@@ -14,7 +14,7 @@ terraform {
 }
 
 provider "google" {
-  credentials = file(var.gcp_service_account_key)
+  credentials = var.gcp_service_account_key
   project = var.project_id
   region  = var.region
   zone    = var.zone
