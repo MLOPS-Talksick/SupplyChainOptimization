@@ -2,7 +2,7 @@ name: Deploy Airflow with Terraform
 
 on:
   push:
-    branches: testing-service-account-terraform
+    branches: [testing-service-account-terraform]
   workflow_dispatch:
     inputs:
       deployment_target:
@@ -15,19 +15,66 @@ on:
           - compute_engine
 
 jobs:
-  deploy:
-    name: Deploy Infrastructure
+  # -------------------------------------------------------------
+  # 🟦 Job 1: BOOTSTRAP - creates SA and key
+  # -------------------------------------------------------------
+  bootstrap:
+    name: Bootstrap Terraform Setup
     runs-on: ubuntu-latest
+
     env:
       GCP_PROJECT_ID: primordial-veld-450618-n4
       GCP_LOCATION: us-central1
-      ARTIFACT_REGISTRY_NAME: airflow-docker-image
-      REPO_FORMAT: DOCKER
-      DOCKER_IMAGE_NAME: data-pipeline
-      DOCKER_IMAGE_TAG: latest
-      MACHINE_TYPE: e2-standard-4
-      # IMPORTANT: Provide the initial bootstrap key from your secret
       TF_VAR_bootstrap_gcp_key: ${{ secrets.BOOTSTRAP_GCP_KEY }}
+
+    outputs:
+      service_account_key: ${{ steps.export-key.outputs.key }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init (bootstrap)
+        working-directory: bootstrap
+        run: terraform init
+
+      - name: Terraform Apply (bootstrap)
+        working-directory: bootstrap
+        run: terraform apply -auto-approve
+
+      - name: Copy Service Account Key to workspace
+        working-directory: bootstrap
+        run: |
+          if [ ! -f sa_key.json ]; then
+            echo "ERROR: sa_key.json not found!"
+            exit 1
+          fi
+          cp sa_key.json $GITHUB_WORKSPACE/key.json
+          chmod 600 $GITHUB_WORKSPACE/key.json
+
+      - name: Export service account key to output
+        id: export-key
+        run: |
+          KEY=$(cat $GITHUB_WORKSPACE/key.json | jq -c .)
+          echo "key=$KEY" >> $GITHUB_OUTPUT
+
+  # -------------------------------------------------------------
+  # 🟩 Job 2: DEPLOY - uses key from bootstrap
+  # -------------------------------------------------------------
+  deploy:
+    name: Deploy Infrastructure
+    needs: bootstrap
+    runs-on: ubuntu-latest
+
+    env:
+      GCP_PROJECT_ID: primordial-veld-450618-n4
+      GCP_LOCATION: us-central1
+      TF_VAR_bootstrap_gcp_key: ${{ needs.bootstrap.outputs.service_account_key }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
@@ -41,57 +88,17 @@ jobs:
       TF_VAR_airflow_admin_email: ${{ secrets.AIRFLOW_ADMIN_EMAIL }}
       TF_VAR_airflow_uid: ${{ secrets.AIRFLOW_UID }}
       TF_VAR_docker_gid: ${{ secrets.DOCKER_GID }}
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Set up Terraform (bootstrap)
-        uses: hashicorp/setup-terraform@v2
-
-      - name: Terraform Init (bootstrap)
-        working-directory: bootstrap
-        run: terraform init
-
-      - name: Terraform Apply (bootstrap)
-        working-directory: bootstrap
-        run: terraform apply -auto-approve
-
-      # Instead of "terraform output -raw ...", copy the local_file's JSON:
-      - name: Copy Service Account Key to GitHub workspace
-        working-directory: bootstrap
-        run: |
-          # Confirm the file was created
-          if [ ! -f sa_key.json ]; then
-            echo "Error: The service account key file (sa_key.json) does not exist!"
-            exit 1
-          fi
-
-          # Copy it to your GitHub workspace
-          cp sa_key.json $GITHUB_WORKSPACE/key.json
-
-          # Provide the file path as an environment variable
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key.json" >> $GITHUB_ENV
-          chmod 600 $GITHUB_WORKSPACE/key.json
-      
-      - name: Read key file into ENV for credentials_json
-        run: |
-          echo "GOOGLE_CREDENTIALS_JSON<<EOF" >> $GITHUB_ENV
-          cat $GITHUB_WORKSPACE/key.json >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Debug full key.json content
-        run: |
-          echo "=== key.json contents ==="
-          cat $GITHUB_WORKSPACE/key.json
-          echo "=== End of key.json ==="
-
-
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ env.GOOGLE_CREDENTIALS_JSON }}
+          credentials_json: ${{ env.TF_VAR_bootstrap_gcp_key }}
           create_credentials_file: true
           export_environment_variables: true
           cleanup_credentials: true
@@ -102,11 +109,7 @@ jobs:
       - name: Update gcloud components
         run: gcloud components update --quiet
 
-      - name: Set bootstrap_gcp_key from key.json
-        run: |
-          echo "TF_VAR_bootstrap_gcp_key=$(cat $GITHUB_WORKSPACE/key.json | jq -c .)" >> $GITHUB_ENV
-
-      - name: Set up Terraform (deploy)
+      - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
 
       - name: Terraform Init (deploy)
@@ -119,7 +122,6 @@ jobs:
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.GCP_LOCATION }}"
 
-
       - name: Import existing resources if any
         run: |
           chmod +x scripts/tf_import_all.sh
@@ -127,7 +129,7 @@ jobs:
 
       - name: Terraform Apply (deploy)
         working-directory: infrastructure
-        run: terraform -auto-approve \
+        run: terraform apply -auto-approve \
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.GCP_LOCATION }}"
 
