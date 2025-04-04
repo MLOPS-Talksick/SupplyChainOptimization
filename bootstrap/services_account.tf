@@ -1,13 +1,28 @@
+######################################################
+# Create the Service Account
+######################################################
 resource "google_service_account" "terraform_sa" {
-  project      = var.project_id
   account_id   = "terraform-service-account"
   display_name = "Terraform Service Account"
+  project      = var.project_id
 }
 
+######################################################
+# Create the JSON Key
+######################################################
 resource "google_service_account_key" "terraform_sa_key" {
   service_account_id = google_service_account.terraform_sa.email
   key_algorithm      = "KEY_ALG_RSA_2048"
   private_key_type   = "TYPE_GOOGLE_CREDENTIALS_FILE"
+}
+
+######################################################
+# Save the JSON Key to a local file
+######################################################
+resource "local_file" "sa_key_file" {
+  # "private_key" is already valid JSON for a GCP credentials file
+  content  = google_service_account_key.terraform_sa_key.private_key
+  filename = "${path.module}/sa_key.json"
 }
 
 
