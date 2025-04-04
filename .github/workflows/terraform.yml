@@ -81,7 +81,10 @@ jobs:
           echo "GCP key hash: $(echo -n "${{ env.GCP_KEY }}" | sha256sum)"
 
       - name: Write Service Account Key to File
-        run: echo "${{ env.GCP_KEY }}" > key.json
+        run: |
+          # Use printf to preserve the exact formatting of the JSON key
+          printf '%s' "${{ env.GCP_KEY }}" > key.json
+
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
