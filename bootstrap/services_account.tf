@@ -6,8 +6,9 @@ resource "google_service_account" "terraform_sa" {
 
 
 resource "google_service_account_key" "terraform_sa_key" {
-  service_account_id = google_service_account.terraform_sa.name
-  public_key_type    = "TYPE_X509_PEM_FILE"
+  service_account_id = google_service_account.terraform_sa
+  key_algorithm      = "KEY_ALG_RSA_2048"
+  private_key_type   = "TYPE_GOOGLE_CREDENTIALS_FILE"
 
   keepers = {
     force_new_key = timestamp()

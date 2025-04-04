@@ -37,15 +37,16 @@ jobs:
         working-directory: bootstrap
         run: terraform apply -auto-approve
 
-      - name: Extract Service Account Key (encoded)
+      - name: Extract Service Account Key (raw JSON)
         working-directory: bootstrap
-        run: terraform output -raw terraform_sa_private_key | base64 > key.b64
+        run: terraform output -raw terraform_sa_private_key > key.json
 
-      - name: Upload Service Account Key Artifact (encoded)
+      - name: Upload Service Account Key Artifact (raw JSON)
         uses: actions/upload-artifact@v4
         with:
           name: gcp-key
-          path: bootstrap/key.b64
+          path: bootstrap/key.json
+
 
 
   deploy:
@@ -99,16 +100,22 @@ jobs:
           name: gcp-key
           path: key-artifact
 
-      - name: Override Service Account Key from Bootstrap (decode)
+      - name: Override Service Account Key from Bootstrap (raw JSON)
         run: |
-          # Decode the key so that its formatting is preserved exactly
-          key=$(cat key-artifact/key.b64 | base64 --decode)
-          echo "GCP_SERVICE_ACCOUNT_KEY<<EOF" >> $GITHUB_ENV
-          echo "$key" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          echo "TF_VAR_gcp_service_account_key<<EOF" >> $GITHUB_ENV
-          echo "$key" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          key=$(cat key-artifact/key.json)
+
+          echo "Validating key format..."
+          echo "$key" | jq . > /dev/null || { echo "❌ Invalid JSON"; exit 1; }
+
+          {
+            echo "GCP_SERVICE_ACCOUNT_KEY<<EOF"
+            echo "$key"
+            echo "EOF"
+            echo "TF_VAR_gcp_service_account_key<<EOF"
+            echo "$key"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
