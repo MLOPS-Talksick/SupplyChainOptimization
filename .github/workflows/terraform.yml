@@ -60,8 +60,9 @@ jobs:
       - name: Export service account key to output
         id: export-key
         run: |
-          KEY=$(cat $GITHUB_WORKSPACE/key.json | jq -c .)
-          echo "key=$KEY" >> $GITHUB_OUTPUT
+          echo "key<<EOF" >> $GITHUB_OUTPUT
+          cat $GITHUB_WORKSPACE/key.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
   # -------------------------------------------------------------
   # 🟩 Job 2: DEPLOY - uses key from bootstrap
