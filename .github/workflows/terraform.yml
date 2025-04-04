@@ -44,7 +44,10 @@ jobs:
           echo "Reading generated service account key"
           GCP_KEY=$(terraform output -raw terraform_sa_private_key)
           echo "::add-mask::$GCP_KEY"
-          echo "gcp_key=$GCP_KEY" >> $GITHUB_OUTPUT
+          echo "gcp_key<<EOF" >> $GITHUB_OUTPUT
+          echo "$GCP_KEY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
 
   deploy:
     name: Deploy Infrastructure
