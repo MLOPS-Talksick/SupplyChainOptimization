@@ -42,7 +42,7 @@ jobs:
         working-directory: bootstrap
         run: |
           echo "Reading generated service account key"
-          GCP_KEY=$(terraform output -raw gcp_service_account_key)
+          GCP_KEY=$(terraform output -raw terraform_sa_private_key)
           echo "::add-mask::$GCP_KEY"
           echo "gcp_key=$GCP_KEY" >> $GITHUB_OUTPUT
 
