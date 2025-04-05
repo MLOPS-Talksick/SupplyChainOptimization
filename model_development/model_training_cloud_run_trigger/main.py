@@ -23,7 +23,7 @@ def trigger_training():
     aiplatform.init(project=project_id, location=region, staging_bucket=staging_bucket_uri)
 
     job = aiplatform.CustomContainerTrainingJob(
-        display_name="custom-container-job",
+        display_name="custom-lstm-model-training",
         container_uri=image_uri,
     )
 
@@ -33,7 +33,7 @@ def trigger_training():
         machine_type="n1-standard-4",
         accelerator_type="ACCELERATOR_TYPE_UNSPECIFIED",
         accelerator_count=0,
-        sync=True,
+        sync=False,
     )
     return jsonify({"message": "Training started"})
 

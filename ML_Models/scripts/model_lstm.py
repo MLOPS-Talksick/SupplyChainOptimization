@@ -28,6 +28,7 @@ tf.random.set_seed(42)
 
 # email = "talksick530@gmail.com"
 email = "svarunanusheel@gmail.com"
+setup_gcp_credentials()
 
 query = """
         SELECT 
