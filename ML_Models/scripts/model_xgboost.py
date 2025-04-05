@@ -494,7 +494,7 @@ def iterative_forecast(
 def save_model_to_model_registry(model, model_name="model.pkl"):
     try:
         project_id = os.environ.get("PROJECT_ID", "primordial-veld-450618-n4")
-        location = os.environ.get("LOCATION", "us-central1")
+        location = os.environ.get("REGION", "us-central1")
         aiplatform.init(project=project_id, location=location)
         artifact_uri = os.environ.get("TRAINED_MODEL_BUCKET_URI", "gs://trained-model-1")
         serving_container_image_uri = os.environ.get("SERVING_CONTAINER_IMAGE_URI", "gcr.io/cloud-aiplatform/prediction/xgboost-cpu.1-1:latest")

@@ -7,7 +7,7 @@ import os
 import pickle
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-
+from google.cloud import storage
 
 import pandas as pd
 from google.cloud.sql.connector import Connector
@@ -60,7 +60,21 @@ def get_latest_data_from_cloud_sql(query, port="3306"):
     return df
 
 
-def predict_product_demand(model_folder, product_name, days=30, data_file=None):
+def download_model(bucket_name, model_name):
+    
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "C:/Users/svaru/Downloads/cloud_run.json"
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(model_name)
+    blob.download_to_filename(model_name)
+
+    print(f"File {model_name} downloaded.")
+
+    return load_model(os.path.abspath(model_name))
+
+
+
+def predict_product_demand(product_name, days=30):
     """
     Generate demand predictions for a specific product using a pre-trained LSTM model.
     
@@ -81,13 +95,15 @@ def predict_product_demand(model_folder, product_name, days=30, data_file=None):
         DataFrame with date, product name, and predicted quantity
     """
 
-    # Load the model
-    model_path = 'best_lstm_model.h5'
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found at '{model_path}'")
+    # # Load the model
+    # model_path = 'lstm_model.keras'
+    # if not os.path.exists(model_path):
+    #     raise FileNotFoundError(f"Model file not found at '{model_path}'")
     
-    model = load_model(model_path)
-    print(f"Model loaded successfully from {model_path}")
+    # model = load_model(model_path)
+    # print(f"Model loaded successfully from {model_path}")
+
+    model = download_model("trained-model-1", 'lstm_model.keras')
 
     model.summary()  # Print model summary for debugging
     
@@ -286,7 +302,6 @@ if __name__ == "__main__":
     try:
         # Generate predictions
         predictions = predict_product_demand(
-            model_folder=model_folder,
             product_name=product_name,
             days=days
         )
