@@ -11,7 +11,8 @@ from typing import List
 from pydantic import BaseModel
 from requests.auth import HTTPBasicAuth
 import time
-
+from dotenv import load_dotenv
+load_dotenv()
 app = FastAPI()
 
 # Configuration from environment
@@ -28,7 +29,8 @@ VERTEX_ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID")
 API_TOKEN = os.environ.get("API_TOKEN")  # our simple token for auth
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
 AIRFLOW_DAG_ID = os.environ.get("AIRFLOW_DAG_ID")
-AIRFLOW_URL = os.environ.get("AIRFLOW_URL")
+VM_IP = os.environ.get("VM_IP")
+AIRFLOW_URL = f"http://{VM_IP}/api/v1/dags/{AIRFLOW_DAG_ID}/dagRuns"
 AIRFLOW_USERNAME = os.environ.get("AIRFLOW_USERNAME")
 AIRFLOW_PASSWORD = os.environ.get("AIRFLOW_PASSWORD")
 
@@ -127,8 +129,30 @@ def get_data(n: int = 5):
         raise HTTPException(status_code=400, detail="Parameter 'n' must be positive.")
     # Connect to Cloud SQL
     try:
-        conn = pymysql.connect(user=DB_USER, password=DB_PASS, database=DB_NAME,
-                                unix_socket=f"/cloudsql/{INSTANCE_CONN_NAME}")
+                
+
+        # Use an environment variable or a flag to switch between connection methods.
+        # For example, if you're running locally on Windows, set USE_TCP to 'true'
+        USE_TCP = os.environ.get("USE_TCP", "false").lower() == "true"
+
+        if USE_TCP:
+            # Replace with your Cloud SQL instance's public IP and port (default MySQL port is 3306)
+            connection = pymysql.connect(
+                host="YOUR_CLOUD_SQL_PUBLIC_IP",
+                user=os.environ.get("DB_USER"),
+                password=os.environ.get("DB_PASS"),
+                database=os.environ.get("DB_NAME"),
+                port=3306
+            )
+        else:
+            # For Cloud Run (or Linux) use the Unix socket
+            connection = pymysql.connect(
+                user=os.environ.get("DB_USER"),
+                password=os.environ.get("DB_PASS"),
+                database=os.environ.get("DB_NAME"),
+                unix_socket=f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}"
+            )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     try:
