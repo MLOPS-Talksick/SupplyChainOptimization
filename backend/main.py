@@ -6,6 +6,11 @@ from fastapi.responses import JSONResponse
 from google.cloud import storage
 import pymysql
 from google.cloud import aiplatform
+import requests
+from typing import List
+from pydantic import BaseModel
+from requests.auth import HTTPBasicAuth
+import time
 
 app = FastAPI()
 
@@ -21,6 +26,12 @@ PROJECT_ID = os.environ.get("PROJECT_ID")
 VERTEX_REGION = os.environ.get("VERTEX_REGION")
 VERTEX_ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID")
 API_TOKEN = os.environ.get("API_TOKEN")  # our simple token for auth
+GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
+AIRFLOW_DAG_ID = os.environ.get("AIRFLOW_DAG_ID")
+AIRFLOW_URL = os.environ.get("AIRFLOW_URL")
+AIRFLOW_USERNAME = os.environ.get("AIRFLOW_USERNAME")
+AIRFLOW_PASSWORD = os.environ.get("AIRFLOW_PASSWORD")
+
 
 # Simple token-based authentication dependency
 def verify_token(token: str = Header(None)):
@@ -32,40 +43,81 @@ def verify_token(token: str = Header(None)):
         raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
     return True
 
+
 @app.post("/upload", dependencies=[Depends(verify_token)])
 async def upload_file(file: UploadFile = File(...)):
-    # 1. Validate file type by extension or MIME type
-    filename = file.filename
-    if not filename:
-        raise HTTPException(status_code=400, detail="No file provided.")
-    # Accept .xls or .xlsx
-    if not (filename.lower().endswith(".xls") or filename.lower().endswith(".xlsx")):
-        raise HTTPException(status_code=400, detail="Only .xls or .xlsx files are allowed.")
-    # Optionally, check MIME type as well for extra safety
-    if file.content_type not in ["application/vnd.ms-excel", 
-                                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
-        raise HTTPException(status_code=400, detail="Invalid file type. Must be an Excel file.")
-
-    # 2. Read file (in chunks to be memory-safe) and check size
-    file_contents = await file.read()  # read the entire file into memory (be careful with very large files)
-    file_size = len(file_contents)
-    max_size = 50 * 1024 * 1024  # 50 MB in bytes
-    if file_size > max_size:
-        raise HTTPException(status_code=400, detail="File too large. Must be <= 50 MB.")
-    
-    # 3. Upload to Cloud Storage
+    """
+    Uploads an Excel file to GCS and triggers an Airflow DAG run.
+    """
+    # 1. Upload the file to Google Cloud Storage
+    storage_client = storage.Client()  
+    bucket = storage_client.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(file.filename)
     try:
-        storage_client = storage.Client()  # uses ADC credentials (should be available on Cloud Run)
-        bucket = storage_client.bucket(BUCKET_NAME)
-        blob = bucket.blob(filename)
-        # Upload the file contents
-        blob.upload_from_string(file_contents)
+        # Use upload_from_file to stream the file to GCS
+        blob.upload_from_file(file.file)
     except Exception as e:
-        # Log the exception (omitted here) and return error
-        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"File upload failed: {e}")
     
-    # 4. Return success response
-    return {"message": f"File '{filename}' uploaded successfully to bucket {BUCKET_NAME}.", "size": file_size}
+    # 2. Trigger the Airflow DAG after successful upload
+    # Prepare the DAG run payload
+    dag_run_id = f"manual_{int(time.time())}"  # e.g., manual_1697059096
+    payload = {
+        "dag_run_id": dag_run_id,
+        "conf": { "filename": file.filename }
+    }
+    try:
+        response = requests.post(
+            AIRFLOW_URL,
+            json=payload,
+            auth=HTTPBasicAuth(AIRFLOW_USERNAME, AIRFLOW_PASSWORD)
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        # If the DAG trigger fails, you might still want to inform the user.
+        # Here we raise an error. Alternatively, you could return a success for upload 
+        # and a warning for the DAG trigger.
+        raise HTTPException(status_code=500, detail=f"Airflow DAG trigger failed: {e}")
+    
+    # 3. Return a response indicating success
+    return {
+        "message": "File uploaded to GCS and Airflow DAG triggered successfully.",
+        "file": file.filename,
+        "dag_run_id": dag_run_id
+    }
+# async def upload_file(file: UploadFile = File(...)):
+#     # 1. Validate file type by extension or MIME type
+#     filename = file.filename
+#     if not filename:
+#         raise HTTPException(status_code=400, detail="No file provided.")
+#     # Accept .xls or .xlsx
+#     if not (filename.lower().endswith(".xls") or filename.lower().endswith(".xlsx")):
+#         raise HTTPException(status_code=400, detail="Only .xls or .xlsx files are allowed.")
+#     # Optionally, check MIME type as well for extra safety
+#     if file.content_type not in ["application/vnd.ms-excel", 
+#                                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
+#         raise HTTPException(status_code=400, detail="Invalid file type. Must be an Excel file.")
+
+#     # 2. Read file (in chunks to be memory-safe) and check size
+#     file_contents = await file.read()  # read the entire file into memory (be careful with very large files)
+#     file_size = len(file_contents)
+#     max_size = 50 * 1024 * 1024  # 50 MB in bytes
+#     if file_size > max_size:
+#         raise HTTPException(status_code=400, detail="File too large. Must be <= 50 MB.")
+    
+#     # 3. Upload to Cloud Storage
+#     try:
+#         storage_client = storage.Client()  # uses ADC credentials (should be available on Cloud Run)
+#         bucket = storage_client.bucket(BUCKET_NAME)
+#         blob = bucket.blob(filename)
+#         # Upload the file contents
+#         blob.upload_from_string(file_contents)
+#     except Exception as e:
+#         # Log the exception (omitted here) and return error
+#         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+    
+#     # 4. Return success response
+#     return {"message": f"File '{filename}' uploaded successfully to bucket {BUCKET_NAME}.", "size": file_size}
 
 @app.get("/data", dependencies=[Depends(verify_token)])
 def get_data(n: int = 5):
@@ -95,52 +147,32 @@ def get_data(n: int = 5):
     return {"records": result, "count": len(result)}
 
 
-@app.get("/predict", dependencies=[Depends(verify_token)])
-def get_predictions():
-    """Get forecast predictions for all products for the next week."""
-    # 1. Get distinct product names from the database
+
+
+# (Optional) Define a Pydantic model for the request body
+class PredictRequest(BaseModel):
+    product_names: List[str]
+    dates: List[str]
+
+@app.post("/predict")
+async def get_prediction(request: PredictRequest):
+    # Prepare the payload for the Cloud Run service
+    payload = {
+        "product_names": request.product_names,
+        "dates": request.dates
+    }
     try:
-        conn = pymysql.connect(user=DB_USER, password=DB_PASS, database=DB_NAME,
-                                unix_socket=f"/cloudsql/{INSTANCE_CONN_NAME}")
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT DISTINCT product_name FROM sales_data;")
-            products = [row[0] for row in cursor.fetchall()]
-        conn.close()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DB error fetching products: {str(e)}")
-    if not products:
-        raise HTTPException(status_code=404, detail="No products found in database.")
-    
-    # 2. Generate dates from today to one week later
-    today = date.today()
-    dates = [(today + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(8)]  # 8 days including today
-    
-    # 3. Prepare instances and call Vertex AI endpoint
-    try:
-        aiplatform.init(project=PROJECT_ID, location=VERTEX_REGION)
-        endpoint = aiplatform.Endpoint(VERTEX_ENDPOINT_ID)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Vertex AI endpoint initialization failed: {str(e)}")
-    # Build the list of instances for prediction
-    instances = []
-    for product in products:
-        for d in dates:
-            instances.append({"date": d, "product": product})
-    # Call the prediction
-    try:
-        prediction_response = endpoint.predict(instances=instances)
-        predictions = prediction_response.predictions  # list of predictions results
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Vertex AI prediction failed: {str(e)}")
-    
-    # 4. Format the results
-    results = []
-    for idx, pred in enumerate(predictions):
-        # Each pred could be a single value or a structure. We'll just include it as-is.
-        instance = instances[idx]
-        results.append({
-            "product": instance["product"],
-            "date": instance["date"],
-            "prediction": pred
-        })
-    return {"predictions": results, "count": len(results)}
+        # Call the Cloud Run prediction service
+        response = requests.post(
+            "https://model-serving-148338842941.us-central1.run.app/predict", 
+            json=payload
+        )
+        # Raise an exception if the status is not 200 OK
+        response.raise_for_status()
+    except requests.RequestException as e:
+        # If the request failed, return an HTTP 500 error with details
+        raise HTTPException(status_code=500, detail=f"Model prediction failed: {e}")
+    # Parse the JSON response from the model service
+    predictions = response.json()
+    # Return the predictions (you can adjust the response format as needed)
+    return {"predictions": predictions}
