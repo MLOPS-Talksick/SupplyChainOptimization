@@ -45,17 +45,36 @@ echo "=== Checking and Importing Existing Resources into Terraform State ==="
 ARTIFACT_REGISTRY_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
 REPO_FORMAT="${REPO_FORMAT:-DOCKER}"
 echo "Checking Artifact Registry (${ARTIFACT_REGISTRY_NAME})..."
-EXISTING_REPO=$(gcloud artifacts repositories list \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}" \
-  --filter="name:${ARTIFACT_REGISTRY_NAME}" \
-  --format="value(name)")
+
+EXISTING_REPO=""
+for i in {1..3}; do
+  echo "Attempt $i to list Artifact Registry repositories..."
+  OUTPUT=$(gcloud artifacts repositories list \
+    --project="${PROJECT_ID}" \
+    --location="${REGION}" \
+    --filter="name:${ARTIFACT_REGISTRY_NAME}" \
+    --format="value(name)" 2>&1)
+  
+  if [[ "$OUTPUT" =~ "Permission" ]]; then
+    echo "Received permission error: $OUTPUT"
+    # Optionally, you can exit here or wait for propagation.
+    sleep 5
+  elif [[ -n "$OUTPUT" ]]; then
+    EXISTING_REPO="$OUTPUT"
+    break
+  else
+    echo "No repository found on attempt $i. Retrying in 5 seconds..."
+    sleep 5
+  fi
+done
+
 if [[ -n "$EXISTING_REPO" ]]; then 
     echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} exists. Importing..."
     terraform import google_artifact_registry_repository.airflow_docker_repo "projects/${PROJECT_ID}/locations/${REGION}/repositories/${ARTIFACT_REGISTRY_NAME}"
 else
-    echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} not found. Terraform will create it."
+    echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} not found or access denied. Terraform will create it."
 fi
+
 
 # Declare an associative array mapping secret names to their Terraform secret resource addresses.
 declare -A secrets=(
