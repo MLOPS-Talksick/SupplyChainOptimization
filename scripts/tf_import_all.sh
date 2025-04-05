@@ -38,16 +38,6 @@ echo "=== Checking and Importing Existing Resources into Terraform State ==="
 # fi
 
 
-# 15. Cloud Function: processDataFunction
-FUNCTION_NAME="processDataFunction"
-echo "Checking Cloud Function (${FUNCTION_NAME}) in region ${REGION}..."
-if gcloud functions describe "${FUNCTION_NAME}" --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
-    echo "Cloud Function ${FUNCTION_NAME} exists. Importing..."
-    terraform import google_cloudfunctions_function.process_data_function "projects/${PROJECT_ID}/locations/${REGION}/functions/${FUNCTION_NAME}"
-else
-    echo "Cloud Function ${FUNCTION_NAME} not found. Terraform will create it."
-fi
-
 
 ######################################
 # Artifact Registry: airflow-docker-image
@@ -348,6 +338,16 @@ for bucket in "${BUCKETS[@]}"; do
         echo "Bucket ${bucket} not found. Terraform will create it."
     fi
 done
+
+# 15. Cloud Function: processDataFunction
+FUNCTION_NAME="processDataFunction"
+echo "Checking Cloud Function (${FUNCTION_NAME}) in region ${REGION}..."
+if gcloud functions describe "${FUNCTION_NAME}" --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
+    echo "Cloud Function ${FUNCTION_NAME} exists. Importing..."
+    terraform import google_cloudfunctions_function.process_data_function "projects/${PROJECT_ID}/locations/${REGION}/functions/${FUNCTION_NAME}"
+else
+    echo "Cloud Function ${FUNCTION_NAME} not found. Terraform will create it."
+fi
 
 
 echo "=== Import Check Completed ==="
