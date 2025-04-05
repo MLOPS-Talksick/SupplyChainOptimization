@@ -50,7 +50,7 @@ EXISTING_REPO=$(gcloud artifacts repositories list \
   --location="${REGION}" \
   --filter="name:${ARTIFACT_REGISTRY_NAME}" \
   --format="value(name)")
-if [[ -n "$EXISTING_REPO" ]]; then
+if [[ -n "$EXISTING_REPO" ]]; then 
     echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} exists. Importing..."
     terraform import google_artifact_registry_repository.airflow_docker_repo "projects/${PROJECT_ID}/locations/${REGION}/repositories/${ARTIFACT_REGISTRY_NAME}"
 else
