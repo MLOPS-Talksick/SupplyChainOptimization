@@ -27,7 +27,7 @@ fi
 echo "🔍 Checking if files in 'model_development/model_serving' have changed..."
 
 if git rev-parse HEAD~1 >/dev/null 2>&1; then
-  if git diff --quiet HEAD~1 HEAD -- model_development/model_serving; then
+  if git diff --quiet HEAD~1 HEAD -- model_development/model_serving_cloud_run; then
     echo "✅ No changes detected in last commit."
   else
     echo "⚠️ Changes detected in last commit. A new build is required."
@@ -35,7 +35,7 @@ if git rev-parse HEAD~1 >/dev/null 2>&1; then
   fi
 else
   echo "ℹ️ Only one commit found. Checking working directory changes instead..."
-  if git diff --quiet -- model_development/model_serving; then
+  if git diff --quiet -- model_development/model_serving_cloud_run; then
     echo "✅ No changes in working directory."
   else
     echo "⚠️ Uncommitted or staged changes found. A new build is required."

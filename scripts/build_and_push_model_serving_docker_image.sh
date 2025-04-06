@@ -11,7 +11,7 @@ REPO_URI="${GCP_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}"
 echo "📦 Docker build triggered (image missing or code changed)."
 echo "📸 Building image: ${REPO_URI}/${IMAGE_NAME}:${IMAGE_TAG}"
 
-docker build --no-cache -t "${REPO_URI}/${IMAGE_NAME}:${IMAGE_TAG}" -f model_development/model_serving/Dockerfile .
+docker build --no-cache -t "${REPO_URI}/${IMAGE_NAME}:${IMAGE_TAG}" -f model_development/model_serving_cloud_run/Dockerfile .
 docker tag "${REPO_URI}/${IMAGE_NAME}:${IMAGE_TAG}" "${REPO_URI}/${IMAGE_NAME}:latest"
 docker push "${REPO_URI}/${IMAGE_NAME}:${IMAGE_TAG}"
 docker push "${REPO_URI}/${IMAGE_NAME}:latest"
