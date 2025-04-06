@@ -28,13 +28,19 @@ echo "🔍 Checking if files in 'model_development/model_training' have changed.
 
 if git rev-parse HEAD~1 >/dev/null 2>&1; then
   if git diff --quiet HEAD~1 HEAD -- model_development/model_training; then
-    echo "✅ No changes detected in 'model_training'."
+    echo "✅ No changes detected in last commit."
   else
-    echo "⚠️ Changes detected. A new build is required."
+    echo "⚠️ Changes detected in last commit. A new build is required."
     BUILD_REQUIRED=true
   fi
 else
-  echo "ℹ️ Only one commit found. Skipping change detection."
+  echo "ℹ️ Only one commit found. Checking working directory changes instead..."
+  if git diff --quiet -- model_development/model_training; then
+    echo "✅ No changes in working directory."
+  else
+    echo "⚠️ Uncommitted or staged changes found. A new build is required."
+    BUILD_REQUIRED=true
+  fi
 fi
 
 echo "build_required=${BUILD_REQUIRED}" >> "$GITHUB_OUTPUT"
