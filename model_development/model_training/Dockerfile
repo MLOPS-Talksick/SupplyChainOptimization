@@ -6,15 +6,10 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DEFAULT_TIMEOUT=100 \
     PYTHONPATH=/app\
-    GOOGLE_APPLICATION_CREDENTIALS="/app/secret/gcp-key.json"
-
 
 
 # Set the working directory
 WORKDIR /app
-
-
-COPY secret/gcp-key.json /app/secret/gcp-key.json
 
 # Copy Data_Pipeline scripts
 COPY Data_Pipeline/scripts/logger.py /app/Data_Pipeline/scripts/logger.py

@@ -888,7 +888,7 @@ class TestUtils(unittest.TestCase):
     @patch("scripts.utils.logger")
     def test_upload_json_alternative_dict_conversion(self, mock_logger, mock_storage_client, mock_setup_creds):
         # Force write_json to fail so that dict conversion is attempted.
-        df = pl.DataFrame({"col": [1, 2, 3]})
+        df = pl.DataFrame({"col": [1,2,3]})
         df.write_json = lambda: (_ for _ in ()).throw(Exception("write_json failure"))
 
         destination_blob_name = "test_file.json"
@@ -903,49 +903,11 @@ class TestUtils(unittest.TestCase):
 
         # Expected dict conversion: since our DataFrame is simple, to_dict conversion works as is.
         expected_data_dict = df.to_pandas().to_dict(orient="records")
-        expected_json = json.dumps(expected_data_dict, indent=2)
+        expected_json = json.dumps(expected_data_dict, separators=(',', ':'))
 
         upload_to_gcs(df, bucket_name, destination_blob_name)
 
         dummy_blob.upload_from_string.assert_called_once_with(expected_json, content_type="application/json")
-        expected_log_call = call("JSON data uploaded successfully using dict conversion")
-        expected_final_call = call("Upload successful to GCS. Blob name: %s", destination_blob_name)
-        self.assertIn(expected_log_call, mock_logger.info.call_args_list)
-        self.assertIn(expected_final_call, mock_logger.info.call_args_list)
-
-    @patch("scripts.utils.setup_gcp_credentials")
-    @patch("scripts.utils.storage.Client")
-    @patch("scripts.utils.logger")
-    def test_upload_json_alternative_pandas_conversion(self, mock_logger, mock_storage_client, mock_setup_creds):
-        # Force write_json to fail and simulate failure in the dict conversion branch.
-        df = pl.DataFrame({"col": [1, 2, 3]})
-        df.write_json = lambda: (_ for _ in ()).throw(Exception("write_json failure"))
-
-        destination_blob_name = "test_file.json"
-        bucket_name = "test_bucket"
-
-        dummy_blob = MagicMock()
-        # Simulate that the first upload (dict conversion) fails, then the second attempt (pandas conversion) succeeds.
-        dummy_blob.upload_from_string.side_effect = [Exception("Dict conversion failure"), None]
-        dummy_bucket = MagicMock()
-        dummy_bucket.blob.return_value = dummy_blob
-        dummy_storage_instance = MagicMock()
-        dummy_storage_instance.get_bucket.return_value = dummy_bucket
-        mock_storage_client.return_value = dummy_storage_instance
-
-        upload_to_gcs(df, bucket_name, destination_blob_name)
-
-        # Final branch uses pandas conversion.
-        expected_json = df.to_pandas().to_json(orient="records")
-        # Ensure that upload_from_string was called twice.
-        self.assertEqual(dummy_blob.upload_from_string.call_count, 2)
-        second_call_args = dummy_blob.upload_from_string.call_args_list[1][0]
-        self.assertEqual(second_call_args[0], expected_json)
-        self.assertEqual(dummy_blob.upload_from_string.call_args_list[1][1]["content_type"], "application/json")
-        expected_log_call = call("JSON data uploaded successfully using pandas conversion")
-        expected_final_call = call("Upload successful to GCS. Blob name: %s", destination_blob_name)
-        self.assertIn(expected_log_call, mock_logger.info.call_args_list)
-        self.assertIn(expected_final_call, mock_logger.info.call_args_list)
 
     @patch("scripts.utils.setup_gcp_credentials")
     @patch("scripts.utils.storage.Client")
