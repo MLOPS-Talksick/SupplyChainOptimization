@@ -15,3 +15,16 @@ variable "gcp_service_account_key" {
   type        = string
   sensitive   = true
 }
+
+variable "artifact_registry_name" {
+  description = "Name of the artifact registry repository."
+  type        = string
+  default     = "airflow-docker-image"
+}
+
+variable "repo_format" {
+  description = "Format for the repository. For Docker, use 'DOCKER'."
+  type        = string
+  default     = "DOCKER"
+}
+

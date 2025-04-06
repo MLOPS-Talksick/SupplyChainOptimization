@@ -103,13 +103,57 @@ jobs:
           path: sa_email.txt
           retention-days: 1
 
+  # Job - 2: build and push
+  build_and_push:
+    name: Build and Push Docker Image
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    env:
+      GCP_PROJECT_ID: primordial-veld-450618-n4
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.BOOTSTRAP_GCP_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Check if Docker Build is Needed for airflow.
+        id: detect-changes
+        run: |
+          chmod +x scripts/check_docker_build.sh
+          ./scripts/check_docker_build.sh
+
+      - name: Build & Push Docker Image for airflow.
+        if: steps.detect-changes.outputs.build_required == 'true'
+        run: |
+          chmod +x scripts/build_and_push.sh
+          ./scripts/build_and_push.sh
+
+      - name: Check if Docker Build is Needed for Cloud Run.
+        id: detect-changes
+        run: |
+          chmod +x scripts/check_cloudrun_docker_build.sh
+          ./scripts/check_cloudrun_docker_build.sh
+
+      - name: Build & Push Docker Image for Cloud Run.
+        if: steps.detect-changes.outputs.build_required == 'true'
+        run: |
+          chmod +x scripts/build_and_push_cloudrun_docker_image.sh
+          ./scripts/build_and_push_cloudrun_docker_image.sh
+
 
   # -------------------------------------------------------------
-  # 🟩 Job 2: DEPLOY - uses key from bootstrap
+  # 🟩 Job 3: DEPLOY - uses key from bootstrap
   # -------------------------------------------------------------
   deploy:
     name: Deploy Infrastructure
-    needs: bootstrap
+    needs: [bootstrap, build_and_push]
     runs-on: ubuntu-latest
 
     env:
@@ -206,21 +250,6 @@ jobs:
           terraform apply -auto-approve \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
             -var="region=${{ env.GCP_LOCATION }}"
-
-      - name: Check if Docker Build is Needed
-        id: detect-changes
-        run: |
-          chmod +x scripts/check_docker_build.sh
-          ./scripts/check_docker_build.sh
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-
-      - name: Build & Push Docker Image
-        if: steps.detect-changes.outputs.build_required == 'true'
-        run: |
-          chmod +x scripts/build_and_push.sh
-          ./scripts/build_and_push.sh
 
       - name: Get Load Balancer IP
         run: |
