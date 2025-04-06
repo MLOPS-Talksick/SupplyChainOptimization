@@ -21,6 +21,6 @@ ML_Models/experiments/scripts/mlruns/
 
 ML_Models/SCO_LOG/*
 ./mlruns
-
+./data
 
 .env

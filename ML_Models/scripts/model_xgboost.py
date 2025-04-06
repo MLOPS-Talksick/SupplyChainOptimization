@@ -8,6 +8,9 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import OneHotEncoder
 import shap
 import os
+import uuid
+from google.cloud import aiplatform
+from google.cloud import storage
 from Data_Pipeline.scripts.logger import logger
 from Data_Pipeline.scripts.utils import send_email, setup_gcp_credentials
 
@@ -15,6 +18,9 @@ from Data_Pipeline.scripts.utils import send_email, setup_gcp_credentials
 # from utils import send_email
 from google.cloud import storage
 from ML_Models.scripts.utils import get_latest_data_from_cloud_sql
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def save_pkl_to_gcs(
@@ -51,7 +57,8 @@ def save_pkl_to_gcs(
         return False
 
 
-email = "talksick530@gmail.com"
+# email = "talksick530@gmail.com"
+email = "svarunanusheel@gmail.com"
 
 
 def compute_rmse(y_true, y_pred):
@@ -68,13 +75,13 @@ def extract_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Create time-series features for each row.
     Adds date features, lag features (lag_1, lag_7, lag_14, lag_30),
-    and rolling statistics (rolling_mean_7, rolling_mean_14, rolling_std_7).
+    and rolling statistics (rolling_mean_3, rolling_mean_21, rolling_mean_14, rolling_std_7).
     You can add additional long-window features (e.g., 60-day rolling mean) as needed.
     """
     try:
         logger.info("Starting feature extraction.")
-        df["Date"] = pd.to_datetime(df["Date"])
-        df = df.sort_values(by=["Product Name", "Date"]).reset_index(drop=True)
+        df["Date"] = pd.to_datetime(df["Date"])# , format='%d-%m-%Y')
+        df = df.sort_values(by=["Product_Name", "Date"]).reset_index(drop=True)
         logger.info("Converted Date column to datetime and sorted data.")
 
         # Date-based features
@@ -88,22 +95,22 @@ def extract_features(df: pd.DataFrame) -> pd.DataFrame:
 
         # Lag features
         for lag in [1, 7, 14, 30]:
-            df[f"lag_{lag}"] = df.groupby("Product Name")[
-                "Total Quantity"
+            df[f"lag_{lag}"] = df.groupby("Product_Name")[
+                "Total_Quantity"
             ].shift(lag)
         logger.info("Created lag features.")
 
         # Rolling window features
-        for window in [7, 14]:
-            df[f"rolling_mean_{window}"] = df.groupby("Product Name")[
-                "Total Quantity"
+        for window in [3, 14, 21]:
+            df[f"rolling_mean_{window}"] = df.groupby("Product_Name")[
+                "Total_Quantity"
             ].transform(
                 lambda x: x.shift(1)
                 .rolling(window=window, min_periods=1)
                 .mean()
             )
-        df["rolling_std_7"] = df.groupby("Product Name")[
-            "Total Quantity"
+        df["rolling_std_7"] = df.groupby("Product_Name")[
+            "Total_Quantity"
         ].transform(
             lambda x: x.shift(1).rolling(window=14, min_periods=1).std()
         )
@@ -124,13 +131,13 @@ def extract_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def create_target(df: pd.DataFrame, horizon: int = 7) -> pd.DataFrame:
     """
-    Create an aggregated target as the average of the next `horizon` days' 'Total Quantity'.
+    Create an aggregated target as the average of the next `horizon` days' 'Total_Quantity'.
     This means each record's target is the average demand over the next 7 days.
     """
     try:
         logger.info("Starting target creation with horizon=%d.", horizon)
-        df = df.sort_values(by=["Product Name", "Date"]).reset_index(drop=True)
-        df["target"] = df.groupby("Product Name")["Total Quantity"].transform(
+        df = df.sort_values(by=["Product_Name", "Date"]).reset_index(drop=True)
+        df["target"] = df.groupby("Product_Name")["Total_Quantity"].transform(
             lambda x: x.shift(-1).rolling(window=horizon, min_periods=1).mean()
         )
         logger.info("Target variable created.")
@@ -350,7 +357,8 @@ def iterative_forecast(
             "lag_7",
             "lag_14",
             "lag_30",
-            "rolling_mean_7",
+            "rolling_mean_3",
+            "rolling_mean_21",
             "rolling_mean_14",
             "rolling_std_7",
             "day_of_week",
@@ -362,7 +370,7 @@ def iterative_forecast(
         ]
 
         logger.info(
-            f"Starting forecast for {forecast_days} days for product {df_product['Product Name'].iloc[0]}"
+            f"Starting forecast for {forecast_days} days for product {df_product['Product_Name'].iloc[0]}"
         )
 
         for day in range(forecast_days):
@@ -384,29 +392,34 @@ def iterative_forecast(
             }
 
             # Lag features
-            last_qty = history["Total Quantity"].iloc[-1]
+            last_qty = history["Total_Quantity"].iloc[-1]
             feature_row["lag_1"] = last_qty
             feature_row["lag_7"] = (
-                history.iloc[-7]["Total Quantity"]
+                history.iloc[-7]["Total_Quantity"]
                 if len(history) >= 7
                 else last_qty
             )
             feature_row["lag_14"] = (
-                history.iloc[-14]["Total Quantity"]
+                history.iloc[-14]["Total_Quantity"]
                 if len(history) >= 14
                 else last_qty
             )
             feature_row["lag_30"] = (
-                history.iloc[-30]["Total Quantity"]
+                history.iloc[-30]["Total_Quantity"]
                 if len(history) >= 30
                 else last_qty
             )
 
             # Rolling statistics
-            qty_list = history["Total Quantity"].tolist()
-            feature_row["rolling_mean_7"] = (
-                np.mean(qty_list[-7:])
-                if len(qty_list) >= 7
+            qty_list = history["Total_Quantity"].tolist()
+            feature_row["rolling_mean_3"] = (
+                np.mean(qty_list[-3:])
+                if len(qty_list) >= 3
+                else np.mean(qty_list)
+            )
+            feature_row["rolling_mean_21"] = (
+                np.mean(qty_list[-21:])
+                if len(qty_list) >= 21
                 else np.mean(qty_list)
             )
             feature_row["rolling_mean_14"] = (
@@ -428,7 +441,7 @@ def iterative_forecast(
 
             # Handle product encoding (Ensure all product columns exist)
             if product_columns is not None:
-                current_product = df_product["Product Name"].iloc[0]
+                current_product = df_product["Product_Name"].iloc[0]
                 dummy_features = {
                     col: 0 for col in product_columns
                 }  # Initialize all product columns to 0
@@ -459,8 +472,8 @@ def iterative_forecast(
             # Update history with new prediction for next iteration
             new_row = feature_row.copy()
             new_row["Date"] = next_date
-            new_row["Product Name"] = df_product["Product Name"].iloc[0]
-            new_row["Total Quantity"] = next_qty
+            new_row["Product_Name"] = df_product["Product_Name"].iloc[0]
+            new_row["Total_Quantity"] = next_qty
             history = pd.concat(
                 [history, pd.DataFrame([new_row])], ignore_index=True
             )
@@ -478,7 +491,62 @@ def iterative_forecast(
             subject="Iterative Forecast Failure",
             body=f"An error occurred while iterative forecast: {str(e)}",
         )
+def save_model_to_model_registry(model, model_name="model.pkl"):
+    try:
+        project_id = os.environ.get("PROJECT_ID", "primordial-veld-450618-n4")
+        location = os.environ.get("REGION", "us-central1")
+        aiplatform.init(project=project_id, location=location)
+        artifact_uri = os.environ.get("TRAINED_MODEL_BUCKET_URI", "gs://trained-model-1")
+        serving_container_image_uri = os.environ.get("SERVING_CONTAINER_IMAGE_URI", "gcr.io/cloud-aiplatform/prediction/xgboost-cpu.1-1:latest")
+        
+        # List existing models
+        existing_models = aiplatform.Model.list(
+            filter=f'display_name="{model_name}"',
+            order_by="create_time desc",
+        )
 
+        if existing_models:
+            parent_model = existing_models[0]  # Get latest model version
+            version_id = len(existing_models) + 1  # Increment version number
+            logger.info(f"Updating {model_name} with version {version_id}...")
+            vertex_model = aiplatform.Model.upload(
+                parent_model=parent_model.resource_name,
+                display_name=model_name,
+                artifact_uri=artifact_uri,
+                serving_container_image_uri=serving_container_image_uri,  # Change based on your ML framework
+            )
+        else:
+            version_id = 1  # First version
+            vertex_model = aiplatform.Model.upload(
+                display_name=model_name,
+                artifact_uri=artifact_uri,
+                serving_container_image_uri=serving_container_image_uri,
+                labels={"source": "gcs", "framework": "xg_boost"}
+            )
+
+            logger.info(f"Model {vertex_model.display_name} registered to Vertex AI with ID: {vertex_model.name}")
+            logger.info(f"Model resource path: {vertex_model.resource_name}")
+
+        # Uncomment below to enable deployment if needed
+        # endpoint = aiplatform.Endpoint.create(
+        #     display_name=model_name,
+        #     project=project_id,
+        #     location=location,
+        # )
+
+        # endpoint.deploy(
+        #     model=vertex_model,
+        #     deployed_model_display_name=model_name,
+        #     machine_type="n1-standard-4",
+        #     traffic_percentage=100,  # Ensures only the new version serves traffic
+        # )
+        # logger.info(f"Uploaded and Deployed {model_name} with version # {version_id}.")
+
+        return vertex_model
+
+    except Exception as e:
+        logger.error(f"An error occurred while saving the model to the registry: {str(e)}")
+        raise
 
 def save_model(model, filename="model.pkl"):
     """
@@ -492,6 +560,10 @@ def save_model(model, filename="model.pkl"):
 
         # Upload to GCS
         success = save_pkl_to_gcs(model, destination_blob_name=filename)
+        model_resource_name = save_model_to_model_registry(model, filename)
+        
+        print(f"Model uploaded successfully. Model name: {model_resource_name}")
+
         return success
 
     except Exception as e:
@@ -685,16 +757,17 @@ def main():
         query = """
         SELECT 
             sale_date AS 'Date', 
-            product_name AS 'Product Name', 
-            total_quantity AS 'Total Quantity'
+            product_name AS 'Product_Name', 
+            total_quantity AS 'Total_Quantity'
         FROM SALES
         ORDER BY sale_date;
     """
 
         df = get_latest_data_from_cloud_sql(query=query)
 
+
         # print(new_df.head())
-        # df = pd.read_csv(file_path)
+        # df = pd.read_csv("E:/MLOps/SupplyChainOptimization/filename.csv")
 
         # 2. Create features and target on original data (keep for forecasting)
         logger.info(
@@ -704,7 +777,7 @@ def main():
         original_df = create_target(original_df, horizon=7)
         original_df = original_df.dropna().reset_index(drop=True)
 
-        # For training, work on a copy and then one-hot encode "Product Name"
+        # For training, work on a copy and then one-hot encode "Product_Name"
         logger.info(
             "Preparing training data by extracting features and creating target..."
         )
@@ -715,12 +788,12 @@ def main():
         # -------------------------------
         # New step: Preserve original product name for evaluation
         logger.info("Preserving original product name for evaluation...")
-        df_train["Product"] = df_train["Product Name"]
+        df_train["Product"] = df_train["Product_Name"]
         # -------------------------------
 
-        logger.info("One-hot encoding 'Product Name' column...")
+        logger.info("One-hot encoding 'Product_Name' column...")
         df_train = pd.get_dummies(
-            df_train, columns=["Product Name"], prefix="prod"
+            df_train, columns=["Product_Name"], prefix="prod"
         )
 
         # Update feature_columns to include one-hot encoded product columns.
@@ -732,7 +805,8 @@ def main():
             "lag_7",
             "lag_14",
             "lag_30",
-            "rolling_mean_7",
+            "rolling_mean_3",
+            "rolling_mean_21",
             "rolling_mean_14",
             "rolling_std_7",
             "day_of_week",
@@ -756,7 +830,7 @@ def main():
         # ----- Step 3: Hyperparameter Tuning using Optuna -----
         logger.info("Starting hyperparameter tuning with Optuna...")
         best_params = hyperparameter_tuning(
-            train_df, valid_df, feature_columns, target_column, n_trials=15
+            train_df, valid_df, feature_columns, target_column, n_trials=5
         )
         logger.info(f"Best parameters from tuning: {best_params}")
 
@@ -853,7 +927,7 @@ def main():
             "Evaluating the hybrid model performance on the test set..."
         )
         # Get a product name for testing purposes - using the first unique product
-        test_product = original_df["Product Name"].unique()[0]
+        test_product = original_df["Product_Name"].unique()[0]
         hybrid_test_pred = hybrid_model.predict(
             test_product, test_df[feature_columns]
         )
@@ -913,20 +987,20 @@ def main():
                 )
 
             save_success = save_model(final_model)
-            if save_success:
-                logger.info("Model saved successfully to GCS bucket.")
-            else:
-                logger.error("Failed to save model to GCS bucket.")
+        if save_success:
+            logger.info("Model saved successfully to GCS bucket.")
+        else:
+            logger.error("Failed to save model to GCS bucket.")
 
         # ----- Step 5: Iterative Forecasting for Each Product -----
-        # For iterative forecasting, use the original_df (which still contains the original "Product Name").
+        # For iterative forecasting, use the original_df (which still contains the original "Product_Name").
         logger.info("Starting iterative forecasting for each product...")
-        products = original_df["Product Name"].unique()
+        products = original_df["Product_Name"].unique()
         all_forecasts = []
 
         for product in products:
             df_product = original_df[
-                original_df["Product Name"] == product
+                original_df["Product_Name"] == product
             ].copy()
             if len(df_product) >= 60:
                 logger.info(f"Forecasting for product: {product}")
@@ -936,7 +1010,7 @@ def main():
                     forecast_days=7,
                     product_columns=product_columns,
                 )
-                fc["Product Name"] = product
+                fc["Product_Name"] = product
                 all_forecasts.append(fc)
 
         all_forecasts_df = pd.concat(all_forecasts, ignore_index=True)

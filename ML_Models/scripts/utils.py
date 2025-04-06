@@ -9,7 +9,10 @@ import smtplib
 from email.message import EmailMessage
 import polars as pl
 from Data_Pipeline.scripts.logger import logger
+from dotenv import load_dotenv
 
+
+load_dotenv("database.env")
 
 def extracting_time_series_and_lagged_features_pd(
     df: pd.DataFrame,
@@ -151,6 +154,7 @@ def get_latest_data_from_cloud_sql(query, port="3306"):
     Returns:
         pd.DataFrame: Query results.
     """
+
     host = os.getenv("MYSQL_HOST")
     user = os.getenv("MYSQL_USER")
     password = os.getenv("MYSQL_PASSWORD")
