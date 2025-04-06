@@ -33,3 +33,32 @@ if [ $EXIT_CODE -eq 0 ]; then
 else
   echo "Service Account ${SA_TF_EMAIL} not found. Terraform will create it."
 fi
+
+#####################################
+# 2. Import VM Service Account
+#####################################
+
+# Define the VM service account details
+SA_VM_ID="vm-service-account"
+SA_VM_EMAIL="${SA_VM_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+echo "=== Checking VM Service Account: ${SA_VM_EMAIL} ==="
+
+# Disable exit on error to capture gcloud output.
+set +e
+OUTPUT_VM=$(gcloud iam service-accounts describe "${SA_VM_EMAIL}" --project "${PROJECT_ID}" 2>&1)
+EXIT_CODE_VM=$?
+set -e
+
+echo "gcloud exit code for VM SA: $EXIT_CODE_VM"
+echo "gcloud output for VM SA:"
+echo "$OUTPUT_VM"
+
+if [ $EXIT_CODE_VM -eq 0 ]; then
+  echo "Service Account ${SA_VM_EMAIL} exists. Importing into Terraform..."
+  terraform import google_service_account.vm_service_account "projects/${PROJECT_ID}/serviceAccounts/${SA_VM_EMAIL}"
+else
+  echo "Service Account ${SA_VM_EMAIL} not found. Terraform will create it."
+fi
+
+echo "=== Import process completed ==="
