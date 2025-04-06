@@ -37,6 +37,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Authenticate with Google Cloud (bootstrap)
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.BOOTSTRAP_GCP_KEY }}
+          create_credentials_file: true
+          export_environment_variables: true
+
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
 
