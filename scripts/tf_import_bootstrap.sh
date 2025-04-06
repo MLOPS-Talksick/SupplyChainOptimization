@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Change directory to the bootstrap folder where your Terraform config files reside.
+cd "$(dirname "$0")/../bootstrap"
+
 # Set your GCP project ID
 PROJECT_ID="primordial-veld-450618-n4"
 
