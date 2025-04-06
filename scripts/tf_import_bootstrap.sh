@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Change directory to the bootstrap folder where your Terraform configuration files reside.
+# Change directory to the bootstrap folder where your Terraform config files reside.
 cd "$(dirname "$0")/../bootstrap"
 
 # Set your GCP project ID
@@ -44,9 +44,8 @@ roles=(
 )
 
 for role in "${roles[@]}"; do
-  # Remove the 'roles/' prefix for the import ID
-  role_short=$(echo "$role" | sed 's/^roles\///')
-  IMPORT_ID="${PROJECT_ID}/${role_short}/serviceAccount:${SA_TF_EMAIL}"
+  # Use the full role string (which already contains "roles/") in the import ID.
+  IMPORT_ID="${PROJECT_ID}/${role}/serviceAccount:${SA_TF_EMAIL}"
   echo "Importing IAM binding for role ${role} on ${SA_TF_EMAIL}..."
   terraform import "google_project_iam_member.terraform_sa_roles[\"${role}\"]" "${IMPORT_ID}" || \
     echo "Role ${role} not assigned or already imported."
@@ -83,8 +82,7 @@ vm_roles=(
 )
 
 for role in "${vm_roles[@]}"; do
-  role_short=$(echo "$role" | sed 's/^roles\///')
-  IMPORT_ID="${PROJECT_ID}/${role_short}/serviceAccount:${SA_VM_EMAIL}"
+  IMPORT_ID="${PROJECT_ID}/${role}/serviceAccount:${SA_VM_EMAIL}"
   echo "Importing IAM binding for role ${role} on ${SA_VM_EMAIL}..."
   terraform import "google_project_iam_member.vm_service_account_roles[\"${role}\"]" "${IMPORT_ID}" || \
     echo "Role ${role} not assigned or already imported."
