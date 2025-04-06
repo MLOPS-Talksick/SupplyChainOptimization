@@ -32,6 +32,12 @@ resource "local_file" "sa_email_file" {
 
 locals {
   roles = [
+    "roles/run.admin",
+    "roles/eventarc.admin",
+    "roles/logging.logWriter",
+    "roles/iam.serviceAccountUser",
+    "roles/storage.admin",
+    "roles/aiplatform.admin",
     "roles/artifactregistry.admin",                         // Artifact Registry Administrator
     "roles/artifactregistry.createOnPushRepoAdmin",     // Artifact Registry Create-on-Push Repository Administrator (custom role; adjust if needed)
     "roles/artifactregistry.reader",                          // Artifact Registry Reader
@@ -58,33 +64,3 @@ resource "google_project_iam_member" "terraform_sa_roles" {
   role     = each.value
   member   = "serviceAccount:${google_service_account.terraform_sa.email}"
 }
-
-// Create the VM service account
-resource "google_service_account" "vm_service_account" {
-  account_id   = "vm-service-account"
-  display_name = "VM Service Account for Inter-Service Communication"
-  project      = var.project_id
-}
-
-locals {
-  vm_service_account_roles = [
-    "roles/composer.admin",                 // Cloud Composer Admin Role
-    "roles/composer.serviceAgent",          // Cloud Composer API Service Agent
-    "roles/compute.admin",                  // Compute Admin
-    "roles/compute.instanceAdmin.v1",       // Compute Instance Admin (v1)
-    "roles/compute.viewer",                 // Compute Viewer
-    "roles/secretmanager.admin",            // Secret Manager Admin
-    "roles/secretmanager.secretAccessor",   // Secret Manager Secret Accessor
-    "roles/storage.admin",                  // Storage Admin
-    "roles/storage.objectAdmin",            // Storage Object Admin
-    "roles/storage.objectViewer"            // Storage Object Viewer
-  ]
-}
-
-resource "google_project_iam_member" "vm_service_account_roles" {
-  for_each = toset(local.vm_service_account_roles)
-  project  = var.project_id
-  role     = each.value
-  member   = "serviceAccount:${google_service_account.vm_service_account.email}"
-}
-
