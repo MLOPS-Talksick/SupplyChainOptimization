@@ -33,8 +33,8 @@ setup_gcp_credentials()
 query = """
         SELECT 
             sale_date AS 'Date', 
-            product_name AS 'Product_Name', 
-            total_quantity AS 'Total_Quantity'
+            product_name AS 'Product Name', 
+            total_quantity AS 'Total Quantity'
         FROM SALES
         ORDER BY sale_date;
     """

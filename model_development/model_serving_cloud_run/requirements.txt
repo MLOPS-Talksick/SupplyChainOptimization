@@ -5,3 +5,9 @@ google-cloud-aiplatform==1.85.0
 python-dotenv==1.0.1
 flask-cors==5.0.1
 pandas==2.2.3
+matplotlib==3.9.2
+tensorflow==2.18.0
+cloud-sql-python-connector==1.17.0  # For Cloud SQL connection
+pymysql==1.1.0  # For MySQL database connection
+sqlalchemy==2.0.25  
+scikit-learn==1.5.2
