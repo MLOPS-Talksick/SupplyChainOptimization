@@ -19,7 +19,6 @@ from Data_Pipeline.scripts.logger import logger
 from Data_Pipeline.scripts.utils import send_email, setup_gcp_credentials
 from google.cloud import storage
 from ML_Models.scripts.utils import get_latest_data_from_cloud_sql
-from dotenv import load_dotenv
 
 logger.info("Starting LSTM model training script")
 # Set random seed for reproducibility

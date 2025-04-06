@@ -30,3 +30,60 @@ resource "google_cloudfunctions_function" "process_data_function" {
     google_storage_bucket_object.cloud_function_zip
   ]
 }
+
+
+resource "google_cloud_run_service" "model_serving" {
+  name     = "model-serving"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    spec {
+      containers {
+        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_serving:latest"
+
+        # Port required by Cloud Run
+        env {
+          name  = "PORT"
+          value = "8080"
+        }
+
+        env {
+          name  = "MYSQL_HOST"
+          value = var.mysql_host
+        }
+
+        env {
+          name  = "MYSQL_USER"
+          value = var.mysql_user
+        }
+
+        env {
+          name  = "MYSQL_PASSWORD"
+          value = var.mysql_password
+        }
+
+        env {
+          name  = "MYSQL_DATABASE"
+          value = var.mysql_database
+        }
+
+        env {
+          name  = "MODEL_NAME"
+          value = var.model_name
+        }
+      }
+    }
+
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/minScale" = "1"
+      }
+    }
+  }
+
+  traffic {
+    percent         = 90
+    latest_revision = true
+  }
+}

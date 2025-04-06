@@ -157,3 +157,40 @@ variable "airflow_image_name" {
   type        = string
   default     = "apache/airflow:2.7.3-python3.10"
 }
+
+# Environment variables for model_serving
+variable "mysql_host" {
+  description = "MySQL instance host ae"
+  type        = string
+  sensitive   = true
+}
+
+variable "mysql_user" {
+  description = "MySQL username"
+  type        = string
+  sensitive   = true
+}
+
+variable "mysql_password" {
+  description = "MySQL password"
+  type        = string
+  sensitive   = true
+}
+
+variable "mysql_database" {
+  description = "MySQL database name"
+  type        = string
+  sensitive   = true
+}
+
+variable "model_name" {
+  description = "Name of the trained model file to serve"
+  type        = string
+  default     = "lstm_model.keras"
+}
+
+variable "artifact_registry" {
+  description = "Artifact Registry repository name"
+  type        = string
+  default     = "airflow-docker-image"
+}

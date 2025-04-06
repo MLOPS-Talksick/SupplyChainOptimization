@@ -151,17 +151,30 @@ jobs:
           chmod +x scripts/build_and_push.sh
           ./scripts/build_and_push.sh
 
-      - name: Check if Docker Build is Needed for Cloud Run.
+      - name: Check if Docker Build is Needed for Cloud Run Model Training.
         id: detect-changes-model_training-image
         run: |
           chmod +x scripts/check_cloudrun_docker_build.sh
           ./scripts/check_cloudrun_docker_build.sh
 
-      - name: Build & Push Docker Image for Cloud Run.
+      - name: Build & Push Docker Image for Cloud Run Model Training.
         if: steps.detect-changes-model_training-image.outputs.build_required == 'true'
         run: |
           chmod +x scripts/build_and_push_model_training_docker_image.sh
           ./scripts/build_and_push_model_training_docker_image.sh
+
+      
+      - name: Check if Docker Build is Needed for Cloud Run Model Serving.
+        id: detect-changes-model_serving-image
+        run: |
+          chmod +x scripts/check_cloudrun_model_serving_docker_build.sh
+          ./scripts/check_cloudrun_model_serving_docker_build.sh
+
+      - name: Build & Push Docker Image for Cloud Run Model Serving.
+        if: steps.detect-changes-model_serving-image.outputs.build_required == 'true'
+        run: |
+          chmod +x scripts/build_and_push_model_serving_docker_image.sh
+          ./scripts/build_and_push_model_serving_docker_image.sh
 
 
   # -------------------------------------------------------------
@@ -190,6 +203,11 @@ jobs:
       TF_VAR_airflow_admin_email: ${{ secrets.AIRFLOW_ADMIN_EMAIL }}
       TF_VAR_airflow_uid: ${{ secrets.AIRFLOW_UID }}
       TF_VAR_docker_gid: ${{ secrets.DOCKER_GID }}
+      TF_VAR_mysql_host: ${{ secrets.MYSQL_HOST }}
+      TF_VAR_mysql_user: ${{ secrets.MYSQL_USER }}
+      TF_VAR_mysql_password: ${{ secrets.MYSQL_PASSWORD }}
+      TF_VAR_mysql_database: ${{ secrets.MYSQL_DATABASE }}
+      TF_VAR_model_name: ${{ secrets.MODEL_NAME }}
 
     steps:
       - name: Checkout Repository
