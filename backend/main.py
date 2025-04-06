@@ -12,6 +12,13 @@ from pydantic import BaseModel
 from requests.auth import HTTPBasicAuth
 import time
 from dotenv import load_dotenv
+
+
+import sqlalchemy
+import pandas as pd
+from google.cloud.sql.connector import Connector
+
+
 load_dotenv()
 app = FastAPI()
 
@@ -133,42 +140,74 @@ def get_data(n: int = 5):
 
         # Use an environment variable or a flag to switch between connection methods.
         # For example, if you're running locally on Windows, set USE_TCP to 'true'
-        USE_TCP = os.environ.get("USE_TCP", "false").lower() == "true"
+        # USE_TCP = os.environ.get("USE_TCP", "false").lower() == "true"
 
-        if USE_TCP:
-            # Replace with your Cloud SQL instance's public IP and port (default MySQL port is 3306)
-            connection = pymysql.connect(
-                host="YOUR_CLOUD_SQL_PUBLIC_IP",
-                user=os.environ.get("DB_USER"),
-                password=os.environ.get("DB_PASS"),
-                database=os.environ.get("DB_NAME"),
-                port=3306
+        # if USE_TCP:
+        #     # Replace with your Cloud SQL instance's public IP and port (default MySQL port is 3306)
+        #     connection = pymysql.connect(
+        #         host="YOUR_CLOUD_SQL_PUBLIC_IP",
+        #         user=os.environ.get("DB_USER"),
+        #         password=os.environ.get("DB_PASS"),
+        #         database=os.environ.get("DB_NAME"),
+        #         port=3306
+        #     )
+        # else:
+        #     # For Cloud Run (or Linux) use the Unix socket
+        #     connection = pymysql.connect(
+        #         user=os.environ.get("DB_USER"),
+        #         password=os.environ.get("DB_PASS"),
+        #         database=os.environ.get("DB_NAME"),
+        #         unix_socket=f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}"
+        #     )
+
+        host = os.getenv("DB_HOST")
+        user = os.getenv("DB_USER")
+        password = os.getenv("DB_PASS")
+        database = os.getenv("DB_NAME")
+        conn_name = os.getenv("INSTANCE_CONN_NAME")
+        connector = Connector()
+
+        def getconn():
+            conn = connector.connect(
+                conn_name,  # Cloud SQL instance connection name
+                "pymysql",  # Database driver
+                user=user,  # Database user
+                password=password,  # Database password
+                db=database,
             )
-        else:
-            # For Cloud Run (or Linux) use the Unix socket
-            connection = pymysql.connect(
-                user=os.environ.get("DB_USER"),
-                password=os.environ.get("DB_PASS"),
-                database=os.environ.get("DB_NAME"),
-                unix_socket=f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}"
-            )
+            return conn
+
+        pool = sqlalchemy.create_engine(
+            "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
+            creator=getconn,
+        )
+        
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     try:
-        with conn.cursor() as cursor:
-            # Example query: adjust table/columns as needed.
-            cursor.execute("SELECT * FROM sales_data ORDER BY id DESC LIMIT %s;", (n,))
-            rows = cursor.fetchall()
-            # Get column names for constructing dict (cursor.description has info)
-            columns = [desc[0] for desc in cursor.description]
-        conn.close()
+        # with conn.cursor() as cursor:
+        #     # Example query: adjust table/columns as needed.
+        #     cursor.execute("SELECT * FROM sales_data ORDER BY id DESC LIMIT %s;", (n,))
+        #     rows = cursor.fetchall()
+        #     # Get column names for constructing dict (cursor.description has info)
+        #     columns = [desc[0] for desc in cursor.description]
+        # conn.close()
+        query = f"""
+        SELECT 
+            sale_date, product_name, total_quantity
+        FROM SALES
+        ORDER BY sale_date DESC LIMIT {n};"""
+        with pool.connect() as db_conn:
+            result = db_conn.execute(sqlalchemy.text(query))
+            print(result.scalar())
+        df = pd.read_sql(query, pool)
     except Exception as e:
-        conn.close()
+        # conn.close()
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
     # Convert rows to list of dicts
-    result = [dict(zip(columns, row)) for row in rows]
-    return {"records": result, "count": len(result)}
+    # result = [dict(zip(columns, row)) for row in rows]
+    return {"records": df.to_json(), "count": len(df)}
 
 
 
