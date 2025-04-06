@@ -24,7 +24,6 @@ WORKDIR /app/model_development/model_training
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir --no-warn-script-location -r requirements.txt
 
-    
 # Set final working directory
 WORKDIR /app/ML_Models/scripts
 
