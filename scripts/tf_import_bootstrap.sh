@@ -68,7 +68,7 @@ fi
 #####################################
 ARTIFACT_REGISTRY_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
 REPO_FORMAT="${REPO_FORMAT:-DOCKER}"
-REGION="${GCP_LOCATION:-us-central1}"   # Ensure REGION is set
+REGION="${GCP_LOCATION:-us-central1}"
 echo "Checking Artifact Registry (${ARTIFACT_REGISTRY_NAME}) in region ${REGION}..."
 
 EXISTING_REPO=""
@@ -80,13 +80,15 @@ for i in {1..3}; do
     --filter="name:${ARTIFACT_REGISTRY_NAME}" \
     --format="value(name)" 2>&1)
   
-  echo "Output: $OUTPUT"
+  # Trim whitespace from the output
+  TRIMMED_OUTPUT=$(echo "$OUTPUT" | xargs)
+  echo "Output: '$TRIMMED_OUTPUT'"
   
-  if [[ "$OUTPUT" =~ "Permission" ]]; then
-    echo "Received permission error: $OUTPUT"
+  if [[ "$TRIMMED_OUTPUT" =~ "Permission" ]]; then
+    echo "Received permission error: $TRIMMED_OUTPUT"
     sleep 5
-  elif [[ -n "$OUTPUT" ]]; then
-    EXISTING_REPO="$OUTPUT"
+  elif [[ -n "$TRIMMED_OUTPUT" ]]; then
+    EXISTING_REPO="$TRIMMED_OUTPUT"
     break
   else
     echo "No repository found on attempt $i. Retrying in 5 seconds..."
