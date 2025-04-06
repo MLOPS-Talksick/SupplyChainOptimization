@@ -42,12 +42,6 @@ resource "google_cloud_run_service" "model_serving" {
       containers {
         image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_serving:latest"
 
-        # Port required by Cloud Run
-        env {
-          name  = "PORT"
-          value = "8080"
-        }
-
         env {
           name  = "MYSQL_HOST"
           value = var.mysql_host
