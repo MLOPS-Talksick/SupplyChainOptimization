@@ -77,7 +77,7 @@ resource "google_cloud_run_service" "model_serving" {
   }
 
   traffic {
-    percent         = 90
+    percent         = 100
     latest_revision = true
   }
 }
