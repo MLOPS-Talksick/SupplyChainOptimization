@@ -15,16 +15,17 @@ echo "🔍 Checking if '${IMAGE_NAME}:${IMAGE_TAG}' exists in Artifact Registry.
 # If the repository or image is not found, return an empty JSON array instead of failing.
 IMAGES_JSON=$(gcloud artifacts docker images list "${FULL_IMAGE_PATH}" --include-tags --format="json" 2>/dev/null || echo "[]")
 
-# Extract matching image name.
-MATCHING_IMAGE=$(echo "$IMAGES_JSON" | jq -r --arg IMAGE_NAME "$FULL_IMAGE_PATH" '.[] | select(.package==$IMAGE_NAME) | .package')
-
 # Initialize flag for build requirement.
 BUILD_REQUIRED=false
 
-if [[ "$MATCHING_IMAGE" == "$FULL_IMAGE_PATH" ]]; then
-  echo "✅ Exact match found: '${IMAGE_NAME}:${IMAGE_TAG}'"
+# Check for image and exact tag match
+MATCH_FOUND=$(echo "$IMAGES_JSON" | jq -r --arg IMAGE "$FULL_IMAGE_PATH" --arg TAG "$IMAGE_TAG" '
+  .[] | select(.package == $IMAGE and (.tags[]? == $TAG)) | .package')
+
+if [[ "$MATCH_FOUND" == "$FULL_IMAGE_PATH" ]]; then
+  echo "✅ Exact image and tag match found: '${IMAGE_NAME}:${IMAGE_TAG}'"
 else
-  echo "⚠️ No exact match for '${IMAGE_NAME}:${IMAGE_TAG}'. A new build is required."
+  echo "⚠️ Image or tag not found. A new build is required."
   BUILD_REQUIRED=true
 fi
 
