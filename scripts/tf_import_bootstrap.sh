@@ -4,15 +4,16 @@ set -e
 # Change directory to the bootstrap folder where your Terraform config files reside.
 cd "$(dirname "$0")/../bootstrap"
 
-# Set your GCP project ID and region.
+# Set your GCP project ID
 PROJECT_ID="primordial-veld-450618-n4"
+# Define REGION based on GCP_LOCATION or default to us-central1.
 REGION="${GCP_LOCATION:-us-central1}"
 
 #####################################
 # 1. Import Terraform Service Account
 #####################################
 
-# Define the Terraform service account details.
+# Define the Terraform service account details
 SA_TF_ID="terraform-service-account"
 SA_TF_EMAIL="${SA_TF_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
 
@@ -39,7 +40,7 @@ fi
 # 2. Import VM Service Account
 #####################################
 
-# Define the VM service account details.
+# Define the VM service account details
 SA_VM_ID="vm-service-account"
 SA_VM_EMAIL="${SA_VM_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
 
@@ -77,8 +78,6 @@ for i in {1..3}; do
     --location="${REGION}" \
     --filter="name:${ARTIFACT_REGISTRY_NAME}" \
     --format="value(name)" 2>&1)
-  
-  echo "Output: $OUTPUT"
   
   if [[ "$OUTPUT" =~ "Permission" ]]; then
     echo "Received permission error: $OUTPUT"
