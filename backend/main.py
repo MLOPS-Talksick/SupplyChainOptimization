@@ -217,25 +217,24 @@ class PredictRequest(BaseModel):
     product_names: List[str]
     dates: List[str]
 
+class PredictRequest(BaseModel):
+    product_name: str
+    days: int
+
 @app.post("/predict")
 async def get_prediction(request: PredictRequest):
-    # Prepare the payload for the Cloud Run service
+    # Prepare the payload using the same keys as the working curl example
     payload = {
-        "product_names": request.product_names,
-        "dates": request.dates
+        "product_name": request.product_name,
+        "days": request.days
     }
     try:
-        # Call the Cloud Run prediction service
         response = requests.post(
             "https://model-serving-148338842941.us-central1.run.app/predict", 
             json=payload
         )
-        # Raise an exception if the status is not 200 OK
         response.raise_for_status()
     except requests.RequestException as e:
-        # If the request failed, return an HTTP 500 error with details
         raise HTTPException(status_code=500, detail=f"Model prediction failed: {e}")
-    # Parse the JSON response from the model service
     predictions = response.json()
-    # Return the predictions (you can adjust the response format as needed)
     return {"predictions": predictions}
