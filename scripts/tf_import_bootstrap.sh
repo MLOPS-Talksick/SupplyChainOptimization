@@ -4,14 +4,15 @@ set -e
 # Change directory to the bootstrap folder where your Terraform config files reside.
 cd "$(dirname "$0")/../bootstrap"
 
-# Set your GCP project ID
+# Set your GCP project ID and region.
 PROJECT_ID="primordial-veld-450618-n4"
+REGION="${GCP_LOCATION:-us-central1}"
 
 #####################################
 # 1. Import Terraform Service Account
 #####################################
 
-# Define the Terraform service account details
+# Define the Terraform service account details.
 SA_TF_ID="terraform-service-account"
 SA_TF_EMAIL="${SA_TF_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
 
@@ -38,7 +39,7 @@ fi
 # 2. Import VM Service Account
 #####################################
 
-# Define the VM service account details
+# Define the VM service account details.
 SA_VM_ID="vm-service-account"
 SA_VM_EMAIL="${SA_VM_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
 
@@ -61,12 +62,9 @@ else
   echo "Service Account ${SA_VM_EMAIL} not found. Terraform will create it."
 fi
 
-
-
-
-######################################
+#####################################
 # Artifact Registry: airflow-docker-image
-######################################
+#####################################
 ARTIFACT_REGISTRY_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
 REPO_FORMAT="${REPO_FORMAT:-DOCKER}"
 echo "Checking Artifact Registry (${ARTIFACT_REGISTRY_NAME})..."
@@ -80,9 +78,10 @@ for i in {1..3}; do
     --filter="name:${ARTIFACT_REGISTRY_NAME}" \
     --format="value(name)" 2>&1)
   
+  echo "Output: $OUTPUT"
+  
   if [[ "$OUTPUT" =~ "Permission" ]]; then
     echo "Received permission error: $OUTPUT"
-    # Optionally, you can exit here or wait for propagation.
     sleep 5
   elif [[ -n "$OUTPUT" ]]; then
     EXISTING_REPO="$OUTPUT"
@@ -99,7 +98,5 @@ if [[ -n "$EXISTING_REPO" ]]; then
 else
     echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} not found or access denied. Terraform will create it."
 fi
-
-
 
 echo "=== Import process completed ==="
