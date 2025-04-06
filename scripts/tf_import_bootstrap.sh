@@ -68,7 +68,8 @@ fi
 #####################################
 ARTIFACT_REGISTRY_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
 REPO_FORMAT="${REPO_FORMAT:-DOCKER}"
-echo "Checking Artifact Registry (${ARTIFACT_REGISTRY_NAME})..."
+REGION="${GCP_LOCATION:-us-central1}"   # Ensure REGION is set
+echo "Checking Artifact Registry (${ARTIFACT_REGISTRY_NAME}) in region ${REGION}..."
 
 EXISTING_REPO=""
 for i in {1..3}; do
@@ -78,6 +79,8 @@ for i in {1..3}; do
     --location="${REGION}" \
     --filter="name:${ARTIFACT_REGISTRY_NAME}" \
     --format="value(name)" 2>&1)
+  
+  echo "Output: $OUTPUT"
   
   if [[ "$OUTPUT" =~ "Permission" ]]; then
     echo "Received permission error: $OUTPUT"
@@ -97,5 +100,3 @@ if [[ -n "$EXISTING_REPO" ]]; then
 else
     echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} not found or access denied. Terraform will create it."
 fi
-
-echo "=== Import process completed ==="
