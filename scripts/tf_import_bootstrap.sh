@@ -44,7 +44,9 @@ roles=(
 )
 
 for role in "${roles[@]}"; do
-  IMPORT_ID="${PROJECT_ID}/${role}/serviceAccount:${SA_TF_EMAIL}"
+  # Remove the 'roles/' prefix for the import ID (if present)
+  role_short=$(echo "$role" | sed 's/^roles\///')
+  IMPORT_ID="projects/${PROJECT_ID}/roles/${role_short}/members/serviceAccount:${SA_TF_EMAIL}"
   echo "Importing IAM binding for role ${role} on ${SA_TF_EMAIL}..."
   terraform import "google_project_iam_member.terraform_sa_roles[\"${role}\"]" "${IMPORT_ID}" || \
     echo "Role ${role} not assigned or already imported."
@@ -81,7 +83,8 @@ vm_roles=(
 )
 
 for role in "${vm_roles[@]}"; do
-  IMPORT_ID="${PROJECT_ID}/${role}/serviceAccount:${SA_VM_EMAIL}"
+  role_short=$(echo "$role" | sed 's/^roles\///')
+  IMPORT_ID="projects/${PROJECT_ID}/roles/${role_short}/members/serviceAccount:${SA_VM_EMAIL}"
   echo "Importing IAM binding for role ${role} on ${SA_VM_EMAIL}..."
   terraform import "google_project_iam_member.vm_service_account_roles[\"${role}\"]" "${IMPORT_ID}" || \
     echo "Role ${role} not assigned or already imported."
