@@ -44,10 +44,10 @@ jobs:
         working-directory: bootstrap
         run: terraform init
 
-      # - name: Import existing resources if any
-      #   run: |
-      #     chmod +x scripts/tf_import_bootstrap.sh
-      #     ./scripts/tf_import_bootstrap.sh
+      - name: Import existing resources if any
+        run: |
+          chmod +x scripts/tf_import_bootstrap.sh
+          ./scripts/tf_import_bootstrap.sh
 
       - name: Terraform Apply (bootstrap)
         working-directory: bootstrap
