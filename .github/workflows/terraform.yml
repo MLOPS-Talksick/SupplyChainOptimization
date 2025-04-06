@@ -124,28 +124,28 @@ jobs:
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Check if Docker Build is Needed for airflow.
-        id: detect-changes
+        id: detect-changes-airflow-image
         run: |
           chmod +x scripts/check_docker_build.sh
           ./scripts/check_docker_build.sh
 
       - name: Build & Push Docker Image for airflow.
-        if: steps.detect-changes.outputs.build_required == 'true'
+        if: steps.detect-changes-airflow-image.outputs.build_required == 'true'
         run: |
           chmod +x scripts/build_and_push.sh
           ./scripts/build_and_push.sh
 
       - name: Check if Docker Build is Needed for Cloud Run.
-        id: detect-changes
+        id: detect-changes-model_training-image
         run: |
           chmod +x scripts/check_cloudrun_docker_build.sh
           ./scripts/check_cloudrun_docker_build.sh
 
       - name: Build & Push Docker Image for Cloud Run.
-        if: steps.detect-changes.outputs.build_required == 'true'
+        if: steps.detect-changes-model_training-image.outputs.build_required == 'true'
         run: |
-          chmod +x scripts/build_and_push_cloudrun_docker_image.sh
-          ./scripts/build_and_push_cloudrun_docker_image.sh
+          chmod +x scripts/build_and_push_model_training_docker_image.sh
+          ./scripts/build_and_push_model_training_docker_image.sh
 
 
   # -------------------------------------------------------------
