@@ -31,16 +31,21 @@ fi
 
 echo "🔍 Checking if 'Dockerfile' or 'requirements.txt' has changed..."
 
-# Only run git diff if there’s a previous commit to compare to
 if git rev-parse HEAD~1 >/dev/null 2>&1; then
   if git diff --quiet HEAD~1 HEAD -- Data_Pipeline/Dockerfile Data_Pipeline/requirements.txt; then
-    echo "✅ No changes detected in 'Dockerfile' or 'requirements.txt'."
+    echo "✅ No changes detected in last commit."
   else
-    echo "⚠️ Changes detected in 'Dockerfile' or 'requirements.txt'. A new build is required."
+    echo "⚠️ Changes detected in last commit. A new build is required."
     BUILD_REQUIRED=true
   fi
 else
-  echo "ℹ️ Only one commit found. Skipping change detection."
+  echo "ℹ️ Only one commit found. Checking working tree instead..."
+  if git diff --quiet -- Data_Pipeline/Dockerfile Data_Pipeline/requirements.txt; then
+    echo "✅ No uncommitted changes either."
+  else
+    echo "⚠️ Changes found in working tree. A new build is required."
+    BUILD_REQUIRED=true
+  fi
 fi
 
 # Write the build requirement status to GitHub Actions output.
