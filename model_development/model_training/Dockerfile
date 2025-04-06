@@ -19,9 +19,10 @@ COPY ML_Models/scripts/ /app/ML_Models/scripts/
 COPY ML_Models/database.env /app/ML_Models/database.env
 COPY model_development/model_training/ /app/model_development/model_training/
 
-# Install Python dependencies
+# Install Python dependencies from the requirements.txt
 WORKDIR /app/model_development/model_training
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --no-warn-script-location -r requirements.txt
 
 # Set final working directory
 WORKDIR /app/ML_Models/scripts
