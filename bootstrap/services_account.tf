@@ -35,7 +35,6 @@ locals {
     "roles/run.admin",
     "roles/eventarc.admin",
     "roles/logging.logWriter",
-    "roles/iam.serviceAccountUser",
     "roles/storage.admin",
     "roles/aiplatform.admin",
     "roles/artifactregistry.admin",                         // Artifact Registry Administrator
