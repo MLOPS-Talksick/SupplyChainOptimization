@@ -31,14 +31,16 @@ fi
 
 echo "🔍 Checking if 'Dockerfile' or 'requirements.txt' has changed..."
 
-if [ "$(git rev-list --count HEAD)" -lt 2 ]; then
-  echo "⚠️ Not enough commit history. Assuming changes."
-  BUILD_REQUIRED=true
-else
-  if ! git diff --quiet HEAD~1 HEAD -- Data_Pipeline/Dockerfile Data_Pipeline/requirements.txt; then
+# Only run git diff if there’s a previous commit to compare to
+if git rev-parse HEAD~1 >/dev/null 2>&1; then
+  if git diff --quiet HEAD~1 HEAD -- Data_Pipeline/Dockerfile Data_Pipeline/requirements.txt; then
+    echo "✅ No changes detected in 'Dockerfile' or 'requirements.txt'."
+  else
     echo "⚠️ Changes detected in 'Dockerfile' or 'requirements.txt'. A new build is required."
     BUILD_REQUIRED=true
   fi
+else
+  echo "ℹ️ Only one commit found. Skipping change detection."
 fi
 
 # Write the build requirement status to GitHub Actions output.
