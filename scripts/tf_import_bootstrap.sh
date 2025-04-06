@@ -17,17 +17,19 @@ SA_TF_EMAIL="${SA_TF_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
 
 echo "=== Checking Terraform Service Account: ${SA_TF_EMAIL} ==="
 
-# For debugging: capture output and exit code
+# Temporarily disable exit on error so we can capture gcloud output.
+set +e
 OUTPUT=$(gcloud iam service-accounts describe "${SA_TF_EMAIL}" --project "${PROJECT_ID}" 2>&1)
 EXIT_CODE=$?
+set -e
+
+echo "gcloud exit code: $EXIT_CODE"
+echo "gcloud output:"
+echo "$OUTPUT"
 
 if [ $EXIT_CODE -eq 0 ]; then
-  echo "Service Account ${SA_TF_EMAIL} exists. (gcloud output below)"
-  echo "${OUTPUT}"
-  echo "Importing into Terraform..."
+  echo "Service Account ${SA_TF_EMAIL} exists. Importing into Terraform..."
   terraform import google_service_account.terraform_sa "projects/${PROJECT_ID}/serviceAccounts/${SA_TF_EMAIL}"
 else
-  echo "Service Account ${SA_TF_EMAIL} not found. (gcloud output below)"
-  echo "${OUTPUT}"
-  echo "Terraform will create it."
+  echo "Service Account ${SA_TF_EMAIL} not found. Terraform will create it."
 fi
