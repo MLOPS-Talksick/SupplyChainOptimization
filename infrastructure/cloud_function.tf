@@ -32,15 +32,67 @@ resource "google_cloudfunctions_function" "process_data_function" {
 }
 
 
-resource "google_cloud_run_service" "model_serving" {
+resource "google_cloud_run_v2_service" "model_serving" {
   name     = "model-serving"
   location = var.region
   project  = var.project_id
 
   template {
-    spec {
+    containers {
+      image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_serving:latest"
+
+      env {
+        name  = "MYSQL_HOST"
+        value = var.mysql_host
+      }
+
+      env {
+        name  = "MYSQL_USER"
+        value = var.mysql_user
+      }
+
+      env {
+        name  = "MYSQL_PASSWORD"
+        value = var.mysql_password
+      }
+
+      env {
+        name  = "MYSQL_DATABASE"
+        value = var.mysql_database
+      }
+
+      env {
+        name  = "MODEL_NAME"
+        value = var.model_name
+      }
+    }
+
+    service_account = google_service_account.terraform_sa.email
+
+    max_instance_request_concurrency = 80  # optional: adjust if needed
+    timeout                           = "900s"
+  }
+
+  traffic {
+    percent         = 100
+    type            = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+  }
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
+}
+
+
+resource "google_cloud_run_v2_job" "model_training_job" {
+  name     = "model-training-job"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    template {
       containers {
-        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_serving:latest"
+        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
 
         env {
           name  = "MYSQL_HOST"
@@ -67,64 +119,14 @@ resource "google_cloud_run_service" "model_serving" {
           value = var.model_name
         }
       }
-    }
 
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/minScale" = "1"
-      }
+      max_retries    = 1
+      timeout        = "1000s"  # Adjust based on training duration
+      service_account = google_service_account.terraform_sa.email
     }
   }
 
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-}
-
-
-
-resource "google_cloud_run_service" "model_training" {
-  name     = "model-training"
-  location = var.region
-  project  = var.project_id
-
-  template {
-    spec {
-      containers {
-        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
-
-        env {
-          name  = "MYSQL_HOST"
-          value = var.mysql_host
-        }
-
-        env {
-          name  = "MYSQL_USER"
-          value = var.mysql_user
-        }
-
-        env {
-          name  = "MYSQL_PASSWORD"
-          value = var.mysql_password
-        }
-
-        env {
-          name  = "MYSQL_DATABASE"
-          value = var.mysql_database
-        }
-      }
-    }
-
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/minScale" = "1"
-      }
-    }
-  }
-
-  traffic {
-    percent         = 100
-    latest_revision = true
+  lifecycle {
+    ignore_changes = [template[0].template[0].containers[0].image]
   }
 }
