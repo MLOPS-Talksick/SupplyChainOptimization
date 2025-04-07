@@ -18,7 +18,7 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Tell Cloud Run to expect traffic on this port
-ENV PORT=8080
+ENV PORT=8080 
 
 # Start the app with gunicorn
 CMD ["gunicorn", "-b", "0.0.0.0:8080", "main:app"]

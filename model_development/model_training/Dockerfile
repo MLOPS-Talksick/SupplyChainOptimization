@@ -27,5 +27,6 @@ RUN pip install --upgrade pip && \
 # Set final working directory
 WORKDIR /app/ML_Models/scripts
 
+
 # Entrypoint
 CMD ["python", "model_lstm.py"]
