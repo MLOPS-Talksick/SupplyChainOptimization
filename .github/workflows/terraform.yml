@@ -197,6 +197,13 @@ jobs:
           ./scripts/build_and_push_model_training_cloud_run_trigger_image.sh
 
 
+      - name: Debug Docker Image URIs (Before Output)
+        run: |
+          echo "Model Serving Image URI: ${{ steps.build-model-serving.outputs.model_serving_image_uri }}"
+          echo "Model Training Image URI: ${{ steps.build-model-training.outputs.model_training_image_uri }}"
+          echo "Model Training Trigger Image URI: ${{ steps.build-model-trigger.outputs.model_training_trigger_image_uri }}"
+
+
   # -------------------------------------------------------------
   # 🟩 Job 3: DEPLOY - uses key from bootstrap
   # -------------------------------------------------------------
@@ -263,6 +270,12 @@ jobs:
           echo "TF_VAR_gcp_service_account_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
           EMAIL=$(cat $GITHUB_WORKSPACE/email-download/sa_email.txt)
           echo "TF_VAR_service_account_email=$EMAIL" >> $GITHUB_ENV
+
+      - name: Debug Terraform Image Variables
+        run: |
+          echo "TF_VAR_model_serving_image_uri=${TF_VAR_model_serving_image_uri}"
+          echo "TF_VAR_model_training_image_uri=${TF_VAR_model_training_image_uri}"
+          echo "TF_VAR_model_training_trigger_image_uri=${TF_VAR_model_training_trigger_image_uri}"
 
 
       - name: Authenticate with Google Cloud
