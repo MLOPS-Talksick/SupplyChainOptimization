@@ -12,8 +12,6 @@ from pydantic import BaseModel
 from requests.auth import HTTPBasicAuth
 import time
 from dotenv import load_dotenv
-
-
 import sqlalchemy
 import pandas as pd
 from google.cloud.sql.connector import Connector
@@ -25,10 +23,12 @@ app = FastAPI()
 # Configuration from environment
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
 # Database config
-DB_USER = os.environ.get("DB_USER")
-DB_PASS = os.environ.get("DB_PASS")
-DB_NAME = os.environ.get("DB_NAME")
-INSTANCE_CONN_NAME = os.environ.get("INSTANCE_CONNECTION_NAME")  # project:region:instance
+host = os.getenv("DB_HOST")
+user = os.getenv("DB_USER")
+password = os.getenv("DB_PASS")
+database = os.getenv("DB_NAME")
+conn_name = os.getenv("INSTANCE_CONN_NAME")
+connector = Connector()
 # Vertex AI config
 PROJECT_ID = os.environ.get("PROJECT_ID")
 VERTEX_REGION = os.environ.get("VERTEX_REGION")
@@ -94,39 +94,6 @@ async def upload_file(file: UploadFile = File(...)):
         "file": file.filename,
         "dag_run_id": dag_run_id
     }
-# async def upload_file(file: UploadFile = File(...)):
-#     # 1. Validate file type by extension or MIME type
-#     filename = file.filename
-#     if not filename:
-#         raise HTTPException(status_code=400, detail="No file provided.")
-#     # Accept .xls or .xlsx
-#     if not (filename.lower().endswith(".xls") or filename.lower().endswith(".xlsx")):
-#         raise HTTPException(status_code=400, detail="Only .xls or .xlsx files are allowed.")
-#     # Optionally, check MIME type as well for extra safety
-#     if file.content_type not in ["application/vnd.ms-excel", 
-#                                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
-#         raise HTTPException(status_code=400, detail="Invalid file type. Must be an Excel file.")
-
-#     # 2. Read file (in chunks to be memory-safe) and check size
-#     file_contents = await file.read()  # read the entire file into memory (be careful with very large files)
-#     file_size = len(file_contents)
-#     max_size = 50 * 1024 * 1024  # 50 MB in bytes
-#     if file_size > max_size:
-#         raise HTTPException(status_code=400, detail="File too large. Must be <= 50 MB.")
-    
-#     # 3. Upload to Cloud Storage
-#     try:
-#         storage_client = storage.Client()  # uses ADC credentials (should be available on Cloud Run)
-#         bucket = storage_client.bucket(BUCKET_NAME)
-#         blob = bucket.blob(filename)
-#         # Upload the file contents
-#         blob.upload_from_string(file_contents)
-#     except Exception as e:
-#         # Log the exception (omitted here) and return error
-#         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
-    
-#     # 4. Return success response
-#     return {"message": f"File '{filename}' uploaded successfully to bucket {BUCKET_NAME}.", "size": file_size}
 
 @app.get("/data", dependencies=[Depends(verify_token)])
 def get_data(n: int = 5):
@@ -136,36 +103,6 @@ def get_data(n: int = 5):
         raise HTTPException(status_code=400, detail="Parameter 'n' must be positive.")
     # Connect to Cloud SQL
     try:
-                
-
-        # Use an environment variable or a flag to switch between connection methods.
-        # For example, if you're running locally on Windows, set USE_TCP to 'true'
-        # USE_TCP = os.environ.get("USE_TCP", "false").lower() == "true"
-
-        # if USE_TCP:
-        #     # Replace with your Cloud SQL instance's public IP and port (default MySQL port is 3306)
-        #     connection = pymysql.connect(
-        #         host="YOUR_CLOUD_SQL_PUBLIC_IP",
-        #         user=os.environ.get("DB_USER"),
-        #         password=os.environ.get("DB_PASS"),
-        #         database=os.environ.get("DB_NAME"),
-        #         port=3306
-        #     )
-        # else:
-        #     # For Cloud Run (or Linux) use the Unix socket
-        #     connection = pymysql.connect(
-        #         user=os.environ.get("DB_USER"),
-        #         password=os.environ.get("DB_PASS"),
-        #         database=os.environ.get("DB_NAME"),
-        #         unix_socket=f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}"
-        #     )
-
-        host = os.getenv("DB_HOST")
-        user = os.getenv("DB_USER")
-        password = os.getenv("DB_PASS")
-        database = os.getenv("DB_NAME")
-        conn_name = os.getenv("INSTANCE_CONN_NAME")
-        connector = Connector()
 
         def getconn():
             conn = connector.connect(
@@ -186,13 +123,7 @@ def get_data(n: int = 5):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     try:
-        # with conn.cursor() as cursor:
-        #     # Example query: adjust table/columns as needed.
-        #     cursor.execute("SELECT * FROM sales_data ORDER BY id DESC LIMIT %s;", (n,))
-        #     rows = cursor.fetchall()
-        #     # Get column names for constructing dict (cursor.description has info)
-        #     columns = [desc[0] for desc in cursor.description]
-        # conn.close()
+        
         query = f"""
         SELECT 
             sale_date, product_name, total_quantity
