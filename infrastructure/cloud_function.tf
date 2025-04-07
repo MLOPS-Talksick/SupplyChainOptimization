@@ -80,7 +80,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
 
   lifecycle {
     replace_triggered_by = [
-      template[0].containers[0].image
+      self.template[0].containers[0].image
     ]
   }
 }
@@ -127,7 +127,7 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
 
   lifecycle {
     replace_triggered_by = [
-      template[0].containers[0].image
+      self.template[0].containers[0].image
     ]
   }
 }
@@ -177,7 +177,7 @@ resource "google_cloud_run_v2_job" "model_training_job" {
 
   lifecycle {
     replace_triggered_by = [
-      template[0].containers[0].image
+      self.template[0].containers[0].image
     ]
   }
 }
