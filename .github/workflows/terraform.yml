@@ -158,8 +158,8 @@ jobs:
       - name: Check if Docker Build is Needed for Cloud Run Model Training.
         id: detect-changes-model_training-image
         run: |
-          chmod +x scripts/check_cloudrun_docker_build.sh
-          ./scripts/check_cloudrun_docker_build.sh
+          chmod +x scripts/check_cloudrun_model_training_docker_build.sh
+          ./scripts/check_cloudrun_model_training_docker_build.sh
 
       - name: Build & Push Docker Image for Model Training
         if: steps.detect-changes-model_training-image.outputs.build_required == 'true'
@@ -183,7 +183,7 @@ jobs:
           ./scripts/build_and_push_model_serving_docker_image.sh
 
 
-      - name: Check if Docker Build is Needed for Cloud Run Model Serving.
+      - name: Check if Docker Build is Needed for Cloud Run Training Trigger.
         id: detect-changes-model_training_trigger-image
         run: |
           chmod +x scripts/check_cloudrun_model_training_trigger_docker_build.sh
