@@ -79,46 +79,105 @@ resource "google_cloud_run_v2_service" "model_serving" {
   }
 
   lifecycle {
-    ignore_changes = [template[0].containers[0].image]
+    replace_triggered_by = [
+      template[0].containers[0].image
+    ]
   }
 }
 
 
-resource "google_cloud_run_service" "model_training_trigger" {
+resource "google_cloud_run_v2_service" "model_training_trigger" {
   name     = "model-training-trigger"
   location = var.region
   project  = var.project_id
 
   template {
-    spec {
-      containers {
-        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training_trigger:latest"
+    containers {
+      image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training_trigger:latest"
 
-        env {
-          name  = "PROJECT_ID"
-          value = var.project_id
-        }
+      env {
+        name  = "PROJECT_ID"
+        value = var.project_id
+      }
 
-        env {
-          name  = "REGION"
-          value = var.region
-        }
+      env {
+        name  = "REGION"
+        value = var.region
+      }
 
-        env {
-          name  = "BUCKET_URI"
-          value = var.staging_bucket_uri
-        }
+      env {
+        name  = "BUCKET_URI"
+        value = var.staging_bucket_uri
+      }
 
-        env {
-          name  = "IMAGE_URI"
-          value = var.model_training_trigger_image_uri
-        }
+      env {
+        name  = "IMAGE_URI"
+        value = var.model_training_trigger_image_uri
       }
     }
+
+    service_account = var.service_account_email
+    timeout         = "900s"
   }
 
   traffic {
-    percent         = 100
-    latest_revision = true
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
+  }
+
+  lifecycle {
+    replace_triggered_by = [
+      template[0].containers[0].image
+    ]
+  }
+}
+
+
+resource "google_cloud_run_v2_job" "model_training_job" {
+  name     = "model-training-job"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    template {
+      containers {
+        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
+
+        env {
+          name  = "MYSQL_HOST"
+          value = var.mysql_host
+        }
+
+        env {
+          name  = "MYSQL_USER"
+          value = var.mysql_user
+        }
+
+        env {
+          name  = "MYSQL_PASSWORD"
+          value = var.mysql_password
+        }
+
+        env {
+          name  = "MYSQL_DATABASE"
+          value = var.mysql_database
+        }
+
+        env {
+          name  = "MODEL_NAME"
+          value = var.model_name
+        }
+      }
+
+      max_retries    = 1
+      timeout        = "900s"  # Adjust based on training duration
+      service_account = var.service_account_email
+    }
+  }
+
+  lifecycle {
+    replace_triggered_by = [
+      template[0].containers[0].image
+    ]
   }
 }
