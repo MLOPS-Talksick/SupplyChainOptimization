@@ -177,6 +177,19 @@ jobs:
           ./scripts/build_and_push_model_serving_docker_image.sh
 
 
+      - name: Check if Docker Build is Needed for Cloud Run Model Serving.
+        id: detect-changes-model_training_trigger-image
+        run: |
+          chmod +x scripts/check_cloudrun_model_training_trigger_docker_build.sh
+          ./scripts/check_cloudrun_model_training_trigger_docker_build.sh
+
+      - name: Build & Push Docker Image for Cloud Run Model Serving.
+        if: steps.detect-changes-model_training_trigger-image.outputs.build_required == 'true'
+        run: |
+          chmod +x scripts/build_and_push_model_training_cloud_run_trigger_image.sh
+          ./scripts/build_and_push_model_training_cloud_run_trigger_image.sh
+
+
   # -------------------------------------------------------------
   # 🟩 Job 3: DEPLOY - uses key from bootstrap
   # -------------------------------------------------------------
@@ -208,6 +221,7 @@ jobs:
       TF_VAR_mysql_password: ${{ secrets.MYSQL_PASSWORD }}
       TF_VAR_mysql_database: ${{ secrets.MYSQL_DATABASE }}
       TF_VAR_model_name: ${{ secrets.MODEL_NAME }}
+      TF_VAR_staging_bucket_uri: ${{ secrets.BUCKET_URI }}
 
     steps:
       - name: Checkout Repository

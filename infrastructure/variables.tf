@@ -194,3 +194,21 @@ variable "artifact_registry" {
   type        = string
   default     = "airflow-docker-image"
 }
+
+variable "staging_bucket_uri" {
+  description = "GCS URI for staging bucket"
+  type        = string
+}
+
+variable "model_training_trigger_image_uri" {
+  type    = string
+  default = "us-central1-docker.pkg.dev/primordial-veld-450618-n4/airflow-docker-image/model_training_trigger:latest"
+}
+
+variable "model_training_image_uri" {
+  default = "us-central1-docker.pkg.dev/primordial-veld-450618-n4/airflow-docker-image/model_training:latest"
+}
+
+variable "model_training_trigger_image_uri" {
+  default = "us-central1-docker.pkg.dev/primordial-veld-450618-n4/airflow-docker-image/model_training_trigger:latest"
+}

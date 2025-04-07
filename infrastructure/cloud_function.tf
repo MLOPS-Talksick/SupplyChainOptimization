@@ -84,49 +84,41 @@ resource "google_cloud_run_v2_service" "model_serving" {
 }
 
 
-resource "google_cloud_run_v2_job" "model_training_job" {
-  name     = "model-training-job"
+resource "google_cloud_run_service" "model_training_trigger" {
+  name     = "model-training-trigger"
   location = var.region
   project  = var.project_id
 
   template {
-    template {
+    spec {
       containers {
-        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
+        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training_trigger:latest"
 
         env {
-          name  = "MYSQL_HOST"
-          value = var.mysql_host
+          name  = "PROJECT_ID"
+          value = var.project_id
         }
 
         env {
-          name  = "MYSQL_USER"
-          value = var.mysql_user
+          name  = "REGION"
+          value = var.region
         }
 
         env {
-          name  = "MYSQL_PASSWORD"
-          value = var.mysql_password
+          name  = "BUCKET_URI"
+          value = var.staging_bucket_uri
         }
 
         env {
-          name  = "MYSQL_DATABASE"
-          value = var.mysql_database
-        }
-
-        env {
-          name  = "MODEL_NAME"
-          value = var.model_name
+          name  = "IMAGE_URI"
+          value = var.model_training_trigger_image_uri
         }
       }
-
-      max_retries    = 1
-      timeout        = "1000s"  # Adjust based on training duration
-      service_account = var.service_account_email
     }
   }
 
-  lifecycle {
-    ignore_changes = [template[0].template[0].containers[0].image]
+  traffic {
+    percent         = 100
+    latest_revision = true
   }
 }

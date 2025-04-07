@@ -10,7 +10,6 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY secret/gcp-key.json /app/secret/gcp-key.json
 
 COPY model_development/model_training_cloud_run_trigger/ ./
 
@@ -21,4 +20,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 ENV PORT 8080
 
 # Set the entrypoint
-CMD ["python", "main.py"]
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "main:app"]
