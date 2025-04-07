@@ -359,12 +359,13 @@ fi
 ######################################
 MODEL_TRAINING_JOB="model-training-job"
 echo "Checking Cloud Run V2 Job (${MODEL_TRAINING_JOB})..."
-if gcloud run jobs describe "${MODEL_TRAINING_JOB}" --region="${REGION}" --project="${PROJECT_ID}" --platform=managed &>/dev/null; then
-    echo "Cloud Run Job ${MODEL_TRAINING_JOB} exists. Importing..."
+
+# Use correct gcloud command without --platform for V2
+if gcloud run jobs describe "${MODEL_TRAINING_JOB}" --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
+    echo "✅ Cloud Run Job '${MODEL_TRAINING_JOB}' exists. Importing to Terraform..."
     terraform import google_cloud_run_v2_job.model_training_job "projects/${PROJECT_ID}/locations/${REGION}/jobs/${MODEL_TRAINING_JOB}"
 else
-    echo "Cloud Run Job ${MODEL_TRAINING_JOB} not found. Terraform will create it."
+    echo "❌ Cloud Run Job '${MODEL_TRAINING_JOB}' not found. Terraform will create it."
 fi
 
-
-echo "=== Import Check Completed ==="
+echo "✅ Import check completed."
