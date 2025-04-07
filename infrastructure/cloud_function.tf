@@ -39,7 +39,8 @@ resource "google_cloud_run_v2_service" "model_serving" {
 
   template {
     containers {
-      image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_serving:latest"
+      # image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_serving:latest"
+      image = var.model_serving_image_uri
 
       env {
         name  = "MYSQL_HOST"
@@ -79,9 +80,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
   }
 
   lifecycle {
-    replace_triggered_by = [
-      self.template[0].containers[0].image
-    ]
+    replace_triggered_by = var.model_serving_image_uri
   }
 }
 
@@ -93,7 +92,8 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
 
   template {
     containers {
-      image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training_trigger:latest"
+      # image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training_trigger:latest"
+      image = var.model_training_trigger_image_uri
 
       env {
         name  = "PROJECT_ID"
@@ -126,9 +126,7 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
   }
 
   lifecycle {
-    replace_triggered_by = [
-      self.template[0].containers[0].image
-    ]
+    replace_triggered_by = var.model_training_trigger_image_uri
   }
 }
 
@@ -141,7 +139,8 @@ resource "google_cloud_run_v2_job" "model_training_job" {
   template {
     template {
       containers {
-        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
+        # image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
+        image = var.model_training_image_uri
 
         env {
           name  = "MYSQL_HOST"
@@ -176,8 +175,6 @@ resource "google_cloud_run_v2_job" "model_training_job" {
   }
 
   lifecycle {
-    replace_triggered_by = [
-      self.template[0].containers[0].image
-    ]
+    replace_triggered_by = var.model_training_image_uri
   }
 }

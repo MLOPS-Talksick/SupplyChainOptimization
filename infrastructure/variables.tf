@@ -200,12 +200,17 @@ variable "staging_bucket_uri" {
   type        = string
 }
 
-variable "model_training_trigger_image_uri" {
-  type    = string
-  default = "us-central1-docker.pkg.dev/primordial-veld-450618-n4/airflow-docker-image/model_training_trigger:latest"
+variable "model_serving_image_uri" {
+  description = "Full image URI with tag for model serving"
+  type        = string
 }
 
 variable "model_training_image_uri" {
-  default = "us-central1-docker.pkg.dev/primordial-veld-450618-n4/airflow-docker-image/model_training:latest"
+  description = "Full image URI with tag for model training"
+  type        = string
 }
 
+variable "model_training_trigger_image_uri" {
+  description = "Full image URI with tag for model training trigger"
+  type        = string
+}

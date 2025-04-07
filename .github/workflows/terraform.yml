@@ -110,6 +110,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GCP_PROJECT_ID: primordial-veld-450618-n4
+    outputs:
+      model_serving_image_uri: ${{ steps.build-model-serving.outputs.model_serving_image_uri }}
+      model_training_image_uri: ${{ steps.build-model-training.outputs.model_training_image_uri }}
+      model_training_trigger_image_uri: ${{ steps.build-model-trigger.outputs.model_training_trigger_image_uri }}
 
     steps:
       - name: Checkout Repository
@@ -157,8 +161,9 @@ jobs:
           chmod +x scripts/check_cloudrun_docker_build.sh
           ./scripts/check_cloudrun_docker_build.sh
 
-      - name: Build & Push Docker Image for Cloud Run Model Training.
+      - name: Build & Push Docker Image for Model Training
         if: steps.detect-changes-model_training-image.outputs.build_required == 'true'
+        id: build-model-training
         run: |
           chmod +x scripts/build_and_push_model_training_docker_image.sh
           ./scripts/build_and_push_model_training_docker_image.sh
@@ -172,6 +177,7 @@ jobs:
 
       - name: Build & Push Docker Image for Cloud Run Model Serving.
         if: steps.detect-changes-model_serving-image.outputs.build_required == 'true'
+        id: build-model-serving
         run: |
           chmod +x scripts/build_and_push_model_serving_docker_image.sh
           ./scripts/build_and_push_model_serving_docker_image.sh
@@ -183,8 +189,9 @@ jobs:
           chmod +x scripts/check_cloudrun_model_training_trigger_docker_build.sh
           ./scripts/check_cloudrun_model_training_trigger_docker_build.sh
 
-      - name: Build & Push Docker Image for Cloud Run Model Serving.
+      - name: Build & Push Docker Image for Training Trigger
         if: steps.detect-changes-model_training_trigger-image.outputs.build_required == 'true'
+        id: build-model-trigger
         run: |
           chmod +x scripts/build_and_push_model_training_cloud_run_trigger_image.sh
           ./scripts/build_and_push_model_training_cloud_run_trigger_image.sh
@@ -203,6 +210,9 @@ jobs:
       GCP_LOCATION: us-central1
       # TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.service_account_key }}
       # TF_VAR_service_account_email: ${{ needs.bootstrap.outputs.service_account_email }}
+      TF_VAR_model_serving_image_uri: ${{ needs.build_and_push.outputs.model_serving_image_uri }}
+      TF_VAR_model_training_image_uri: ${{ needs.build_and_push.outputs.model_training_image_uri }}
+      TF_VAR_model_training_trigger_image_uri: ${{ needs.build_and_push.outputs.model_training_trigger_image_uri }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
