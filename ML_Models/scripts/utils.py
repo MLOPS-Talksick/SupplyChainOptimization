@@ -9,10 +9,7 @@ import smtplib
 from email.message import EmailMessage
 import polars as pl
 from Data_Pipeline.scripts.logger import logger
-from dotenv import load_dotenv
 
-
-load_dotenv("database.env")
 
 def extracting_time_series_and_lagged_features_pd(
     df: pd.DataFrame,

@@ -16,14 +16,13 @@ RUN apt-get update && apt-get install -y gcc git && rm -rf /var/lib/apt/lists/*
 # Copy project files (all relative to root because build context is root)
 COPY Data_Pipeline/scripts/ /app/Data_Pipeline/scripts/
 COPY ML_Models/scripts/ /app/ML_Models/scripts/
-COPY ML_Models/database.env /app/ML_Models/database.env
 COPY model_development/model_training/ /app/model_development/model_training/
 
 # Install Python dependencies from the requirements.txt
 WORKDIR /app/model_development/model_training
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir --no-warn-script-location -r requirements.txt
-    
+
 
 # Set final working directory
 WORKDIR /app/ML_Models/scripts

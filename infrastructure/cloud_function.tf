@@ -81,3 +81,50 @@ resource "google_cloud_run_service" "model_serving" {
     latest_revision = true
   }
 }
+
+
+
+resource "google_cloud_run_service" "model_training" {
+  name     = "model-training"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    spec {
+      containers {
+        image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
+
+        env {
+          name  = "MYSQL_HOST"
+          value = var.mysql_host
+        }
+
+        env {
+          name  = "MYSQL_USER"
+          value = var.mysql_user
+        }
+
+        env {
+          name  = "MYSQL_PASSWORD"
+          value = var.mysql_password
+        }
+
+        env {
+          name  = "MYSQL_DATABASE"
+          value = var.mysql_database
+        }
+      }
+    }
+
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/minScale" = "1"
+      }
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
+}
