@@ -67,7 +67,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
       }
     }
 
-    service_account = google_service_account.terraform_sa.email
+    service_account = var.service_account_email
 
     max_instance_request_concurrency = 80  # optional: adjust if needed
     timeout                           = "900s"
@@ -122,7 +122,7 @@ resource "google_cloud_run_v2_job" "model_training_job" {
 
       max_retries    = 1
       timeout        = "1000s"  # Adjust based on training duration
-      service_account = google_service_account.terraform_sa.email
+      service_account = var.service_account_email
     }
   }
 
