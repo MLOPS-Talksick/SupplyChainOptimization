@@ -40,7 +40,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
   template {
     containers {
       # image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_serving:latest"
-      image = var.model_serving_image_uri
+      image = local.model_serving_image_uri
 
       env {
         name  = "MYSQL_HOST"
@@ -69,7 +69,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
 
       env {
         name  = "IMAGE_TAG_HASH"
-        value = var.model_serving_image_uri
+        value = local.model_serving_image_uri
       }
     }
 
@@ -94,7 +94,7 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
   template {
     containers {
       # image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training_trigger:latest"
-      image = var.model_training_trigger_image_uri
+      image = local.model_training_trigger_image_uri
 
       env {
         name  = "PROJECT_ID"
@@ -113,12 +113,12 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
 
       env {
         name  = "IMAGE_URI"
-        value = var.model_training_trigger_image_uri
+        value = local.model_training_trigger_image_uri
       }
 
       env {
         name  = "IMAGE_TAG_HASH"
-        value = var.model_training_trigger_image_uri
+        value = local.model_training_trigger_image_uri
       }
     }
 
@@ -142,7 +142,7 @@ resource "google_cloud_run_v2_job" "model_training_job" {
     template {
       containers {
         # image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
-        image = var.model_training_image_uri
+        image = local.model_training_image_uri
 
         env {
           name  = "MYSQL_HOST"
@@ -171,7 +171,7 @@ resource "google_cloud_run_v2_job" "model_training_job" {
 
         env {
           name  = "IMAGE_TAG_HASH"
-          value = var.model_training_image_uri
+          value = local.model_training_image_uri
         }
       }
 
