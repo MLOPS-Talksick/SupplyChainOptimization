@@ -330,5 +330,41 @@ else
     echo "Cloud Function ${FUNCTION_NAME} not found. Terraform will create it."
 fi
 
+######################################
+# 17. Cloud Run V2 Services
+######################################
+
+# Cloud Run V2 Service: model-serving
+MODEL_SERVING="model-serving"
+echo "Checking Cloud Run V2 Service (${MODEL_SERVING})..."
+if gcloud run services describe "${MODEL_SERVING}" --region="${REGION}" --project="${PROJECT_ID}" --platform=managed &>/dev/null; then
+    echo "Cloud Run Service ${MODEL_SERVING} exists. Importing..."
+    terraform import google_cloud_run_v2_service.model_serving "projects/${PROJECT_ID}/locations/${REGION}/services/${MODEL_SERVING}"
+else
+    echo "Cloud Run Service ${MODEL_SERVING} not found. Terraform will create it."
+fi
+
+# Cloud Run V2 Service: model-training-trigger
+MODEL_TRAINING_TRIGGER="model-training-trigger"
+echo "Checking Cloud Run V2 Service (${MODEL_TRAINING_TRIGGER})..."
+if gcloud run services describe "${MODEL_TRAINING_TRIGGER}" --region="${REGION}" --project="${PROJECT_ID}" --platform=managed &>/dev/null; then
+    echo "Cloud Run Service ${MODEL_TRAINING_TRIGGER} exists. Importing..."
+    terraform import google_cloud_run_v2_service.model_training_trigger "projects/${PROJECT_ID}/locations/${REGION}/services/${MODEL_TRAINING_TRIGGER}"
+else
+    echo "Cloud Run Service ${MODEL_TRAINING_TRIGGER} not found. Terraform will create it."
+fi
+
+######################################
+# 18. Cloud Run V2 Job: model-training-job
+######################################
+MODEL_TRAINING_JOB="model-training-job"
+echo "Checking Cloud Run V2 Job (${MODEL_TRAINING_JOB})..."
+if gcloud run jobs describe "${MODEL_TRAINING_JOB}" --region="${REGION}" --project="${PROJECT_ID}" --platform=managed &>/dev/null; then
+    echo "Cloud Run Job ${MODEL_TRAINING_JOB} exists. Importing..."
+    terraform import google_cloud_run_v2_job.model_training_job "projects/${PROJECT_ID}/locations/${REGION}/jobs/${MODEL_TRAINING_JOB}"
+else
+    echo "Cloud Run Job ${MODEL_TRAINING_JOB} not found. Terraform will create it."
+fi
+
 
 echo "=== Import Check Completed ==="
