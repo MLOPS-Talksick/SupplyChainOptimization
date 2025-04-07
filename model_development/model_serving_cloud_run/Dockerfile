@@ -7,15 +7,18 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DEFAULT_TIMEOUT=100 \
     PYTHONPATH=/app
 
+# Create app directory
 WORKDIR /app
 
-# Copy application code
+# Copy only necessary code
 COPY model_development/model_serving_cloud_run/ ./
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Service must listen to $PORT environment variable
-ENV PORT 8080
+# Tell Cloud Run to expect traffic on this port
+ENV PORT=8080
 
-# Run the web service
-CMD ["python", "main.py"]
+# Start the app with gunicorn
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "main:app"]
