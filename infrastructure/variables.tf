@@ -209,6 +209,3 @@ variable "model_training_image_uri" {
   default = "us-central1-docker.pkg.dev/primordial-veld-450618-n4/airflow-docker-image/model_training:latest"
 }
 
-variable "model_training_trigger_image_uri" {
-  default = "us-central1-docker.pkg.dev/primordial-veld-450618-n4/airflow-docker-image/model_training_trigger:latest"
-}
