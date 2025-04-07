@@ -203,14 +203,17 @@ variable "staging_bucket_uri" {
 variable "model_serving_image_uri" {
   description = "Full image URI with tag for model serving"
   type        = string
+  default     = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_serving:latest"
 }
 
 variable "model_training_image_uri" {
   description = "Full image URI with tag for model training"
   type        = string
+  default     = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
 }
 
 variable "model_training_trigger_image_uri" {
   description = "Full image URI with tag for model training trigger"
   type        = string
+  default     = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training_trigger:latest"
 }
