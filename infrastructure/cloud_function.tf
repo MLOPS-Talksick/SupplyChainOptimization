@@ -66,6 +66,11 @@ resource "google_cloud_run_v2_service" "model_serving" {
         name  = "MODEL_NAME"
         value = var.model_name
       }
+
+      env {
+        name  = "IMAGE_TAG_HASH"
+        value = var.model_serving_image_uri
+      }
     }
 
     service_account = var.service_account_email
@@ -77,10 +82,6 @@ resource "google_cloud_run_v2_service" "model_serving" {
   traffic {
     percent         = 100
     type            = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-  }
-
-  lifecycle {
-    replace_triggered_by = var.model_serving_image_uri
   }
 }
 
@@ -114,6 +115,11 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
         name  = "IMAGE_URI"
         value = var.model_training_trigger_image_uri
       }
+
+      env {
+        name  = "IMAGE_TAG_HASH"
+        value = var.model_training_trigger_image_uri
+      }
     }
 
     service_account = var.service_account_email
@@ -123,10 +129,6 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
-  }
-
-  lifecycle {
-    replace_triggered_by = var.model_training_trigger_image_uri
   }
 }
 
@@ -166,15 +168,16 @@ resource "google_cloud_run_v2_job" "model_training_job" {
           name  = "MODEL_NAME"
           value = var.model_name
         }
+
+        env {
+          name  = "IMAGE_TAG_HASH"
+          value = var.model_training_image_uri
+        }
       }
 
       max_retries    = 1
       timeout        = "900s"  # Adjust based on training duration
       service_account = var.service_account_email
     }
-  }
-
-  lifecycle {
-    replace_triggered_by = var.model_training_image_uri
   }
 }
