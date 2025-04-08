@@ -114,6 +114,8 @@ jobs:
       model_serving_image_uri: ${{ steps.build-model-serving.outputs.model_serving_image_uri }}
       model_training_image_uri: ${{ steps.build-model-training.outputs.model_training_image_uri }}
       model_training_trigger_image_uri: ${{ steps.build-model-trigger.outputs.model_training_trigger_image_uri }}
+      backend_image_uri: ${{ steps.build-backend.outputs.backend_image_uri }}
+
 
     steps:
       - name: Checkout Repository
@@ -197,11 +199,25 @@ jobs:
           ./scripts/build_and_push_model_training_cloud_run_trigger_image.sh
 
 
+      - name: Check if Docker Build is Needed for Cloud Run Backend
+        id: detect-changes-backend-image
+        run: |
+          chmod +x scripts/check_cloudrun_backend_docker_build.sh
+          ./scripts/check_cloudrun_backend_docker_build.sh
+
+      - name: Build & Push Docker Image for Cloud Run Backend
+        id: build-backend
+        run: |
+          chmod +x scripts/build_and_push_backend_docker_image.sh
+          ./scripts/build_and_push_backend_docker_image.sh
+
+
       - name: Debug Docker Image URIs (Before Output)
         run: |
           echo "Model Serving Image URI: ${{ steps.build-model-serving.outputs.model_serving_image_uri }}"
           echo "Model Training Image URI: ${{ steps.build-model-training.outputs.model_training_image_uri }}"
           echo "Model Training Trigger Image URI: ${{ steps.build-model-trigger.outputs.model_training_trigger_image_uri }}"
+          echo "Model Training Trigger Image URI: ${{ steps.build-backend.outputs.backend_image_uri }}"
 
 
   # -------------------------------------------------------------
@@ -326,3 +342,39 @@ jobs:
         run: |
           LB_IP=$(gcloud compute forwarding-rules list --filter="name:airflow-global-forwarding-rule" --format="value(IPAddress)")
           echo "Airflow UI is available at: http://$LB_IP"
+
+      - name: Extract Load Balancer IP
+        id: get-lb-ip
+        working-directory: infrastructure
+        run: |
+          IP=$(terraform output -raw airflow_lb_ip)
+          echo "airflow_lb_ip=$IP" >> $GITHUB_ENV
+          echo "airflow_lb_ip=$IP" >> $GITHUB_OUTPUT
+  
+  deploy_backend:
+    name: Deploy Cloud Run Service
+    needs: deploy
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_backend_image_uri: ${{ needs.build_and_push.outputs.backend_image_uri }}
+      TF_VAR_airflow_lb_ip: ${{ steps.get-airflow-ip.outputs.airflow_lb_ip }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Debug Terraform Image Variables
+        run: |
+          echo "TF_VAR_backend_image_uri=${TF_VAR_backend_image_uri}"
+          echo "TF_VAR_airflow_lb_ip=${TF_VAR_airflow_lb_ip}"
+
+      - name: Terraform Init & Apply (Cloud Run)
+        working-directory: backend/terraform
+        env:
+          TF_VAR_airflow_lb_ip: ${{ needs.deploy.outputs.airflow_lb_ip }}
+        run: |
+          terraform init
+          terraform apply -auto-approve
