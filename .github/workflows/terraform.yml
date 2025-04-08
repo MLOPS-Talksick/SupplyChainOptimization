@@ -349,7 +349,10 @@ jobs:
         run: |
           IP=$(terraform output -raw airflow_lb_ip)
           echo "airflow_lb_ip=$IP" >> $GITHUB_ENV
-          echo "airflow_lb_ip=$IP" >> $GITHUB_OUTPUT
+          echo "airflow_lb_ip<<EOF" >> $GITHUB_OUTPUT
+          echo "$IP" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
   
   deploy_backend:
     name: Deploy Cloud Run Service
