@@ -73,11 +73,18 @@ resource "google_cloud_run_v2_service" "model_serving" {
       }
     }
 
+    vpc_access {
+      connector = google_vpc_access_connector.cloudrun_connector.name
+      egress    = "ALL_TRAFFIC"
+    }
+
     service_account = var.service_account_email
 
     max_instance_request_concurrency = 80  # optional: adjust if needed
     timeout                           = "900s"
   }
+
+  ingress = "INTERNAL_AND_GCLB"
 
   traffic {
     percent         = 100
@@ -122,9 +129,16 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
       }
     }
 
+    vpc_access {
+      connector = google_vpc_access_connector.cloudrun_connector.name
+      egress    = "ALL_TRAFFIC"
+    }
+
     service_account = var.service_account_email
     timeout         = "900s"
   }
+
+  ingress = "INTERNAL_AND_GCLB"
 
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
@@ -206,10 +220,17 @@ resource "google_cloud_run_v2_service" "backend" {
       }
     }
 
+    vpc_access {
+      connector = google_vpc_access_connector.cloudrun_connector.name
+      egress    = "ALL_TRAFFIC"
+    }
+
     # Optional: always allocate CPU
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     service_account       = var.service_account_email
   }
+
+  ingress = "INTERNAL_AND_GCLB"
 
   traffic {
     percent         = 100

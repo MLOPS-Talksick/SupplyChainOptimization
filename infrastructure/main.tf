@@ -101,3 +101,25 @@ resource "google_compute_firewall" "allow_internal_sql" {
   # Allow all resources in your VPC (adjust source_ranges as needed)
   source_ranges = ["10.0.0.0/16"]
 }
+
+
+resource "google_vpc_access_connector" "cloudrun_connector" {
+  name          = "cloudrun-connector"
+  region        = var.region
+  network       = google_compute_network.airflow_vpc.self_link
+  ip_cidr_range = "10.8.0.0/28"
+}
+
+
+resource "google_compute_firewall" "allow_cloudrun_to_airflow" {
+  name    = "allow-cloudrun-to-airflow"
+  network = google_compute_network.airflow_vpc.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  source_ranges = ["10.8.0.0/28"]
+  target_tags   = ["airflow-server"]
+}
