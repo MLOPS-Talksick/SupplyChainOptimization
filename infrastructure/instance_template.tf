@@ -23,8 +23,6 @@ resource "google_compute_instance_template" "airflow_template" {
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
-  tags = ["airflow_vm"]
-
 
   lifecycle {
     ignore_changes = [
