@@ -369,3 +369,20 @@ else
 fi
 
 echo "✅ Import check completed."
+
+
+######################################
+# 19. Cloud Run V2 Service: backend
+######################################
+CLOUDRUN_BACKEND="cloudrun-backend"
+echo "Checking Cloud Run V2 Service (${CLOUDRUN_BACKEND})..."
+
+# Check if service exists
+if gcloud run services describe "${CLOUDRUN_BACKEND}" --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
+    echo "✅ Cloud Run V2 Service '${CLOUDRUN_BACKEND}' exists. Importing to Terraform..."
+    terraform import google_cloud_run_v2_service.backend "projects/${PROJECT_ID}/locations/${REGION}/services/${CLOUDRUN_BACKEND}"
+else
+    echo "❌ Cloud Run V2 Service '${CLOUDRUN_BACKEND}' not found. Terraform will create it."
+fi
+
+echo "✅ Import check completed."

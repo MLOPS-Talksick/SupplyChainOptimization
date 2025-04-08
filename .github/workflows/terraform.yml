@@ -344,13 +344,3 @@ jobs:
         run: |
           LB_IP=$(gcloud compute forwarding-rules list --filter="name:airflow-global-forwarding-rule" --format="value(IPAddress)")
           echo "Airflow UI is available at: http://$LB_IP"
-
-      - name: Extract Load Balancer IP
-        id: get-airflow-ip
-        working-directory: infrastructure
-        run: |
-          IP=$(terraform output -raw airflow_lb_ip)
-          echo "airflow_lb_ip=$IP" >> $GITHUB_ENV
-          echo "airflow_lb_ip<<EOF" >> $GITHUB_OUTPUT
-          echo "$IP" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
