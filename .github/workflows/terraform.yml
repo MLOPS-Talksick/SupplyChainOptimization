@@ -206,6 +206,7 @@ jobs:
           ./scripts/check_cloudrun_backend_docker_build.sh
 
       - name: Build & Push Docker Image for Cloud Run Backend
+        if: steps.detect-changes-backend-image.outputs.build_required == 'true'
         id: build-backend
         run: |
           chmod +x scripts/build_and_push_backend_docker_image.sh
