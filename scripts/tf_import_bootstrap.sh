@@ -77,20 +77,3 @@ if [[ -n "$EXISTING_REPO" ]]; then
 else
     echo "Artifact Registry ${ARTIFACT_REGISTRY_NAME} not found or access denied. Terraform will create it."
 fi
-
-
-echo "🔍 Checking for existing service account keys..."
-
-EXISTING_KEYS=$(gcloud iam service-accounts keys list \
-  --iam-account="${SA_TF_EMAIL}" \
-  --project="${PROJECT_ID}" \
-  --format="value(name)")
-
-KEY_ID=$(echo "$EXISTING_KEYS" | head -n 1 | awk -F/ '{print $NF}')
-
-if [[ -n "$KEY_ID" ]]; then
-  echo "✅ Found existing key: $KEY_ID"
-  terraform import google_service_account_key.terraform_sa_key "${SA_TF_EMAIL}/keys/${KEY_ID}"
-else
-  echo "⚠️ No existing key found. Terraform will create one."
-fi
