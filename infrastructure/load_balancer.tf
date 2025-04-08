@@ -42,3 +42,7 @@ resource "google_compute_global_forwarding_rule" "airflow_http_forwarding_rule" 
   target  = google_compute_target_http_proxy.airflow_http_proxy.self_link
   port_range = "80"
 }
+
+locals {
+  airflow_lb_ip = google_compute_global_forwarding_rule.airflow_http_forwarding_rule.ip_address
+}

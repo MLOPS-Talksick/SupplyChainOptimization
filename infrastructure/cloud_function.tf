@@ -181,3 +181,42 @@ resource "google_cloud_run_v2_job" "model_training_job" {
     }
   }
 }
+
+
+resource "google_cloud_run_v2_service" "backend" {
+  name     = "cloudrun-backend"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    containers {
+      image = local.backend_image_uri
+
+      env {
+        name  = "VM_IP"
+        value = local.airflow_lb_ip
+      }
+
+      # Optional: You can configure more here
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+    }
+
+    # Optional: always allocate CPU
+    execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+    service_account       = var.service_account_email
+  }
+
+  traffic {
+    percent         = 100
+    type            = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+  }
+
+  depends_on = [
+    google_compute_global_forwarding_rule.airflow_http_forwarding_rule
+  ]
+}

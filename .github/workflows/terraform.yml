@@ -236,6 +236,7 @@ jobs:
       TF_VAR_model_serving_image_uri: ${{ needs.build_and_push.outputs.model_serving_image_uri }}
       TF_VAR_model_training_image_uri: ${{ needs.build_and_push.outputs.model_training_image_uri }}
       TF_VAR_model_training_trigger_image_uri: ${{ needs.build_and_push.outputs.model_training_trigger_image_uri }}
+      TF_VAR_backend_image_uri: ${{ needs.build_and_push.outputs.backend_image_uri }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
@@ -292,6 +293,7 @@ jobs:
           echo "TF_VAR_model_serving_image_uri=${TF_VAR_model_serving_image_uri}"
           echo "TF_VAR_model_training_image_uri=${TF_VAR_model_training_image_uri}"
           echo "TF_VAR_model_training_trigger_image_uri=${TF_VAR_model_training_trigger_image_uri}"
+          echo "TF_VAR_backend_image_uri=${TF_VAR_backend_image_uri}"
 
 
       - name: Authenticate with Google Cloud
@@ -352,30 +354,3 @@ jobs:
           echo "airflow_lb_ip<<EOF" >> $GITHUB_OUTPUT
           echo "$IP" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-  
-  deploy_backend:
-    name: Deploy Cloud Run Service
-    needs: [deploy, build_and_push, bootstrap]
-    runs-on: ubuntu-latest
-    env:
-      TF_VAR_backend_image_uri: ${{ needs.build_and_push.outputs.backend_image_uri }}
-      TF_VAR_airflow_lb_ip: ${{ needs.deploy.outputs.airflow_lb_ip }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
-      - name: Debug Terraform Image Variables
-        run: |
-          echo "TF_VAR_backend_image_uri=${TF_VAR_backend_image_uri}"
-          echo "TF_VAR_airflow_lb_ip=${TF_VAR_airflow_lb_ip}"
-
-      - name: Terraform Init & Apply (Cloud Run)
-        working-directory: backend/terraform
-        run: |
-          terraform init
-          terraform apply -auto-approve

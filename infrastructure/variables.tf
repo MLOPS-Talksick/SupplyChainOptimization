@@ -222,4 +222,6 @@ locals {
   model_serving_image_uri          = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_serving:latest"
   model_training_image_uri         = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
   model_training_trigger_image_uri = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training_trigger:latest"
+  backend_image_uri                = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/cloudrun_backend:latest"
 }
+
