@@ -42,12 +42,12 @@ locals {
     "roles/logging.logWriter",
     "roles/storage.admin",
     "roles/aiplatform.admin",
-    "roles/artifactregistry.admin",                         // Artifact Registry Administrator
-    "roles/artifactregistry.createOnPushRepoAdmin",     // Artifact Registry Create-on-Push Repository Administrator (custom role; adjust if needed)
+    "roles/artifactregistry.admin",                           // Artifact Registry Administrator
+    "roles/artifactregistry.createOnPushRepoAdmin",           // Artifact Registry Create-on-Push Repository Administrator (custom role; adjust if needed)
     "roles/artifactregistry.reader",                          // Artifact Registry Reader
     "roles/artifactregistry.repoAdmin",                       // Artifact Registry Repository Administrator
     "roles/artifactregistry.writer",                          // Artifact Registry Writer
-    # "roles/artifact-admin",                                   // artifact-admin (custom role; adjust if needed)
+    # "roles/artifact-admin",                                 // artifact-admin (custom role; adjust if needed)
     "roles/composer.admin",                                   // Cloud Composer Admin Role
     "roles/cloudfunctions.admin",                             // Cloud Functions Admin
     "roles/cloudsql.admin",                                   // Cloud SQL Admin
@@ -57,8 +57,9 @@ locals {
     "roles/iam.serviceAccountCreator",                        // Create Service Accounts
     "roles/resourcemanager.projectIamAdmin",                  // Project IAM Admin
     "roles/secretmanager.admin",                              // Secret Manager Admin
-    "roles/servicenetworking.networksAdmin",                          // Service Networking Admin
-    "roles/storage.admin"                                     // Storage Admin
+    "roles/servicenetworking.networksAdmin",                  // Service Networking Admin
+    "roles/storage.admin",                                    // Storage Admin
+    "roles/vpcaccess.admin"                                   // VPC access
   ]
 }
 

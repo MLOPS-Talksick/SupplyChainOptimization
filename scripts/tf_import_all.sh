@@ -386,3 +386,27 @@ else
 fi
 
 echo "✅ Import check completed."
+
+
+### Firewall rule for cloud Run
+FIREWALL_RULE="allow-cloudrun-to-airflow"
+echo "Checking if firewall rule (${FIREWALL_RULE}) exists..."
+if gcloud compute firewall-rules describe "${FIREWALL_RULE}" \
+  --project="${PROJECT_ID}" &>/dev/null; then
+  echo "✅ Firewall rule '${FIREWALL_RULE}' exists. Importing..."
+  terraform import google_compute_firewall.allow_cloudrun_to_airflow \
+    "projects/${PROJECT_ID}/global/firewalls/${FIREWALL_RULE}"
+else
+  echo "❌ Firewall rule '${FIREWALL_RULE}' not found. Terraform will create it."
+fi
+
+
+CLOUDRUN_CONNECTOR="cloudrun-connector"
+echo "Checking VPC Access Connector (${CLOUDRUN_CONNECTOR})..."
+if gcloud compute networks vpc-access connectors describe "${CLOUDRUN_CONNECTOR}" \
+  --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
+    echo "✅ VPC Connector '${CLOUDRUN_CONNECTOR}' exists. Importing..."
+    terraform import google_vpc_access_connector.cloudrun_connector "projects/${PROJECT_ID}/locations/${REGION}/connectors/${CLOUDRUN_CONNECTOR}"
+else
+    echo "❌ VPC Connector '${CLOUDRUN_CONNECTOR}' not found. Terraform will create it."
+fi
