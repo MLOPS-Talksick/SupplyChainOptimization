@@ -103,11 +103,23 @@ resource "google_compute_firewall" "allow_internal_sql" {
 }
 
 
+resource "google_project_service" "vpc_access_api" {
+  project = var.project_id
+  service = "vpcaccess.googleapis.com"
+
+  disable_on_destroy = false
+}
+
+
 resource "google_vpc_access_connector" "cloudrun_connector" {
   name          = "cloudrun-connector"
   region        = var.region
   network       = google_compute_network.airflow_vpc.self_link
   ip_cidr_range = "10.8.0.0/28"
+
+  depends_on = [
+    google_project_service.vpc_access_api
+  ]
 }
 
 
