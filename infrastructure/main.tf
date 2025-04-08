@@ -117,6 +117,8 @@ resource "google_vpc_access_connector" "cloudrun_connector" {
   network       = google_compute_network.airflow_vpc.self_link
   ip_cidr_range = "10.8.0.0/28"
 
+  max_instances = 3
+
   depends_on = [
     google_project_service.vpc_access_api
   ]
