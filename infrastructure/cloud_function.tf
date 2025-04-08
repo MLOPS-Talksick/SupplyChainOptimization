@@ -84,7 +84,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
     timeout                           = "900s"
   }
 
-  ingress = "INTERNAL_AND_GCLB"
+  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   traffic {
     percent         = 100
@@ -138,7 +138,7 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
     timeout         = "900s"
   }
 
-  ingress = "INTERNAL_AND_GCLB"
+  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
@@ -230,7 +230,7 @@ resource "google_cloud_run_v2_service" "backend" {
     service_account       = var.service_account_email
   }
 
-  ingress = "INTERNAL_AND_GCLB"
+  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   traffic {
     percent         = 100
