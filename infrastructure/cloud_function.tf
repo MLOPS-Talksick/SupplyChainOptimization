@@ -74,7 +74,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
     }
 
     vpc_access {
-      connector = google_vpc_access_connector.cloudrun_connector.name
+      connector = google_vpc_access_connector.cloudrun_connector.id
       egress    = "ALL_TRAFFIC"
     }
 
@@ -130,7 +130,7 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
     }
 
     vpc_access {
-      connector = google_vpc_access_connector.cloudrun_connector.name
+      connector = google_vpc_access_connector.cloudrun_connector.id
       egress    = "ALL_TRAFFIC"
     }
 
@@ -221,7 +221,7 @@ resource "google_cloud_run_v2_service" "backend" {
     }
 
     vpc_access {
-      connector = google_vpc_access_connector.cloudrun_connector.name
+      connector = google_vpc_access_connector.cloudrun_connector.id
       egress    = "ALL_TRAFFIC"
     }
 
