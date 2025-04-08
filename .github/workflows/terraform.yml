@@ -344,7 +344,7 @@ jobs:
           echo "Airflow UI is available at: http://$LB_IP"
 
       - name: Extract Load Balancer IP
-        id: get-lb-ip
+        id: get-airflow-ip
         working-directory: infrastructure
         run: |
           IP=$(terraform output -raw airflow_lb_ip)
@@ -353,11 +353,11 @@ jobs:
   
   deploy_backend:
     name: Deploy Cloud Run Service
-    needs: deploy
+    needs: [deploy, build_and_push, bootstrap]
     runs-on: ubuntu-latest
     env:
       TF_VAR_backend_image_uri: ${{ needs.build_and_push.outputs.backend_image_uri }}
-      TF_VAR_airflow_lb_ip: ${{ steps.get-airflow-ip.outputs.airflow_lb_ip }}
+      TF_VAR_airflow_lb_ip: ${{ needs.deploy.outputs.airflow_lb_ip }}
 
     steps:
       - name: Checkout
@@ -373,8 +373,6 @@ jobs:
 
       - name: Terraform Init & Apply (Cloud Run)
         working-directory: backend/terraform
-        env:
-          TF_VAR_airflow_lb_ip: ${{ needs.deploy.outputs.airflow_lb_ip }}
         run: |
           terraform init
           terraform apply -auto-approve
