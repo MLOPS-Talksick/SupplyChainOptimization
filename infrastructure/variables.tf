@@ -225,3 +225,7 @@ locals {
   backend_image_uri                = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/cloudrun_backend:latest"
 }
 
+variable "cloudrun_service_name" {
+  description = "The name of the Cloud Run service to be exposed via Load Balancer"
+  type        = string
+}

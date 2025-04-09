@@ -257,6 +257,7 @@ jobs:
       TF_VAR_mysql_database: ${{ secrets.MYSQL_DATABASE }}
       TF_VAR_model_name: ${{ secrets.MODEL_NAME }}
       TF_VAR_staging_bucket_uri: ${{ secrets.BUCKET_URI }}
+      TF_VAR_cloudrun_service_name: cloudrun-backend
 
     steps:
       - name: Checkout Repository

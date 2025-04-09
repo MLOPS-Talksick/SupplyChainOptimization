@@ -25,9 +25,39 @@ resource "google_compute_backend_service" "airflow_backend" {
   }
 }
 
+
+resource "google_compute_backend_service" "cloudrun_backend" {
+  name                  = "cloudrun-backend"
+  protocol              = "HTTP"
+  port_name             = "http"
+  timeout_sec           = 300
+  load_balancing_scheme = "EXTERNAL"
+
+  backend {
+    group = google_compute_region_network_endpoint_group.cloudrun_neg.id
+  }
+}
+
+
+
 resource "google_compute_url_map" "airflow_url_map" {
   name            = "airflow-url-map"
   default_service = google_compute_backend_service.airflow_backend.self_link
+
+  host_rule {
+    hosts        = ["*"]
+    path_matcher = "routing-paths"
+  }
+
+  path_matcher {
+    name            = "routing-paths"
+    default_service = google_compute_backend_service.airflow_backend.self_link
+
+    path_rule {
+      paths   = ["/api/*"]
+      service = google_compute_backend_service.cloudrun_backend.self_link
+    }
+  }
 }
 
 resource "google_compute_target_http_proxy" "airflow_http_proxy" {
