@@ -27,6 +27,18 @@ resource "google_compute_backend_service" "airflow_backend" {
 }
 
 
+resource "google_compute_backend_service" "cloudrun_backend" {
+  name                  = "cloudrun-backend"
+  protocol              = "HTTP"
+  port_name             = "http"
+  load_balancing_scheme = "EXTERNAL"
+
+  backend {
+    group = google_compute_region_network_endpoint_group.cloudrun_neg.id
+  }
+}
+
+
 
 resource "google_compute_url_map" "lb_url_map" {
   name            = "lb-url-map"
@@ -71,4 +83,13 @@ resource "google_compute_global_forwarding_rule" "airflow_http_forwarding_rule" 
 
 locals {
   airflow_lb_ip = google_compute_global_forwarding_rule.airflow_http_forwarding_rule.ip_address
+}
+
+
+resource "google_cloud_run_service_iam_member" "allow_lb_invoker" {
+  service  = google_cloud_run_v2_service.backend.id
+  location = var.region
+  role     = "roles/run.invoker"
+
+  member = "serviceAccount:service-${var.project_id}@gcp-sa-cloudloadbalancing.iam.gserviceaccount.com"
 }
