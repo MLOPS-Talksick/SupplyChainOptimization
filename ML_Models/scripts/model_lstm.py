@@ -11,14 +11,14 @@ from tensorflow.keras import losses
 import tensorflow as tf
 import keras_tuner as kt
 import shap
+from sqlalchemy import text
 import pickle
 import os
-from google.cloud import aiplatform
 from tensorflow.keras.models import load_model
 from Data_Pipeline.scripts.logger import logger
 from Data_Pipeline.scripts.utils import send_email, setup_gcp_credentials
 from google.cloud import storage
-from ML_Models.scripts.utils import get_latest_data_from_cloud_sql
+from ML_Models.scripts.utils import get_latest_data_from_cloud_sql, get_cloud_sql_connection
 from dotenv import load_dotenv
 
 logger.info("Starting LSTM model training script")
@@ -428,7 +428,6 @@ def save_artifacts(model, model_name = "lstm_model.keras"):
         upload_to_gcs("scaler_y.pkl", "model_training_1")
         upload_to_gcs("label_encoder.pkl", "model_training_1")
         upload_to_gcs("scaler_X.pkl", "model_training_1")
-        upload_to_gcs(f"hyperparameter_results_{current_datetime}.txt", "model_training_1")
         upload_to_gcs(f'training_history_{current_datetime}.png', "model_training_1")
         upload_to_gcs(f'prediction_results_{current_datetime}.png', "model_training_1")
 
@@ -447,13 +446,47 @@ print("Best model saved as 'lstm_model.keras'")
 # Save the hyperparameter tuning results
 try:
     logger.info("saving hyperparameter tuning results")
-    with open('hyperparameter_results.txt', 'w') as f:
-        f.write("Best hyperparameters:\n")
-        for param, value in best_hps.values.items():
-            f.write(f"{param}: {value}\n")
-        f.write(f"\nTrain Loss: {train_loss:.4f}\n")
-        f.write(f"Test Loss: {test_loss:.4f}\n")
-        f.write(f"RMSE: {rmse:.4f}\n")
+    values = best_hps.values
+
+    data = {
+        "model_type": "LSTM",
+        "model_training_date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "units_1": values.get("units_1"),
+        "dropout_1": values.get("dropout_1"),
+        "activation_1": values.get("activation_1"),
+        "units_2": values.get("units_2"),
+        "dropout_2": values.get("dropout_2"),
+        "activation_2": values.get("activation_2"),
+        "dense_units": values.get("dense_units"),
+        "dense_activation": values.get("dense_activation"),
+        "learning_rate": values.get("learning_rate"),
+        "optimizer": values.get("optimizer"),
+        "train_loss": train_loss,
+        "test_loss": test_loss,
+        "rmse": rmse
+    }
+
+    pool = get_cloud_sql_connection()
+
+    # Insert into table
+    with pool.connect() as conn:
+        insert_stmt = text("""
+            INSERT INTO MODEL_CONFIG (
+                model_type, model_training_date, units_1, dropout_1, activation_1,
+                units_2, dropout_2, activation_2,
+                dense_units, dense_activation,
+                learning_rate, optimizer,
+                train_loss, test_loss, rmse
+            ) VALUES (
+                :model_type, :model_training_date, :units_1, :dropout_1, :activation_1,
+                :units_2, :dropout_2, :activation_2,
+                :dense_units, :dense_activation,
+                :learning_rate, :optimizer,
+                :train_loss, :test_loss, :rmse
+            )
+        """)
+        conn.execute(insert_stmt, data)
+        conn.commit()
 except Exception as e:
     print(f"Error saving hyperparameter tuning results: {e}")
     send_email(
@@ -465,8 +498,7 @@ except Exception as e:
 
 try:
     logger.info("Deleting temporary files")
-    file_paths = ["scaler_y.pkl", "label_encoder.pkl", "scaler_X.pkl", 
-                  f"hyperparameter_results_{current_datetime}.txt", 
+    file_paths = ["scaler_y.pkl", "label_encoder.pkl", "scaler_X.pkl",
                   f'training_history_{current_datetime}.png', 
                   f'prediction_results_{current_datetime}.png']
 
