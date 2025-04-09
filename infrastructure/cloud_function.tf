@@ -241,3 +241,14 @@ resource "google_cloud_run_v2_service" "backend" {
     google_compute_global_forwarding_rule.airflow_http_forwarding_rule
   ]
 }
+
+
+resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
+  name                  = "cloudrun-neg"
+  region                = var.region
+  network_endpoint_type = "SERVERLESS"
+
+  cloud_run {
+    service = var.cloudrun_service_name
+  }
+}
