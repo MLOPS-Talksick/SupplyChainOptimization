@@ -237,11 +237,11 @@ fi
 ######################################
 # 10. URL Map: airflow-url-map
 ######################################
-URL_MAP_NAME="airflow-url-map"
+URL_MAP_NAME="lb-url-map"
 echo "Checking URL Map (${URL_MAP_NAME})..."
 if gcloud compute url-maps describe "${URL_MAP_NAME}" --project "${PROJECT_ID}" &>/dev/null; then
     echo "URL Map exists. Importing..."
-    terraform import google_compute_url_map.airflow_url_map "projects/${PROJECT_ID}/global/urlMaps/${URL_MAP_NAME}"
+    terraform import google_compute_url_map.lb_url_map "projects/${PROJECT_ID}/global/urlMaps/${URL_MAP_NAME}"
 else
     echo "URL Map not found. Terraform will create it."
 fi

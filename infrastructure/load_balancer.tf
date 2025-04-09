@@ -40,29 +40,37 @@ resource "google_compute_backend_service" "cloudrun_backend" {
 
 
 
-resource "google_compute_url_map" "airflow_url_map" {
-  name            = "airflow-url-map"
-  default_service = google_compute_backend_service.airflow_backend.self_link
+resource "google_compute_url_map" "lb_url_map" {
+  name            = "lb-url-map"
+  # Set a default service here according to your routing strategy.
+  default_service = google_compute_backend_service.cloudrun_backend.self_link
 
   host_rule {
     hosts        = ["*"]
-    path_matcher = "routing-paths"
+    path_matcher = "primary-matcher"
   }
 
   path_matcher {
-    name            = "routing-paths"
-    default_service = google_compute_backend_service.airflow_backend.id
+    name            = "primary-matcher"
+    default_service = google_compute_backend_service.cloudrun_backend.self_link
 
+    # Route these API endpoints to the Cloud Run backend.
     path_rule {
       paths   = ["/upload", "/data", "/predict"]
-      service = google_compute_backend_service.airflow_backend.id
+      service = google_compute_backend_service.cloudrun_backend.self_link
+    }
+
+    # Optionally, if you want to reserve a path (e.g. /airflow/*) to your Airflow backend, add:
+    path_rule {
+      paths   = ["/airflow/*"]
+      service = google_compute_backend_service.airflow_backend.self_link
     }
   }
 }
 
 resource "google_compute_target_http_proxy" "airflow_http_proxy" {
   name    = "airflow-http-proxy"
-  url_map = google_compute_url_map.airflow_url_map.self_link
+  url_map = google_compute_url_map.lb_url_map.self_link
 }
 
 
