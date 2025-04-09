@@ -30,7 +30,6 @@ resource "google_compute_backend_service" "cloudrun_backend" {
   name                  = "cloudrun-backend"
   protocol              = "HTTP"
   port_name             = "http"
-  timeout_sec           = 300
   load_balancing_scheme = "EXTERNAL"
 
   backend {
