@@ -5,6 +5,7 @@ resource "google_compute_health_check" "http_health_check" {
   timeout_sec        = 5
   http_health_check {
     port = 8080
+    request_path = "/"
   }
 }
 
@@ -49,12 +50,12 @@ resource "google_compute_url_map" "airflow_url_map" {
   }
 
   path_matcher {
-    name            = "routing-paths"
-    default_service = google_compute_backend_service.airflow_backend.self_link
+    name            = "backend-matcher"
+    default_service = google_compute_backend_service.airflow_backend.id
 
     path_rule {
-      paths   = ["/api/*"]
-      service = google_compute_backend_service.cloudrun_backend.self_link
+      paths   = ["/upload", "/data", "/predict"]
+      service = google_compute_backend_service.airflow_backend.id
     }
   }
 }
