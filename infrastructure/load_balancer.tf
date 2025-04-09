@@ -27,18 +27,6 @@ resource "google_compute_backend_service" "airflow_backend" {
 }
 
 
-resource "google_compute_backend_service" "cloudrun_backend" {
-  name                  = "cloudrun-backend"
-  protocol              = "HTTP"
-  port_name             = "http"
-  load_balancing_scheme = "EXTERNAL"
-
-  backend {
-    group = google_compute_region_network_endpoint_group.cloudrun_neg.id
-  }
-}
-
-
 
 resource "google_compute_url_map" "lb_url_map" {
   name            = "lb-url-map"
