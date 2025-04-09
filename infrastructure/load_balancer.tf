@@ -50,7 +50,7 @@ resource "google_compute_url_map" "airflow_url_map" {
   }
 
   path_matcher {
-    name            = "backend-matcher"
+    name            = "routing-paths"
     default_service = google_compute_backend_service.airflow_backend.id
 
     path_rule {
