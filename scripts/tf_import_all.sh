@@ -410,3 +410,16 @@ if gcloud compute networks vpc-access connectors describe "${CLOUDRUN_CONNECTOR}
 else
     echo "❌ VPC Connector '${CLOUDRUN_CONNECTOR}' not found. Terraform will create it."
 fi
+
+
+######################################
+# 20. Serverless NEG for Cloud Run Backend
+######################################
+CLOUDRUN_NEG_NAME="cloudrun-neg"
+echo "Checking NEG (${CLOUDRUN_NEG_NAME}) in region ${REGION}..."
+if gcloud compute network-endpoint-groups describe "${CLOUDRUN_NEG_NAME}" --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
+    echo "✅ Serverless NEG '${CLOUDRUN_NEG_NAME}' exists. Importing to Terraform..."
+    terraform import google_compute_region_network_endpoint_group.cloudrun_neg "projects/${PROJECT_ID}/regions/${REGION}/networkEndpointGroups/${CLOUDRUN_NEG_NAME}"
+else
+    echo "❌ Serverless NEG '${CLOUDRUN_NEG_NAME}' not found. Terraform will create it."
+fi
