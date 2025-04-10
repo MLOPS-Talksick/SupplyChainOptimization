@@ -98,13 +98,19 @@ async def upload_file(file: UploadFile = File(...)):
 @app.get("/data", dependencies=[Depends(verify_token)])
 def get_data(n: int = 5):
     """Fetch the last n records from the database."""
+    import logging
+    logging.basicConfig(level=logging.INFO)
     # Validate n
     if n <= 0:
         raise HTTPException(status_code=400, detail="Parameter 'n' must be positive.")
     # Connect to Cloud SQL
     try:
+        logging.info("Starting /data endpoint")
+        logging.info(f"Conn Name: {conn_name}")
+        logging.info(f"User: {user}, DB: {database}")
 
         def getconn():
+            logging.info("Attempting DB connection...")
             conn = connector.connect(
                 conn_name,  # Cloud SQL instance connection name
                 "pymysql",  # Database driver
@@ -112,12 +118,19 @@ def get_data(n: int = 5):
                 password=password,  # Database password
                 db=database,
             )
+            logging.info("DB connected.")
             return conn
 
         pool = sqlalchemy.create_engine(
             "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
             creator=getconn,
         )
+
+        db_conn = pool.connect()
+        logging.info("DB engine created.")
+
+        result = db_conn.execute(sqlalchemy.text("SELECT NOW();"))
+        logging.info("Query executed.")
         
 
     except Exception as e:
@@ -135,6 +148,7 @@ def get_data(n: int = 5):
         df = pd.read_sql(query, pool)
     except Exception as e:
         # conn.close()
+        logging.error(f"ERROR in /data: {e}")
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
     # Convert rows to list of dicts
     # result = [dict(zip(columns, row)) for row in rows]
