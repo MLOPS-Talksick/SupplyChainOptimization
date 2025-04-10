@@ -421,3 +421,14 @@ if gcloud compute firewall-rules describe "${FIREWALL_RULE}" --project="${PROJEC
 else
     echo "❌ Firewall rule not found."
 fi
+
+######################################
+# Import Service Networking Peering Connection
+######################################
+echo "Checking if VPC peering with servicenetworking.googleapis.com exists on airflow-vpc..."
+if gcloud services vpc-peerings list --network=airflow-vpc --project=primordial-veld-450618-n4 --format="value(peering)" | grep servicenetworking.googleapis.com &>/dev/null; then
+    echo "✅ VPC Peering with servicenetworking.googleapis.com exists. Importing..."
+    terraform import google_service_networking_connection.private_vpc_connection "projects/primordial-veld-450618-n4/global/networks/airflow-vpc/services/servicenetworking.googleapis.com"
+else
+    echo "❌ Peering connection not found or already imported."
+fi
