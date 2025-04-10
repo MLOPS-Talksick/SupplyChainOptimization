@@ -38,6 +38,20 @@ echo "=== Checking and Importing Existing Resources into Terraform State ==="
 # fi
 
 
+########################################
+# VPC Peering Connection (Service Networking)
+########################################
+PEERING_CONNECTION="servicenetworking.googleapis.com"
+echo "Checking if VPC Peering with ${PEERING_CONNECTION} exists..."
+if gcloud services vpc-peerings list --network="${NETWORK_NAME}" --project="${PROJECT_ID}" | grep -q "${PEERING_CONNECTION}"; then
+    echo "✅ VPC Peering with ${PEERING_CONNECTION} exists. Importing..."
+    terraform import google_service_networking_connection.private_vpc_connection "${PROJECT_ID}/services/${PEERING_CONNECTION}"
+else
+    echo "❌ VPC Peering with ${PEERING_CONNECTION} not found. Terraform will create it."
+fi
+
+
+
 # Declare an associative array mapping secret names to their Terraform secret resource addresses.
 declare -A secrets=(
   ["postgres_user"]="google_secret_manager_secret.postgres_user"
@@ -420,15 +434,4 @@ if gcloud compute firewall-rules describe "${FIREWALL_RULE}" --project="${PROJEC
     terraform import google_compute_firewall.allow_cloudrun_to_sql "projects/${PROJECT_ID}/global/firewalls/${FIREWALL_RULE}"
 else
     echo "❌ Firewall rule not found."
-fi
-
-######################################
-# Import Service Networking Peering Connection
-######################################
-echo "Checking if VPC peering with servicenetworking.googleapis.com exists on airflow-vpc..."
-if gcloud services vpc-peerings list --network=airflow-vpc --project=primordial-veld-450618-n4 --format="value(peering)" | grep servicenetworking.googleapis.com &>/dev/null; then
-    echo "✅ VPC Peering with servicenetworking.googleapis.com exists. Importing..."
-    terraform import google_service_networking_connection.private_vpc_connection "projects/primordial-veld-450618-n4/global/networks/airflow-vpc/services/servicenetworking.googleapis.com"
-else
-    echo "❌ Peering connection not found or already imported."
 fi
