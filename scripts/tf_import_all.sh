@@ -99,9 +99,9 @@ echo "Secret import process completed."
 
 
 ######################################
-# 3. VPC Network: airflow-network
+# 3. VPC Network: airflow-vpc
 ######################################
-NETWORK_NAME="airflow-network"
+NETWORK_NAME="airflow-vpc"
 echo "Checking VPC network (${NETWORK_NAME})..."
 if gcloud compute networks describe "${NETWORK_NAME}" --project "${PROJECT_ID}" &>/dev/null; then
     echo "VPC network exists. Importing..."
