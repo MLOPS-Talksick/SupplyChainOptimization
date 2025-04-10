@@ -86,10 +86,10 @@ locals {
 }
 
 
-resource "google_cloud_run_service_iam_member" "allow_lb_invoker" {
-  service  = google_cloud_run_v2_service.backend.id
-  location = var.region
-  role     = "roles/run.invoker"
+# resource "google_cloud_run_service_iam_member" "allow_lb_invoker" {
+#   service  = google_cloud_run_v2_service.backend.id
+#   location = var.region
+#   role     = "roles/run.invoker"
 
-  member = "serviceAccount:service-${var.project_number}@gcp-sa-cloudloadbalancing.iam.gserviceaccount.com"
-}
+#   member = "serviceAccount:service-${var.project_number}@gcp-sa-cloudloadbalancing.iam.gserviceaccount.com"
+# }
