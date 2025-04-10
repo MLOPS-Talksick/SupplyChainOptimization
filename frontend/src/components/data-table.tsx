@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -22,6 +22,21 @@ import { AlertCircle, RefreshCw, Loader2, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { fetchData } from "@/lib/api";
 import { API_CONFIG } from "@/lib/config";
+// Add chart imports
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 interface SalesRecord {
   sale_date: Date;
@@ -121,6 +136,27 @@ export default function DataTable() {
       record.product_name.toLowerCase().includes(searchLower)
     );
   }, [data, activeSearchTerm])();
+
+  // Prepare chart data
+  const chartData = useMemo(() => {
+    if (!activeSearchTerm || filteredData.length === 0) return [];
+
+    // Sort by date (ascending)
+    return [...filteredData]
+      .sort((a, b) => a.sale_date.getTime() - b.sale_date.getTime())
+      .map((record) => ({
+        date: record.sale_date.toISOString().split("T")[0], // Format as YYYY-MM-DD
+        quantity: record.total_quantity,
+      }));
+  }, [filteredData, activeSearchTerm]);
+
+  // Chart configuration
+  const chartConfig: ChartConfig = {
+    quantity: {
+      label: "Quantity",
+      color: "hsl(var(--primary))",
+    },
+  };
 
   // Simple search input change handler - only updates the input value
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -382,6 +418,97 @@ export default function DataTable() {
               </Table>
             </div>
           </div>
+
+          {/* Chart visualization */}
+          {activeSearchTerm && chartData.length > 0 && (
+            <Card className="@container/card mt-8">
+              <CardHeader className="relative">
+                <CardTitle>
+                  Quantity Trend for &ldquo;{activeSearchTerm}&rdquo;
+                </CardTitle>
+                <CardDescription>
+                  <span className="@[540px]/card:block hidden">
+                    Historical data for {filteredData.length} records
+                  </span>
+                  <span className="@[540px]/card:hidden">
+                    {filteredData.length} records
+                  </span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+                <ChartContainer
+                  config={chartConfig}
+                  className="aspect-auto h-[250px] w-full"
+                >
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient
+                        id="fillQuantity"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="var(--color-quantity)"
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="var(--color-quantity)"
+                          stopOpacity={0.1}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      minTickGap={32}
+                      tick={{ fill: "var(--foreground)" }}
+                      tickFormatter={(value) => {
+                        const date = new Date(value);
+                        return date.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        });
+                      }}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      tick={{ fill: "var(--foreground)" }}
+                    />
+                    <ChartTooltip
+                      cursor={false}
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={(value) => {
+                            return new Date(value).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            });
+                          }}
+                          indicator="dot"
+                        />
+                      }
+                    />
+                    <Area
+                      dataKey="quantity"
+                      type="monotone"
+                      fill="url(#fillQuantity)"
+                      stroke="var(--color-quantity)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
