@@ -202,6 +202,12 @@ password = os.getenv("DB_PASS")
 database = os.getenv("DB_NAME")
 conn_name = os.getenv("INSTANCE_CONN_NAME")
 connector = Connector()
+host = os.getenv("DB_HOST")
+user = os.getenv("DB_USER")
+password = os.getenv("DB_PASS")
+database = os.getenv("DB_NAME")
+conn_name = os.getenv("INSTANCE_CONN_NAME")
+connector = Connector()
 # Vertex AI config
 PROJECT_ID = os.environ.get("PROJECT_ID")
 VERTEX_REGION = os.environ.get("VERTEX_REGION")
@@ -482,6 +488,8 @@ class PredictRequest(BaseModel):
 @app.post("/predict")
 async def get_prediction(request: PredictRequest):
     payload = {
+        "product_name": request.product_name,
+        "days": request.days
         "product_name": request.product_name,
         "days": request.days
     }
