@@ -60,7 +60,8 @@ locals {
     "roles/servicenetworking.networksAdmin",                  // Service Networking Admin
     "roles/storage.admin",                                    // Storage Admin
     "roles/vpcaccess.admin",                                   // VPC access
-    "roles/run.invoker"
+    "roles/run.invoker",
+    "roles/cloudsql.client",
   ]
 }
 

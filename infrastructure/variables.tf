@@ -18,7 +18,7 @@ variable "zone" {
 
 variable "network_name" {
   type        = string
-  default     = "airflow-network"
+  default     = "airflow-vpc"
 }
 
 variable "subnet_name" {
