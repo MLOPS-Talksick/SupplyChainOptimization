@@ -519,12 +519,14 @@ def detect_anomalies(
 
     try:
         df = df.with_columns(
-            [
-                pl.col("Date").cast(pl.Datetime).alias("datetime"),
-                pl.col("Date").cast(pl.Datetime).dt.date().alias("date_only"),
-                pl.col("Date").cast(pl.Datetime).dt.hour().alias("hour"),
-            ]
+            pl.col("Date").cast(pl.Datetime).alias("datetime")
         )
+
+        # Extract date and hour from datetime
+        df = df.with_columns([
+            pl.col("datetime").dt.date().alias("date_only"),
+            pl.col("datetime").dt.hour().alias("hour"),
+        ])
 
         # 1. Price Anomalies
         price_anomalies = []
@@ -569,6 +571,7 @@ def detect_anomalies(
             )
 
             if len(subset) >= 4:
+                logger.info(f"Processing product: {product}, date: {date}")
                 lower_bound, upper_bound = iqr_bounds(subset["Quantity"])
                 iqr_anoms = subset.filter(
                     (pl.col("Quantity") < lower_bound)
@@ -589,17 +592,24 @@ def detect_anomalies(
             f"Quantity anomalies detected: {len(quantity_anomalies)} sets."
         )
 
-        # 3. Time-of-day Anomalies
-        time_anomalies = df.filter(
-            (pl.col("hour") < 6) | (pl.col("hour") > 22)
+        df = df.with_columns(
+            (pl.col("hour") != 0).alias("has_time")
         )
-        anomalies["time_anomalies"] = time_anomalies
-        anomaly_transaction_ids.update(
-            time_anomalies["Transaction ID"].to_list()
-        )
-        logger.debug(
-            f"Time anomalies detected: {len(time_anomalies)} transactions."
-        )
+
+        # Proceed if any datetime has a time component
+        if df.filter(pl.col("has_time") == True).shape[0] > 0:
+            # Detect time anomalies
+            time_anomalies = df.filter(
+                (pl.col("hour") < 6) | (pl.col("hour") > 22)
+            )
+
+            # Store anomalies in a dictionary
+            anomalies["time_anomalies"] = time_anomalies
+            anomaly_transaction_ids.update(time_anomalies["Transaction ID"].to_list())
+
+            logger.debug(f"Time anomalies detected: {len(time_anomalies)} transactions.")
+        else:
+            logger.debug("No time component found in the Date column, skipping anomaly detection.")
 
         # 4. Invalid Format Checks
         format_anomalies = df.filter((pl.col("Quantity") <= 0))

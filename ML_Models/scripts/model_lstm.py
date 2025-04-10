@@ -265,7 +265,7 @@ try:
     tuner = kt.BayesianOptimization(
         hypermodel,
         objective='val_loss',
-        max_trials=20,
+        max_trials=15,
         directory='keras_tuner_dir',
         project_name='lstm_demand_forecasting'
     )
@@ -525,3 +525,241 @@ send_email(
     body=f"Successfully trained and saved the LSTM model. \n\n"
     f"Train Loss: {train_loss:.4f}\n",
 )
+
+
+
+###################################
+# Alternative to SHAP for LSTM Model
+###################################
+
+# Create a feature importance analyzer for LSTM models
+class LSTMFeatureImportance:
+    def __init__(self, model, X_data, feature_names, time_steps):
+        self.model = model
+        self.X_data = X_data
+        self.feature_names = feature_names
+        self.time_steps = time_steps
+        self.predictions = model.predict(X_data)
+        
+    def permutation_importance(self, num_repeats=10):
+        """
+        Calculate feature importance using permutation importance.
+        This method shuffles each feature and measures the change in prediction error.
+        """
+        # Baseline score
+        baseline_pred = self.model.predict(self.X_data)
+        baseline_error = np.mean((baseline_pred - self.model.predict(self.X_data)) ** 2)
+        
+        # Initialize importance scores
+        importances = np.zeros((len(self.feature_names), self.time_steps))
+        
+        # For each feature and time step
+        for feat_idx, feature in enumerate(self.feature_names):
+            for t in range(self.time_steps):
+                importance_samples = []
+                
+                for _ in range(num_repeats):
+                    # Create a copy of the data
+                    X_permuted = self.X_data.copy()
+                    
+                    # Shuffle the values for this feature at this time step
+                    np.random.shuffle(X_permuted[:, t, feat_idx])
+                    
+                    # Predict with the permuted feature
+                    perm_pred = self.model.predict(X_permuted)
+                    
+                    # Calculate permutation error
+                    perm_error = np.mean((perm_pred - baseline_pred) ** 2)
+                    
+                    # The importance is the increase in error
+                    importance = perm_error - baseline_error
+                    importance_samples.append(importance)
+                
+                # Average importance across repeats
+                importances[feat_idx, t] = np.mean(importance_samples)
+        
+        return importances
+    
+    def create_feature_importance_df(self, importances):
+        """
+        Create a DataFrame with feature importance results.
+        """
+        # Flatten importances
+        feature_time_importance = []
+        
+        for feat_idx, feature in enumerate(self.feature_names):
+            for t in range(self.time_steps):
+                time_step_label = f"t-{self.time_steps-t}"
+                feature_time_importance.append({
+                    'Feature': feature,
+                    'Time_Step': time_step_label,
+                    'Importance': importances[feat_idx, t]
+                })
+        
+        importance_df = pd.DataFrame(feature_time_importance)
+        
+        # Also create a grouped importance by feature
+        grouped_importance = importance_df.groupby('Feature')['Importance'].sum().reset_index()
+        grouped_importance = grouped_importance.sort_values('Importance', ascending=False)
+        
+        return importance_df, grouped_importance
+    
+    def plot_importance(self, importances):
+        """
+        Plot feature importance.
+        """
+        # Create dataframes
+        importance_df, grouped_importance = self.create_feature_importance_df(importances)
+        
+        # Plot grouped importance
+        plt.figure(figsize=(12, 8))
+        plt.barh(grouped_importance['Feature'], grouped_importance['Importance'])
+        plt.xlabel('Feature Importance')
+        plt.title('Feature Importance (Summed across time steps)')
+        plt.tight_layout()
+        plt.show()
+        
+        # Plot feature importance by time step (top features only)
+        top_features = grouped_importance['Feature'].head(8).tolist()
+        time_importance = importance_df[importance_df['Feature'].isin(top_features)]
+        
+        plt.figure(figsize=(14, 10))
+        for feature in top_features:
+            feature_data = time_importance[time_importance['Feature'] == feature]
+            plt.plot(feature_data['Time_Step'], feature_data['Importance'], marker='o', label=feature)
+        
+        plt.xlabel('Time Step')
+        plt.ylabel('Importance')
+        plt.title('Feature Importance by Time Step')
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+        
+        return importance_df, grouped_importance
+
+# Run permutation importance
+print("\nCalculating feature importance using permutation importance...")
+time_steps = 5  # Number of time steps used in the model
+feature_names = features.copy()
+
+feature_importance_analyzer = LSTMFeatureImportance(best_model, X_test[:100], feature_names, time_steps)
+importances = feature_importance_analyzer.permutation_importance(num_repeats=5)
+importance_by_time, importance_grouped = feature_importance_analyzer.plot_importance(importances)
+
+print("\nTop 10 Features by Overall Importance:")
+print(importance_grouped.head(10))
+
+# Function to analyze feature importance for specific products
+def analyze_product_importance(product_name, num_samples=50):
+    product_idx = label_encoder.transform([product_name])[0]
+    product_data = df[df['product_encoded'] == product_idx].sort_values('Date')
+    
+    # Create sequences for this product
+    product_indices = product_data.index
+    product_X = X_scaled[product_indices]
+    product_y = y_scaled[product_indices]
+    
+    if len(product_X) <= time_steps:
+        return f"Not enough data for product {product_name}"
+    
+    X_seq_product, y_seq_product = create_sequences(product_X, product_y, time_steps=time_steps)
+    
+    # Use only a subset for analysis
+    if len(X_seq_product) > num_samples:
+        X_seq_product = X_seq_product[:num_samples]
+    
+    # Run permutation importance for this product
+    product_analyzer = LSTMFeatureImportance(best_model, X_seq_product, feature_names, time_steps)
+    product_importances = product_analyzer.permutation_importance(num_repeats=3)
+    _, product_importance_grouped = product_analyzer.create_feature_importance_df(product_importances)
+    
+    print(f"\nTop features for predicting {product_name}:")
+    print(product_importance_grouped.head(10))
+    
+    # Plot importance
+    plt.figure(figsize=(10, 6))
+    plt.barh(product_importance_grouped['Feature'].head(10), 
+             product_importance_grouped['Importance'].head(10))
+    plt.xlabel('Feature Importance')
+    plt.title(f'Feature Importance for {product_name}')
+    plt.tight_layout()
+    plt.show()
+    
+    return product_importance_grouped
+
+# Analyze a specific product
+sample_product = products[0]
+product_importance = analyze_product_importance(sample_product)
+
+###################################
+# Feature Contribution Analysis
+###################################
+
+def analyze_feature_contribution(model, X_sample, feature_names, time_steps=5):
+    """
+    Analyze how individual features contribute to predictions by varying their values.
+    """
+    # Get baseline prediction
+    baseline_pred = model.predict(X_sample)[0][0]
+    
+    # Initialize contribution results
+    contributions = {}
+    
+    # For each feature
+    for feat_idx, feature in enumerate(feature_names):
+        # Test different values for this feature
+        test_values = np.linspace(0, 1, 10)  # Try 10 different values
+        predictions = []
+        
+        for value in test_values:
+            # Create a copy of the data
+            X_modified = X_sample.copy()
+            
+            # Set all time steps for this feature to the test value
+            for t in range(time_steps):
+                X_modified[0, t, feat_idx] = value
+            
+            # Get prediction with modified feature
+            pred = model.predict(X_modified)[0][0]
+            predictions.append(pred)
+        
+        # Calculate slope of prediction change
+        slope = np.polyfit(test_values, predictions, 1)[0]
+        
+        # Store contribution
+        contributions[feature] = {
+            'slope': slope,
+            'values': test_values,
+            'predictions': predictions
+        }
+    
+    # Sort contributions by absolute slope
+    sorted_contributions = sorted(contributions.items(), 
+                                  key=lambda x: abs(x[1]['slope']), 
+                                  reverse=True)
+    
+    # Plot top contributing features
+    plt.figure(figsize=(14, 8))
+    for i, (feature, data) in enumerate(sorted_contributions[:6]):  # Top 6 features
+        plt.subplot(2, 3, i+1)
+        plt.plot(data['values'], data['predictions'])
+        plt.title(f"{feature} (slope: {data['slope']:.2f})")
+        plt.xlabel('Feature Value')
+        plt.ylabel('Prediction')
+        plt.axhline(y=baseline_pred, color='r', linestyle='--', alpha=0.5)
+        plt.grid(True)
+    
+    plt.tight_layout()
+    plt.show()
+    
+    return sorted_contributions
+
+# Analyze feature contribution for a sample
+print("\nAnalyzing how features contribute to predictions...")
+sample_idx = np.random.randint(0, len(X_test))
+feature_contributions = analyze_feature_contribution(best_model, X_test[sample_idx:sample_idx+1], feature_names)
+
+print("\nTop features by contribution magnitude:")
+for feature, data in feature_contributions[:10]:
+    print(f"{feature}: slope = {data['slope']:.4f}")
