@@ -138,3 +138,16 @@ resource "google_compute_firewall" "allow_cloudrun_to_airflow" {
   source_ranges = ["10.8.0.0/28"]
   target_tags   = ["airflow-server"]
 }
+
+resource "google_compute_firewall" "allow_cloudrun_to_sql" {
+  name    = "allow-cloudrun-to-sql"
+  network = google_compute_network.airflow_vpc.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["3306"]
+  }
+
+  # This range should match the IP range used by your VPC Access connector
+  source_ranges = ["10.8.0.0/28"]
+}
