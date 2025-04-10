@@ -2,7 +2,24 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### Environment Setup
+
+Create a `.env.local` file in the frontend directory with the following content:
+
+```
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_API_TOKEN=backendapi1234567890
+NEXT_PUBLIC_API_DATA_ENDPOINT=/data
+NEXT_PUBLIC_API_UPLOAD_ENDPOINT=/upload
+NEXT_PUBLIC_API_PREDICT_ENDPOINT=/predict
+NEXT_PUBLIC_DEFAULT_RECORDS=5
+```
+
+Make sure the `NEXT_PUBLIC_API_TOKEN` matches the `API_TOKEN` in your backend `.env` file.
+
+### Development Server
+
+Run the development server:
 
 ```bash
 npm run dev

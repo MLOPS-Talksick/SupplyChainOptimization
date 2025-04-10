@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle2, UploadCloud } from "lucide-react";
+import { uploadFile } from "@/lib/api";
 
 export default function UploadForm() {
   const [file, setFile] = useState<File | null>(null);
@@ -45,38 +46,26 @@ export default function UploadForm() {
     setIsUploading(true);
     setUploadStatus(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const response = await fetch("http://localhost:3000/upload", {
-        method: "POST",
-        body: formData,
+      console.log("Uploading file:", file.name);
+      const result = await uploadFile(file);
+      console.log("Upload response:", result);
+
+      setUploadStatus({
+        success: true,
+        message: "File uploaded successfully",
       });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setUploadStatus({
-          success: true,
-          message: "File uploaded successfully",
-        });
-        setFile(null);
-        // Clear the file input
-        const fileInput = document.getElementById(
-          "file-upload"
-        ) as HTMLInputElement;
-        if (fileInput) fileInput.value = "";
-      } else {
-        setUploadStatus({
-          success: false,
-          message: result.error || "Failed to upload file",
-        });
-      }
-    } catch {
+      setFile(null);
+      // Clear the file input
+      const fileInput = document.getElementById(
+        "file-upload"
+      ) as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
+    } catch (err) {
+      console.error("Upload error:", err);
       setUploadStatus({
         success: false,
-        message: "Error uploading file. Please try again.",
+        message: err instanceof Error ? err.message : "Failed to upload file",
       });
     } finally {
       setIsUploading(false);
