@@ -122,17 +122,6 @@ else
     echo "Subnetwork not found. Terraform will create it."
 fi
 
-######################################
-# 4.1 Subnetwork: my-subnet (my_subnet)
-######################################
-MY_SUBNET="my-subnet"
-echo "Checking Subnetwork (${MY_SUBNET}) in region ${REGION}..."
-if gcloud compute networks subnets describe "${MY_SUBNET}" --region "${REGION}" --project "${PROJECT_ID}" &>/dev/null; then
-    echo "Subnetwork ${MY_SUBNET} exists. Importing..."
-    terraform import google_compute_subnetwork.my_subnet "projects/${PROJECT_ID}/regions/${REGION}/subnetworks/${MY_SUBNET}"
-else
-    echo "Subnetwork ${MY_SUBNET} not found. Terraform will create it."
-fi
 
 
 ######################################
@@ -410,4 +399,25 @@ if gcloud compute network-endpoint-groups describe "${CLOUDRUN_NEG_NAME}" --regi
     terraform import google_compute_region_network_endpoint_group.cloudrun_neg "projects/${PROJECT_ID}/regions/${REGION}/networkEndpointGroups/${CLOUDRUN_NEG_NAME}"
 else
     echo "❌ Serverless NEG '${CLOUDRUN_NEG_NAME}' not found. Terraform will create it."
+fi
+
+
+# Import: Backend Service for Cloud Run
+BACKEND_SERVICE_NAME="cloudrun-backend"
+echo "Checking Backend Service (${BACKEND_SERVICE_NAME})..."
+if gcloud compute backend-services describe "${BACKEND_SERVICE_NAME}" --global --project="${PROJECT_ID}" &>/dev/null; then
+    echo "✅ Backend Service exists. Importing..."
+    terraform import google_compute_backend_service.cloudrun_backend "projects/${PROJECT_ID}/global/backendServices/${BACKEND_SERVICE_NAME}"
+else
+    echo "❌ Backend Service not found."
+fi
+
+# Import: Firewall Rule - allow-cloudrun-to-sql
+FIREWALL_RULE="allow-cloudrun-to-sql"
+echo "Checking Firewall rule (${FIREWALL_RULE})..."
+if gcloud compute firewall-rules describe "${FIREWALL_RULE}" --project="${PROJECT_ID}" &>/dev/null; then
+    echo "✅ Firewall rule exists. Importing..."
+    terraform import google_compute_firewall.allow_cloudrun_to_sql "projects/${PROJECT_ID}/global/firewalls/${FIREWALL_RULE}"
+else
+    echo "❌ Firewall rule not found."
 fi
