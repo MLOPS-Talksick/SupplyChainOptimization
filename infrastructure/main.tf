@@ -95,6 +95,7 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [reserved_peering_ranges]
   }
 }
 
