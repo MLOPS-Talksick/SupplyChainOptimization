@@ -211,6 +211,38 @@ resource "google_cloud_run_v2_service" "backend" {
         value = local.airflow_lb_ip
       }
 
+      env {
+        name  = "MYSQL_HOST"
+        value = var.mysql_host
+      }
+
+      env {
+        name  = "MYSQL_USER"
+        value = var.mysql_user
+      }
+
+      env {
+        name  = "MYSQL_PASSWORD"
+        value = var.mysql_password
+      }
+
+      env {
+        name  = "MYSQL_DATABASE"
+        value = var.mysql_database
+      }
+
+      env {
+        name  = "STAGING_BUCKET_URI"
+        value = var.staging_bucket_uri
+      }
+
+      env {
+        name  = "INSTANCE_CONN_NAME"
+        value = var.instance_conn_name
+      }
+
+
+
       # Optional: You can configure more here
       resources {
         limits = {

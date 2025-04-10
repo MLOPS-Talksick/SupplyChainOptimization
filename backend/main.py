@@ -17,7 +17,7 @@ import pandas as pd
 from google.cloud.sql.connector import Connector
 
 
-load_dotenv()
+# load_dotenv()
 app = FastAPI()
 
 # Configuration from environment

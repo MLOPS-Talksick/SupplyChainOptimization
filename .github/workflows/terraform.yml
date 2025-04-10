@@ -258,6 +258,7 @@ jobs:
       TF_VAR_model_name: ${{ secrets.MODEL_NAME }}
       TF_VAR_staging_bucket_uri: ${{ secrets.BUCKET_URI }}
       TF_VAR_project_number: ${{ secrets.PROJECT_NUMBER }}
+      TF_VAR_instance_conn_name: ${{ secrets.INSTANCE_CONN_NAME }}
       TF_VAR_cloudrun_service_name: cloudrun-backend
 
     steps:

@@ -200,6 +200,12 @@ variable "staging_bucket_uri" {
   type        = string
 }
 
+variable "instance_conn_name" {
+  description = "Cloud SQL instance connection string"
+  type        = string
+}
+
+
 # variable "model_serving_image_uri" {
 #   description = "Full image URI with tag for model serving"
 #   type        = string
