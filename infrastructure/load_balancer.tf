@@ -91,5 +91,5 @@ resource "google_cloud_run_service_iam_member" "allow_lb_invoker" {
   location = var.region
   role     = "roles/run.invoker"
 
-  member = "serviceAccount:service-${var.project_id}@gcp-sa-cloudloadbalancing.iam.gserviceaccount.com"
+  member = "serviceAccount:service-${var.project_number}@gcp-sa-cloudloadbalancing.iam.gserviceaccount.com"
 }

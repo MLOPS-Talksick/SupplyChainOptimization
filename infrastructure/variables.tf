@@ -229,3 +229,7 @@ variable "cloudrun_service_name" {
   description = "The name of the Cloud Run service to be exposed via Load Balancer"
   type        = string
 }
+
+variable "project_number" {
+  type = string
+}
