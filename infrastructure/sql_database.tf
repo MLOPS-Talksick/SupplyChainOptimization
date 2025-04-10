@@ -10,7 +10,7 @@ resource "google_sql_database_instance" "instance" {
 
     ip_configuration {
       ipv4_enabled    = false
-      private_network = google_compute_network.my_network.self_link
+      private_network = google_compute_network.airflow_vpc.self_link
     }
   }
 
