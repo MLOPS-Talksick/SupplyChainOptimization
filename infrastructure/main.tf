@@ -74,15 +74,16 @@ resource "google_compute_firewall" "allow_internal_sql" {
     ports    = ["3306"]
   }
 
-  source_ranges = ["10.0.0.0/16"]
+  source_ranges = ["10.1.0.0/16"]
 }
 
 # -------------------------------
 # 7) VPC Peering for Private Services
 # -------------------------------
-resource "google_compute_global_address" "private_ip_range" {
+resource "google_compute_global_address" "private_ip_alloc_new" {
   name          = "private-ip-range"
   purpose       = "VPC_PEERING"
+  address       = "10.2.0.0"
   address_type  = "INTERNAL"
   prefix_length = 16
   network       = google_compute_network.airflow_vpc.self_link
@@ -91,7 +92,11 @@ resource "google_compute_global_address" "private_ip_range" {
 resource "google_service_networking_connection" "private_vpc_connection" {
   network                 = google_compute_network.airflow_vpc.self_link
   service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.private_ip_range.name]
+  reserved_peering_ranges = [google_compute_global_address.private_ip_alloc_new.name]
+
+  lifecycle {
+    ignore_changes = [reserved_peering_ranges]
+  }
 }
 
 # -------------------------------
