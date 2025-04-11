@@ -289,3 +289,10 @@ resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
     service = var.cloudrun_service_name
   }
 }
+
+
+resource "google_project_iam_member" "cloudsql_client_role" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${var.service_account_email}"
+}
