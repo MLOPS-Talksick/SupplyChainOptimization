@@ -41,17 +41,17 @@ echo "=== Checking and Importing Existing Resources into Terraform State ==="
 ########################################
 # VPC Peering Connection (Service Networking)
 ########################################
-PEERING_CONNECTION="servicenetworking.googleapis.com"
-NETWORK_NAME="airflow-vpc"
+# PEERING_CONNECTION="servicenetworking.googleapis.com"
+# NETWORK_NAME="airflow-vpc"
 
-echo "Checking if VPC Peering with ${PEERING_CONNECTION} exists..."
-if gcloud services vpc-peerings list --network="${NETWORK_NAME}" --project="${PROJECT_ID}" | grep -q "${PEERING_CONNECTION}"; then
-    echo "✅ VPC Peering with ${PEERING_CONNECTION} exists. Importing..."
-    terraform import google_service_networking_connection.private_vpc_connection \
-        "projects/${PROJECT_ID}/global/networks/${NETWORK_NAME}/services/${PEERING_CONNECTION}"
-else
-    echo "❌ VPC Peering with ${PEERING_CONNECTION} not found. Terraform will create it."
-fi
+# echo "Checking if VPC Peering with ${PEERING_CONNECTION} exists..."
+# if gcloud services vpc-peerings list --network="${NETWORK_NAME}" --project="${PROJECT_ID}" | grep -q "${PEERING_CONNECTION}"; then
+#     echo "✅ VPC Peering with ${PEERING_CONNECTION} exists. Importing..."
+#     terraform import google_service_networking_connection.private_vpc_connection \
+#         "projects/${PROJECT_ID}/global/networks/${NETWORK_NAME}/services/${PEERING_CONNECTION}"
+# else
+#     echo "❌ VPC Peering with ${PEERING_CONNECTION} not found. Terraform will create it."
+# fi
 
 
 
