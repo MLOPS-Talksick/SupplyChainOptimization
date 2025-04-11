@@ -22,7 +22,7 @@ resource "google_sql_database_instance" "instance" {
 
   depends_on = [
     google_service_networking_connection.private_vpc_connection,
-    google_compute_global_address.private_ip_alloc_new,
+    google_compute_global_address.private_ip_range,
     google_compute_subnetwork.airflow_subnet,
   ]
 }

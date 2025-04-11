@@ -149,7 +149,7 @@ GLOBAL_ADDRESS="private-ip-range"
 echo "Checking Global Address (${GLOBAL_ADDRESS})..."
 if gcloud compute addresses describe "${GLOBAL_ADDRESS}" --global --project "${PROJECT_ID}" &>/dev/null; then
     echo "Global Address ${GLOBAL_ADDRESS} exists. Importing..."
-    terraform import google_compute_global_address.private_ip_alloc_new "projects/${PROJECT_ID}/global/addresses/${GLOBAL_ADDRESS}"
+    terraform import google_compute_global_address.private_ip_range "projects/${PROJECT_ID}/global/addresses/${GLOBAL_ADDRESS}"
 else
     echo "Global Address ${GLOBAL_ADDRESS} not found. Terraform will create it."
 fi
