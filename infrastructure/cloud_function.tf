@@ -207,6 +207,11 @@ resource "google_cloud_run_v2_service" "backend" {
       image = local.backend_image_uri
 
       env {
+        name  = "USE_TCP"
+        value = "true"
+      }
+
+      env {
         name  = "VM_IP"
         value = local.airflow_lb_ip
       }
