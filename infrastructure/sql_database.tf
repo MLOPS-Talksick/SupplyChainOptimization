@@ -1,6 +1,5 @@
 # Create the Cloud SQL instance
 resource "google_sql_database_instance" "instance" {
-  provider         = google-beta
   name             = "mlops-sql-2"
   region           = var.region
   database_version = "MYSQL_8_0"
@@ -12,12 +11,6 @@ resource "google_sql_database_instance" "instance" {
       ipv4_enabled    = false
       private_network = google_compute_network.airflow_vpc.self_link
     }
-  }
-
-  deletion_protection = false
-
-  lifecycle {
-    ignore_changes = [deletion_protection]
   }
 
   depends_on = [
