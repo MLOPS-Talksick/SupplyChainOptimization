@@ -58,15 +58,6 @@ resource "google_compute_region_autoscaler" "airflow_autoscaler" {
 
 
 
-
-resource "google_compute_subnetwork" "my_subnet" {
-  name          = "my-subnet"
-  ip_cidr_range = "10.0.0.0/16"
-  network       = google_compute_network.airflow_vpc.self_link
-  region        = var.region
-}
-
-
 resource "google_compute_global_address" "private_ip_range" {
   name          = "private-ip-range"
   purpose       = "VPC_PEERING"
@@ -80,6 +71,10 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   network                 = google_compute_network.airflow_vpc.self_link
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_range.name]
+
+  lifecycle {
+    ignore_changes = [reserved_peering_ranges]
+  }
 }
 
 
