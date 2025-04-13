@@ -124,8 +124,23 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
       }
 
       env {
-        name  = "IMAGE_TAG_HASH"
-        value = local.model_training_trigger_image_uri
+        name  = "MYSQL_HOST"
+        value = var.mysql_host
+      }
+
+      env {
+        name  = "MYSQL_USER"
+        value = var.mysql_user
+      }
+
+      env {
+        name  = "MYSQL_PASSWORD"
+        value = var.mysql_password
+      }
+
+      env {
+        name  = "MYSQL_DATABASE"
+        value = var.mysql_database
       }
     }
 
@@ -187,6 +202,17 @@ resource "google_cloud_run_v2_job" "model_training_job" {
           name  = "IMAGE_TAG_HASH"
           value = local.model_training_image_uri
         }
+
+        env {
+          name  = "VERTEX_REGION"
+          value = var.vertex_region
+        }
+
+        env {
+          name  = "VERTEX_ENDPOINT_ID"
+          value = var.vertex_endpoint_id
+        }
+
       }
 
       max_retries    = 1
@@ -237,13 +263,23 @@ resource "google_cloud_run_v2_service" "backend" {
       }
 
       env {
-        name  = "STAGING_BUCKET_URI"
-        value = var.staging_bucket_uri
+        name  = "INSTANCE_CONN_NAME"
+        value = var.instance_conn_name
       }
 
       env {
-        name  = "INSTANCE_CONN_NAME"
-        value = var.instance_conn_name
+        name  = "AIRFLOW_ADMIN_USERNAME"
+        value = var.airflow_admin_username
+      }
+
+      env {
+        name  = "AIRFLOW_ADMIN_PASSWORD"
+        value = var.airflow_admin_password
+      }
+
+      env {
+        name  = "AIRFLOW_DAG_ID"
+        value = var.airflow_dag_id   # Set this as needed
       }
 
 
@@ -285,7 +321,8 @@ resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
   network_endpoint_type = "SERVERLESS"
 
   cloud_run {
-    service = var.cloudrun_service_name
+    # service = var.cloudrun_service_name
+    service = google_cloud_run_v2_service.backend.name
   }
 }
 

@@ -5,14 +5,14 @@ import json
 import base64
 from tensorflow.keras.models import load_model
 from google.cloud import storage
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from flask_cors import CORS
 from utils import get_latest_data_from_cloud_sql
 import pandas as pd
 import numpy as np
 import pickle
 
-load_dotenv()
+# load_dotenv()
 app = Flask(__name__)
 CORS(app)
 

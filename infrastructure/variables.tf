@@ -243,3 +243,15 @@ variable "project_number" {
 variable "api_token" {
   type = string
 }
+
+variable "airflow_dag_id" {
+  type = string
+}
+
+variable "vertex_region" {
+  type = string
+}
+
+variable "vertex_endpoint_id" {
+  type = string
+}

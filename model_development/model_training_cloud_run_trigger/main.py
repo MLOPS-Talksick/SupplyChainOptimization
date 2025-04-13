@@ -1,6 +1,6 @@
 from google.cloud import aiplatform
 from flask import Flask, request, jsonify
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import os
 from flask_cors import CORS
 

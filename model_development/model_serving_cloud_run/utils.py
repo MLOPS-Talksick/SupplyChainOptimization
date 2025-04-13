@@ -3,9 +3,9 @@ import pandas as pd
 from google.cloud.sql.connector import Connector
 import sqlalchemy
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
-load_dotenv()
+# load_dotenv()
 
 def get_latest_data_from_cloud_sql(query, port="3306"):
     """
