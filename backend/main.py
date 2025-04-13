@@ -1,10 +1,11 @@
 import os
-from datetime import date, timedelta
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header, Query
+from datetime import date, timedelta, datetime
+from dateutil import parser 
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header, Query, APIRouter
 from fastapi.responses import JSONResponse
-from google.cloud import storage
+from google.cloud import storage, scheduler_v1, aiplatform
+from google.protobuf import field_mask_pb2
 import pymysql
-from google.cloud import aiplatform
 import requests
 from typing import List
 from pydantic import BaseModel
@@ -310,3 +311,46 @@ async def validate_excel(file: UploadFile = File(...)):
 
     # 7. Return the list of new product names.
     return {"new_products": new_products}
+
+@router.post("/update-cron-time", tags=["Scheduler"], dependencies=[Depends(verify_token)])
+async def update_cron_time(datetime: str):
+    """
+    Update the Cloud Scheduler job 'my-cloud-run-job' to a new daily cron schedule 
+    derived from the given datetime.
+    """
+    # 1. Validate and parse the datetime string
+    if not datetime:
+        raise HTTPException(status_code=400, detail="Missing 'datetime' query parameter.")
+    try:
+        # Parse the datetime using dateutil for flexibility
+        parsed_dt = parser.parse(datetime)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid datetime format. Use ISO 8601 or a common date/time string.")
+    
+    # 2. Convert parsed datetime to cron expression "M H * * *"
+    cron_schedule = f"{parsed_dt.minute} {parsed_dt.hour} * * *"
+    
+    # 3. Get environment variables for project and location
+    project_id = os.getenv("PROJECT_ID")
+    location_id = os.getenv("VERTEX_REGION")
+    if not project_id or not location_id:
+        # If these are not set, instruct to configure .env
+        raise HTTPException(
+            status_code=500, 
+            detail="Environment variables PROJECT_ID/VERTEX_REGION not set. Please add them to your .env file."
+        )
+    # Build the fully qualified job name
+    job_name = f"projects/{project_id}/locations/{location_id}/jobs/my-cloud-run-job"
+    
+    # 4. Update the Cloud Scheduler job's schedule via the API
+    client = scheduler_v1.CloudSchedulerClient()
+    job = scheduler_v1.Job(name=job_name, schedule=cron_schedule)
+    update_mask = field_mask_pb2.FieldMask(paths=["schedule"])
+    try:
+        client.update_job(request=scheduler_v1.UpdateJobRequest(job=job, update_mask=update_mask))
+    except Exception as e:
+        # Log the exception or handle it (for this example, we return an error)
+        raise HTTPException(status_code=500, detail=f"Failed to update Cloud Scheduler job: {str(e)}")
+    
+    # 5. Return success message with the new cron expression
+    return {"message": f"Schedule updated to '{cron_schedule}' successfully."}
