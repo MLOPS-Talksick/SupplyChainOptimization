@@ -239,3 +239,7 @@ variable "cloudrun_service_name" {
 variable "project_number" {
   type = string
 }
+
+variable "api_token" {
+  type = string
+}
