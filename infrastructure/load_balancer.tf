@@ -76,16 +76,35 @@ resource "google_compute_target_http_proxy" "airflow_http_proxy" {
 }
 
 
+# resource "google_compute_global_forwarding_rule" "airflow_http_forwarding_rule" {
+#   name    = "airflow-global-forwarding-rule"
+#   project = var.project_id
+#   target  = google_compute_target_http_proxy.airflow_http_proxy.self_link
+#   port_range = "80"
+# }
+
 resource "google_compute_global_forwarding_rule" "airflow_http_forwarding_rule" {
-  name    = "airflow-global-forwarding-rule"
-  project = var.project_id
-  target  = google_compute_target_http_proxy.airflow_http_proxy.self_link
-  port_range = "80"
+  name                  = "airflow-http-forwarding-rule"
+  target                = google_compute_target_http_proxy.airflow_http_proxy.self_link
+  ip_address            = google_compute_global_address.lb_static_ip.address
+  port_range            = "80"
+  load_balancing_scheme = "EXTERNAL"
+  ip_protocol           = "TCP"
+}
+
+
+resource "google_compute_global_address" "lb_static_ip" {
+  name = "lb-static-ip"
 }
 
 locals {
-  airflow_lb_ip = google_compute_global_forwarding_rule.airflow_http_forwarding_rule.ip_address
+  airflow_lb_ip = google_compute_global_address.lb_static_ip.address
 }
+
+
+# locals {
+#   airflow_lb_ip = google_compute_global_forwarding_rule.airflow_http_forwarding_rule.ip_address
+# }
 
 
 # resource "google_cloud_run_service_iam_member" "allow_lb_invoker" {
