@@ -299,6 +299,7 @@ jobs:
           echo "TF_VAR_model_training_image_uri=${TF_VAR_model_training_image_uri}"
           echo "TF_VAR_model_training_trigger_image_uri=${TF_VAR_model_training_trigger_image_uri}"
           echo "TF_VAR_backend_image_uri=${TF_VAR_backend_image_uri}"
+          echo "TF_VAR_api_token=${TF_VAR_api_token}"
 
 
       - name: Authenticate with Google Cloud
