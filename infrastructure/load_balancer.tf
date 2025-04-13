@@ -40,6 +40,11 @@ resource "google_compute_health_check" "lb_health_check" {
   }
 }
 
+
+locals {
+  cloud_run_domain = google_cloud_run_v2_service.backend.uri
+}
+
 resource "google_compute_backend_service" "cloudrun_backend" {
   name                  = "cloudrun-backend"
   protocol              = "HTTP"
@@ -51,6 +56,10 @@ resource "google_compute_backend_service" "cloudrun_backend" {
   }
 
   # health_checks = [google_compute_health_check.lb_health_check.id]
+
+  custom_request_headers = [
+    "Host: ${local.cloud_run_domain}"
+  ]
 }
 
 
