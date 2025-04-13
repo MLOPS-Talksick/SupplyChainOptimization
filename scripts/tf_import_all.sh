@@ -153,6 +153,27 @@ else
     echo "Global Address ${GLOBAL_ADDRESS} not found. Terraform will create it."
 fi
 
+# Import Health Check
+HEALTH_CHECK_NAME="lb-health-check"
+echo "Checking Health Check (${HEALTH_CHECK_NAME})..."
+if gcloud compute health-checks describe "${HEALTH_CHECK_NAME}" --project "${PROJECT_ID}" &>/dev/null; then
+    echo "Health Check exists. Importing..."
+    terraform import google_compute_health_check.lb_health_check "projects/${PROJECT_ID}/global/healthChecks/${HEALTH_CHECK_NAME}"
+else
+    echo "Health Check not found. Terraform will create it."
+fi
+
+# Import Global Address
+GLOBAL_ADDRESS="lb-static-ip"
+echo "Checking Global Address (${GLOBAL_ADDRESS})..."
+if gcloud compute addresses describe "${GLOBAL_ADDRESS}" --global --project "${PROJECT_ID}" &>/dev/null; then
+    echo "Global Address ${GLOBAL_ADDRESS} exists. Importing..."
+    terraform import google_compute_global_address.lb_static_ip "projects/${PROJECT_ID}/global/addresses/${GLOBAL_ADDRESS}"
+else
+    echo "Global Address ${GLOBAL_ADDRESS} not found. Terraform will create it."
+fi
+
+
 ######################################
 # 5. Firewall Rule: allow-airflow-server
 ######################################
