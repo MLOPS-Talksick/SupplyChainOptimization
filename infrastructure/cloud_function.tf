@@ -246,11 +246,6 @@ resource "google_cloud_run_v2_service" "backend" {
         value = var.instance_conn_name
       }
 
-      env {
-        name = "API_TOKEN"
-        value = var.api_token
-      }
-
 
       # Optional: You can configure more here
       resources {

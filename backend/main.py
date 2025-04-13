@@ -117,6 +117,7 @@ def get_data(n: int = 5):
                 user=user,  # Database user
                 password=password,  # Database password
                 db=database,
+                ip_type="PRIVATE"
             )
             logging.info("DB connected.")
             return conn

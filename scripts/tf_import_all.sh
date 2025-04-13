@@ -288,7 +288,7 @@ fi
 ######################################
 # 14. Cloud SQL Database: ${DATABASE_NAME}
 ######################################
-DATABASE_NAME="transaction"  # or set DATABASE_NAME="your_database_name" if not using a variable
+DATABASE_NAME="combined_transaction_data"  # or set DATABASE_NAME="your_database_name" if not using a variable
 echo "Checking Cloud SQL Database (${DATABASE_NAME})..."
 if gcloud sql databases describe "${DATABASE_NAME}" --instance="${INSTANCE_NAME}" --project "${PROJECT_ID}" &>/dev/null; then
     echo "Cloud SQL Database exists. Importing..."
