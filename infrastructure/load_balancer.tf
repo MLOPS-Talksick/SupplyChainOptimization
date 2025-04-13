@@ -62,6 +62,15 @@ resource "google_compute_backend_service" "cloudrun_backend" {
   ]
 }
 
+resource "google_cloud_run_service_iam_member" "cloudrun_backend_invoker" {
+  project  = var.project_id
+  location = var.region
+  service  = google_cloud_run_v2_service.backend.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:service-${var.project_number}@cloud-load-balancing.iam.gserviceaccount.com"
+}
+
+
 
 
 resource "google_compute_url_map" "lb_url_map" {
