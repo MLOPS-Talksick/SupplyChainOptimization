@@ -282,6 +282,11 @@ resource "google_cloud_run_v2_service" "backend" {
         value = var.airflow_dag_id   # Set this as needed
       }
 
+      env {
+        name  = "PROJECT_ID"
+        value = var.project_id
+      }
+
 
       # Optional: You can configure more here
       resources {
@@ -308,10 +313,6 @@ resource "google_cloud_run_v2_service" "backend" {
     percent         = 100
     type            = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
   }
-
-  depends_on = [
-    google_compute_global_forwarding_rule.airflow_http_forwarding_rule
-  ]
 }
 
 
