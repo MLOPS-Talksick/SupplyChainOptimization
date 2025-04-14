@@ -17,7 +17,7 @@ resource "google_service_account_key" "terraform_sa_key" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
+    ignore_changes  = [private_key, public_key_data]
   }
 }
 
