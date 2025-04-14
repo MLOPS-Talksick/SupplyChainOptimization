@@ -71,6 +71,11 @@ resource "google_cloud_run_v2_service" "model_serving" {
         name  = "IMAGE_TAG_HASH"
         value = local.model_serving_image_uri
       }
+
+      env {
+        name  = "MODEL_SERVING_URL"
+        value = google_cloud_run_v2_service.model_serving.uri
+      }
     }
 
     vpc_access {

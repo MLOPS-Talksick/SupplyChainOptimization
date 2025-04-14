@@ -11,7 +11,7 @@ from typing import List
 from pydantic import BaseModel
 from requests.auth import HTTPBasicAuth
 import time
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import sqlalchemy
 import pandas as pd
 from google.cloud.sql.connector import Connector
@@ -40,6 +40,7 @@ VM_IP = os.environ.get("VM_IP")
 AIRFLOW_URL = f"http://{VM_IP}/api/v1/dags/{AIRFLOW_DAG_ID}/dagRuns"
 AIRFLOW_USERNAME = os.environ.get("AIRFLOW_ADMIN_USERNAME")
 AIRFLOW_PASSWORD = os.environ.get("AIRFLOW_ADMIN_PASSWORD")
+MODEL_SERVING_URL = os.environ.get("MODEL_SERVING_URL")
 
 
 # Simple token-based authentication dependency
@@ -175,8 +176,9 @@ async def get_prediction(request: PredictRequest):
         "days": request.days
     }
     try:
+        target_url = f"{MODEL_SERVING_URL}/predict"
         response = requests.post(
-            "https://model-serving-148338842941.us-central1.run.app/predict", 
+            target_url,
             json=payload
         )
         response.raise_for_status()
