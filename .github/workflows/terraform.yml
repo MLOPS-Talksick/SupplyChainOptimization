@@ -359,5 +359,5 @@ jobs:
 
       - name: Get Load Balancer IP
         run: |
-          LB_IP=$(gcloud compute forwarding-rules list --filter="name:airflow-global-forwarding-rule" --format="value(IPAddress)")
+          LB_IP=$(gcloud compute forwarding-rules list --filter="name:airflow-http-forwarding-rule" --format="value(IPAddress)")
           echo "Airflow UI is available at: http://$LB_IP"
