@@ -47,6 +47,11 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
 
+      - name: Ensure Terraform backend bucket exists
+        run: |
+          chmod +x ./scripts/setup_terraform_state_bucket.sh
+          ./scripts/setup_terraform_state_bucket.sh
+
       - name: Terraform Init (bootstrap)
         working-directory: bootstrap
         run: terraform init
