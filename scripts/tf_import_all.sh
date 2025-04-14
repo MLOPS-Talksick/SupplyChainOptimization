@@ -285,18 +285,18 @@ else
     echo "Global Forwarding Rule not found. Terraform will create it."
 fi
 
-FORWARDING_RULE_NAME="airflow-http-forwarding-rule"
-GLOBAL_FLAG="--global"  # Use this flag if the resource is global
+# FORWARDING_RULE_NAME="airflow-http-forwarding-rule"
+# GLOBAL_FLAG="--global"  # Use this flag if the resource is global
 
-echo "Checking Global Forwarding Rule (${FORWARDING_RULE_NAME})..."
+# echo "Checking Global Forwarding Rule (${FORWARDING_RULE_NAME})..."
 
-# Check if the global forwarding rule exists
-if gcloud compute forwarding-rules describe "${FORWARDING_RULE_NAME}" ${GLOBAL_FLAG} --project "${PROJECT_ID}" &>/dev/null; then
-    echo "Global Forwarding Rule exists. Importing..."
-    terraform import google_compute_global_forwarding_rule.airflow_http_forwarding_rule "projects/${PROJECT_ID}/global/forwardingRules/${FORWARDING_RULE_NAME}"
-else
-    echo "Global Forwarding Rule not found. Terraform will create it."
-fi
+# # Check if the global forwarding rule exists
+# if gcloud compute forwarding-rules describe "${FORWARDING_RULE_NAME}" ${GLOBAL_FLAG} --project "${PROJECT_ID}" &>/dev/null; then
+#     echo "Global Forwarding Rule exists. Importing..."
+#     terraform import google_compute_global_forwarding_rule.airflow_http_forwarding_rule "projects/${PROJECT_ID}/global/forwardingRules/${FORWARDING_RULE_NAME}"
+# else
+#     echo "Global Forwarding Rule not found. Terraform will create it."
+# fi
 
 
 ######################################
