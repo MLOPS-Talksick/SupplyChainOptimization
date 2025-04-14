@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Activate service account credentials explicitly (if necessary)
+if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+  echo "Activating service account using credentials file: $GOOGLE_APPLICATION_CREDENTIALS"
+  gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+fi
+
 # Variables - replace these with your values or pass them in as environment variables.
 BUCKET_NAME="my-terraform-state-bucket"
 REGION="us-central1"
