@@ -7,10 +7,7 @@ terraform {
     }
   }
 
-  backend "gcs" {
-    bucket = "tf-state-${var.project_id}"   # Your bucket name
-    prefix = "service-account/terraform"     # A directory-like prefix to isolate your state files
-  }
+  backend "gcs" { }
 }
 
 provider "google" {

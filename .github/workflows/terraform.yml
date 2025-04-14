@@ -52,9 +52,12 @@ jobs:
           chmod +x ./scripts/setup_terraform_state_bucket.sh
           ./scripts/setup_terraform_state_bucket.sh
 
-      - name: Terraform Init (bootstrap)
+      - name: Terraform Init
         working-directory: bootstrap
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=tf-state-${{ env.GCP_PROJECT_ID }}" \
+            -backend-config="prefix=terraform/state"
 
       - name: Import existing resources if any
         run: |
