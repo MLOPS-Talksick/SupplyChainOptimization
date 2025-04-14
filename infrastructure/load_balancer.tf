@@ -41,9 +41,9 @@ resource "google_compute_health_check" "lb_health_check" {
 }
 
 
-locals {
-  cloud_run_domain = google_cloud_run_v2_service.backend.uri
-}
+# locals {
+#   cloud_run_domain = google_cloud_run_v2_service.backend.uri
+# }
 
 resource "google_compute_backend_service" "cloudrun_backend" {
   name                  = "cloudrun-backend"
@@ -57,18 +57,18 @@ resource "google_compute_backend_service" "cloudrun_backend" {
 
   # health_checks = [google_compute_health_check.lb_health_check.id]
 
-  custom_request_headers = [
-    "Host: ${local.cloud_run_domain}"
-  ]
+  # custom_request_headers = [
+  #   "Host: ${local.cloud_run_domain}"
+  # ]
 }
 
-resource "google_cloud_run_service_iam_member" "cloudrun_backend_invoker" {
-  project  = var.project_id
-  location = var.region
-  service  = google_cloud_run_v2_service.backend.name
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:service-${var.project_number}@cloud-load-balancing.iam.gserviceaccount.com"
-}
+# resource "google_cloud_run_service_iam_member" "cloudrun_backend_invoker" {
+#   project  = var.project_id
+#   location = var.region
+#   service  = google_cloud_run_v2_service.backend.name
+#   role     = "roles/run.invoker"
+#   member   = "serviceAccount:service-${var.project_number}@cloud-load-balancing.iam.gserviceaccount.com"
+# }
 
 
 
