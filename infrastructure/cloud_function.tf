@@ -10,31 +10,41 @@ resource "google_storage_bucket_object" "cloud_function_zip" {
 }
 
 # 2. Deploy the Cloud Function with an event trigger on the bucket.
-resource "google_cloudfunctions_function" "process_data_function" {
-  name                  = "processDataFunction"
-  description           = "Triggered when a file is ingested into fully-processed-data-test bucket"
-  runtime               = "python39"                                  # Update runtime if needed
-  available_memory_mb   = 512                                         # Adjust memory if needed
-  source_archive_bucket = google_storage_bucket.buckets["fully-processed-data-test"].name
-  source_archive_object = google_storage_bucket_object.cloud_function_zip.name
-  entry_point           = "main"                                      # Update with your function's entry point
+resource "google_cloudfunctions2_function" "process_data_function" {
+  name        = "processDataFunction"
+  location    = var.region
+  description = "Triggered when a file is ingested into fully-processed-data-test bucket"
 
-
-  environment_variables = {
-    MYSQL_HOST     = local.mysql_host
-    MYSQL_USER     = var.mysql_user
-    INSTANCE_CONN_NAME = local.instance_conn_name
-    MYSQL_PASSWORD = var.mysql_password
+  build_config {
+    runtime     = "python39"
+    entry_point = "hello_gcs"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.buckets["fully-processed-data-test"].name
+        object = google_storage_bucket_object.cloud_function_zip.name
+      }
+    }
   }
 
-  # Set up the trigger so the function is invoked when an object is finalized in the bucket.
+  service_config {
+    available_memory = "512M"
+    environment_variables = {
+      MYSQL_HOST         = local.mysql_host
+      MYSQL_USER         = var.mysql_user
+      INSTANCE_CONN_NAME = local.instance_conn_name
+      MYSQL_PASSWORD     = var.mysql_password
+    }
+    vpc_connector   = google_vpc_access_connector.cloudrun_connector.id
+  }
+
   event_trigger {
-    event_type = "google.storage.object.finalize"
-    resource   = google_storage_bucket.buckets["fully-processed-data-test"].name
-  }
+    event_type = "google.cloud.storage.object.v1.finalized"
 
-  # Attach the VPC Connector so that outbound traffic uses your VPC
-  vpc_connector = google_vpc_access_connector.cloudrun_connector.id
+    event_filters {
+      attribute = "bucket"
+      value     = google_storage_bucket.buckets["fully-processed-data-test"].name
+    }
+  }
 
   depends_on = [
     google_storage_bucket.buckets["fully-processed-data-test"],
