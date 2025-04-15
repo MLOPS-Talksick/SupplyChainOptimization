@@ -255,3 +255,12 @@ variable "vertex_region" {
 variable "vertex_endpoint_id" {
   type = string
 }
+
+
+locals {
+  mysql_host = google_sql_database_instance.instance.private_ip_address
+}
+
+locals {
+  instance_conn_name = "${var.project_id}:${var.region}:${google_sql_database_instance.instance.name}"
+}

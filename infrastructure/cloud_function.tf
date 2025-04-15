@@ -44,7 +44,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
 
       env {
         name  = "MYSQL_HOST"
-        value = var.mysql_host
+        value = local.mysql_host
       }
 
       env {
@@ -125,7 +125,7 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
 
       env {
         name  = "MYSQL_HOST"
-        value = var.mysql_host
+        value = local.mysql_host
       }
 
       env {
@@ -175,7 +175,7 @@ resource "google_cloud_run_v2_job" "model_training_job" {
 
         env {
           name  = "MYSQL_HOST"
-          value = var.mysql_host
+          value = local.mysql_host
         }
 
         env {
@@ -244,7 +244,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "MYSQL_HOST"
-        value = var.mysql_host
+        value = local.mysql_host
       }
 
       env {
@@ -264,8 +264,9 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "INSTANCE_CONN_NAME"
-        value = var.instance_conn_name
+        value = local.instance_conn_name
       }
+
 
       env {
         name  = "AIRFLOW_ADMIN_USERNAME"

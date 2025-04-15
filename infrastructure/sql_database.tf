@@ -1,6 +1,6 @@
 # Create the Cloud SQL instance
 resource "google_sql_database_instance" "instance" {
-  name             = "mlops-sql-2"
+  name             = "mlops-sql"
   region           = var.region
   database_version = "MYSQL_8_0"
 
@@ -24,6 +24,10 @@ resource "google_sql_database_instance" "instance" {
 resource "google_sql_database" "database" {
   name     = var.mysql_database
   instance = google_sql_database_instance.instance.name
+
+  depends_on = [
+    google_sql_database_instance.instance
+  ]
 }
 
 # Create the SQL user
@@ -31,4 +35,8 @@ resource "google_sql_user" "user" {
   name     = var.mysql_user
   instance = google_sql_database_instance.instance.name
   password = var.mysql_password
+
+  depends_on = [
+    google_sql_database.database
+  ]
 }
