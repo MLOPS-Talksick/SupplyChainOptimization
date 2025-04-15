@@ -33,6 +33,9 @@ resource "google_cloudfunctions_function" "process_data_function" {
     resource   = google_storage_bucket.buckets["fully-processed-data-test"].name
   }
 
+  # Attach the VPC Connector so that outbound traffic uses your VPC
+  vpc_connector = google_vpc_access_connector.cloudrun_connector.id
+
   depends_on = [
     google_storage_bucket.buckets["fully-processed-data-test"],
     google_storage_bucket_object.cloud_function_zip
