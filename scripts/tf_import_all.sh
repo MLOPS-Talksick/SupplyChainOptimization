@@ -310,7 +310,7 @@ terraform import google_compute_region_autoscaler.airflow_autoscaler "projects/$
 ######################################
 # 13. Cloud SQL Instance: transaction-database
 ######################################
-INSTANCE_NAME="mlops-sql-2"
+INSTANCE_NAME="mlops-sql"
 echo "Checking Cloud SQL Instance (${INSTANCE_NAME})..."
 if gcloud sql instances describe "${INSTANCE_NAME}" --project "${PROJECT_ID}" &>/dev/null; then
     echo "Cloud SQL Instance exists. Importing..."
