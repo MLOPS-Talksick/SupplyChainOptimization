@@ -179,6 +179,7 @@ def get_data(n: int = 5):
                 user=user,      # Database user
                 password=password,  # Database password
                 db=database,    # Database name
+                ip_type="PRIVATE"
             )
             return conn
 
@@ -330,27 +331,162 @@ async def update_cron_time(datetime: str):
     # 2. Convert parsed datetime to cron expression "M H * * *"
     cron_schedule = f"{parsed_dt.minute} {parsed_dt.hour} * * *"
     
-    # 3. Get environment variables for project and location
-    project_id = os.getenv("PROJECT_ID")
-    location_id = os.getenv("VERTEX_REGION")
-    if not project_id or not location_id:
-        # If these are not set, instruct to configure .env
-        raise HTTPException(
-            status_code=500, 
-            detail="Environment variables PROJECT_ID/VERTEX_REGION not set. Please add them to your .env file."
-        )
+
     # Build the fully qualified job name
-    job_name = f"projects/{project_id}/locations/{location_id}/jobs/my-cloud-run-job"
-    
-    # 4. Update the Cloud Scheduler job's schedule via the API
-    client = scheduler_v1.CloudSchedulerClient()
-    job = scheduler_v1.Job(name=job_name, schedule=cron_schedule)
-    update_mask = field_mask_pb2.FieldMask(paths=["schedule"])
-    try:
-        client.update_job(request=scheduler_v1.UpdateJobRequest(job=job, update_mask=update_mask))
-    except Exception as e:
-        # Log the exception or handle it (for this example, we return an error)
-        raise HTTPException(status_code=500, detail=f"Failed to update Cloud Scheduler job: {str(e)}")
-    
+    update_scheduler_job(
+        project_id=PROJECT_ID,
+        location_id=VERTEX_REGION,
+        job_id='my_cronjob',
+        schedule=cron_schedule,
+    )
     # 5. Return success message with the new cron expression
     return {"message": f"Schedule updated to '{cron_schedule}' successfully."}
+
+
+    # helper function
+    def update_scheduler_job(
+    project_id,
+    location_id,
+    job_id,
+    schedule=None,
+    time_zone=None,
+    http_method=None,
+    url=None,
+    service_account_email=None,
+    headers=None,
+    body=None,
+    retry_attempts=None,
+    retry_min_backoff=None,
+    retry_max_backoff=None,
+    max_retry_duration=None
+):
+    """
+    Updates an existing Cloud Scheduler job.
+    
+    Args:
+        project_id (str): GCP project ID
+        location_id (str): Region where the job is located
+        job_id (str): Unique identifier for the job
+        schedule (str, optional): New cron expression for the schedule
+        time_zone (str, optional): New time zone for the schedule
+        http_method (str, optional): New HTTP method to use
+        url (str, optional): New URL of the Cloud Run function
+        service_account_email (str, optional): New service account email
+        headers (dict, optional): New HTTP headers
+        body (bytes, optional): New request body data
+        retry_attempts (int, optional): New maximum number of retry attempts
+        retry_min_backoff (int, optional): New minimum backoff time in seconds
+        retry_max_backoff (int, optional): New maximum backoff time in seconds
+        max_retry_duration (int, optional): New maximum retry duration in seconds
+        
+    Returns:
+        Job: The updated Cloud Scheduler job
+    """
+    # Initialize the Cloud Scheduler client
+    client = scheduler_v1.CloudSchedulerClient()
+    
+    # Construct the job resource name
+    job_name = f"projects/{project_id}/locations/{location_id}/jobs/{job_id}"
+    
+    # Get the current job configuration
+    current_job = client.get_job(name=job_name)
+    
+    # Use update_mask to specify which fields to update
+    update_mask = []
+    
+    # Create job object with the same name
+    updated_job = Job(name=job_name)
+    
+    # Update schedule if provided
+    if schedule:
+        updated_job.schedule = schedule
+        update_mask.append("schedule")
+    
+    # Update time zone if provided
+    if time_zone:
+        updated_job.time_zone = time_zone
+        update_mask.append("time_zone")
+    
+    # Update HTTP target properties if provided
+    if url or http_method or service_account_email or headers or body:
+        updated_job.http_target = HttpTarget()
+        
+        # Preserve existing values for fields we're not updating
+        if not url:
+            updated_job.http_target.uri = current_job.http_target.uri
+        else:
+            updated_job.http_target.uri = url
+            update_mask.append("http_target.uri")
+        
+        if not http_method:
+            updated_job.http_target.http_method = current_job.http_target.http_method
+        else:
+            updated_job.http_target.http_method = http_method
+            update_mask.append("http_target.http_method")
+        
+        
+        if service_account_email:
+            updated_job.http_target.oidc_token.service_account_email = service_account_email
+            updated_job.http_target.oidc_token.audience = url or current_job.http_target.uri
+            update_mask.append("http_target.oidc_token.service_account_email")
+            update_mask.append("http_target.oidc_token.audience")
+        elif hasattr(current_job.http_target, 'oidc_token') and current_job.http_target.oidc_token.service_account_email:
+            updated_job.http_target.oidc_token.service_account_email = current_job.http_target.oidc_token.service_account_email
+            updated_job.http_target.oidc_token.audience = current_job.http_target.oidc_token.audience
+        
+        
+        if headers:
+            for key, value in headers.items():
+                updated_job.http_target.headers[key] = value
+            update_mask.append("http_target.headers")
+        else:
+            for key, value in current_job.http_target.headers.items():
+                updated_job.http_target.headers[key] = value
+        
+        
+        if body:
+            updated_job.http_target.body = body
+            update_mask.append("http_target.body")
+        elif current_job.http_target.body:
+            updated_job.http_target.body = current_job.http_target.body
+    
+    if any([retry_attempts is not None, retry_min_backoff is not None, 
+            retry_max_backoff is not None, max_retry_duration is not None]):
+        
+        updated_job.retry_config = RetryConfig()
+        
+        if retry_attempts is not None:
+            updated_job.retry_config.retry_count = retry_attempts
+            update_mask.append("retry_config.retry_count")
+        else:
+            updated_job.retry_config.retry_count = current_job.retry_config.retry_count
+        
+        if retry_min_backoff is not None:
+            updated_job.retry_config.min_backoff_duration = duration_pb2.Duration(seconds=retry_min_backoff)
+            update_mask.append("retry_config.min_backoff_duration")
+        else:
+            updated_job.retry_config.min_backoff_duration = current_job.retry_config.min_backoff_duration
+        
+        if retry_max_backoff is not None:
+            updated_job.retry_config.max_backoff_duration = duration_pb2.Duration(seconds=retry_max_backoff)
+            update_mask.append("retry_config.max_backoff_duration")
+        else:
+            updated_job.retry_config.max_backoff_duration = current_job.retry_config.max_backoff_duration
+        
+        if max_retry_duration is not None:
+            updated_job.retry_config.max_retry_duration = duration_pb2.Duration(seconds=max_retry_duration)
+            update_mask.append("retry_config.max_retry_duration")
+        else:
+            updated_job.retry_config.max_retry_duration = current_job.retry_config.max_retry_duration
+    
+    result = client.update_job(
+        request={
+            "job": updated_job,
+            "update_mask": {"paths": update_mask}
+        }
+    )
+    
+    print(f"Updated scheduler job: {result.name}")
+    return result
+
+
