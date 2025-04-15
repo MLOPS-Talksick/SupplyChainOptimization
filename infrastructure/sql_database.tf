@@ -4,6 +4,8 @@ resource "google_sql_database_instance" "instance" {
   region           = var.region
   database_version = "MYSQL_8_0"
 
+  deletion_protection = false
+
   settings {
     tier = "db-f1-micro"
 
@@ -35,7 +37,7 @@ resource "google_sql_user" "user" {
   name     = var.mysql_user
   instance = google_sql_database_instance.instance.name
   password = var.mysql_password
-
+  host     = "%"
   depends_on = [
     google_sql_database.database
   ]

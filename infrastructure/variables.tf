@@ -256,6 +256,9 @@ variable "vertex_endpoint_id" {
   type = string
 }
 
+variable "gcs_bucket_name" {
+  type = string
+}
 
 locals {
   mysql_host = google_sql_database_instance.instance.private_ip_address

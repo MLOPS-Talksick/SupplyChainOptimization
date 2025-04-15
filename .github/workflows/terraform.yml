@@ -271,6 +271,7 @@ jobs:
       TF_VAR_airflow_dag_id: ${{ secrets.AIRFLOW_DAG_ID }}
       TF_VAR_vertex_region: ${{ secrets.VERTEX_REGION }}
       TF_VAR_vertex_endpoint_id: ${{ secrets.VERTEX_ENDPOINT_ID }}
+      TF_VAR_gcs_bucket_name: ${{ secrets.GCS_BUCKET_NAME }}
       TF_VAR_cloudrun_service_name: cloudrun-backend
 
     steps:

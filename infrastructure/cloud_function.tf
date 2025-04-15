@@ -19,6 +19,14 @@ resource "google_cloudfunctions_function" "process_data_function" {
   source_archive_object = google_storage_bucket_object.cloud_function_zip.name
   entry_point           = "main"                                      # Update with your function's entry point
 
+
+  environment_variables = {
+    MYSQL_HOST     = local.mysql_host
+    MYSQL_USER     = var.mysql_user
+    INSTANCE_CONN_NAME = local.instance_conn_name
+    MYSQL_PASSWORD = var.mysql_password
+  }
+
   # Set up the trigger so the function is invoked when an object is finalized in the bucket.
   event_trigger {
     event_type = "google.storage.object.finalize"
@@ -291,6 +299,11 @@ resource "google_cloud_run_v2_service" "backend" {
       env {
         name  = "MODEL_SERVING_URL"
         value = google_cloud_run_v2_service.model_serving.uri
+      }
+
+      env {
+        name  = "GCS_BUCKET_NAME"
+        value = var.gcs_bucket_name
       }
 
 
