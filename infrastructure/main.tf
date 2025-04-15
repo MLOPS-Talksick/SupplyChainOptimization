@@ -90,7 +90,7 @@ resource "google_compute_firewall" "allow_internal_sql" {
   }
 
   # Allow all resources in your VPC (adjust source_ranges as needed)
-  source_ranges = ["10.0.0.0/16"]
+  source_ranges = ["10.8.0.0/28"]
 }
 
 
