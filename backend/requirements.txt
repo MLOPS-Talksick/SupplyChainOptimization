@@ -30,3 +30,4 @@ sqlalchemy
 pandas
 protobuf
 pydantic
+python-multipart
