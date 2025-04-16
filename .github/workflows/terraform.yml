@@ -334,7 +334,10 @@ jobs:
 
       - name: Terraform Init (deploy)
         working-directory: infrastructure
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=tf-state-deploy-${{ env.GCP_PROJECT_ID }}" \
+            -backend-config="prefix=terraform/state"
 
       - name: Terraform Plan
         run: |

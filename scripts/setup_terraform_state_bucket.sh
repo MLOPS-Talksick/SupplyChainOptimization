@@ -17,3 +17,16 @@ if ! gsutil ls -b gs://$BUCKET_NAME/ &>/dev/null; then
 else
   echo "Bucket $BUCKET_NAME already exists."
 fi
+
+
+# Use your project ID for uniqueness
+BUCKET_NAME="tf-state-deploy-${GCP_PROJECT_ID:-primordial-veld-450618-n4}"  # fallback if env var not set
+REGION="us-central1"
+
+echo "Checking if bucket $BUCKET_NAME exists..."
+if ! gsutil ls -b gs://$BUCKET_NAME/ &>/dev/null; then
+  echo "Bucket $BUCKET_NAME does not exist. Creating..."
+  gsutil mb -l $REGION gs://$BUCKET_NAME/
+else
+  echo "Bucket $BUCKET_NAME already exists."
+fi
