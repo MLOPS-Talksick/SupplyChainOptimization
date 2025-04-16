@@ -388,138 +388,138 @@ async def validate_excel(file: UploadFile = File(...)):
     return {"new_products": new_products}
 
 
-@app.post("/update-cron-time", tags=["Scheduler"], dependencies=[Depends(verify_token)])
-async def update_cron_time(datetime: str):
-    logging.info(f"Received /update-cron-time request with datetime: {datetime}")
-    if not datetime:
-        logging.error("Missing 'datetime' query parameter in update-cron-time.")
-        raise HTTPException(status_code=400, detail="Missing 'datetime' query parameter.")
-    try:
-        parsed_dt = parser.parse(datetime)
-        logging.info(f"Parsed datetime: {parsed_dt}")
-    except Exception as e:
-        logging.error(f"Failed to parse datetime: {e}")
-        raise HTTPException(status_code=400, detail="Invalid datetime format. Use ISO 8601 or a common date/time string.")
+# @app.post("/update-cron-time", tags=["Scheduler"], dependencies=[Depends(verify_token)])
+# async def update_cron_time(datetime: str):
+#     logging.info(f"Received /update-cron-time request with datetime: {datetime}")
+#     if not datetime:
+#         logging.error("Missing 'datetime' query parameter in update-cron-time.")
+#         raise HTTPException(status_code=400, detail="Missing 'datetime' query parameter.")
+#     try:
+#         parsed_dt = parser.parse(datetime)
+#         logging.info(f"Parsed datetime: {parsed_dt}")
+#     except Exception as e:
+#         logging.error(f"Failed to parse datetime: {e}")
+#         raise HTTPException(status_code=400, detail="Invalid datetime format. Use ISO 8601 or a common date/time string.")
     
-    cron_schedule = f"{parsed_dt.minute} {parsed_dt.hour} * * *"
-    logging.info(f"Converted datetime to cron expression: {cron_schedule}")
+#     cron_schedule = f"{parsed_dt.minute} {parsed_dt.hour} * * *"
+#     logging.info(f"Converted datetime to cron expression: {cron_schedule}")
     
-    try:
-        update_scheduler_job(
-            project_id=PROJECT_ID,
-            location_id=VERTEX_REGION,
-            job_id='lstm-health-check-job',
-            schedule=cron_schedule,
-        )
-        logging.info("Scheduler job update invoked successfully.")
-    except Exception as e:
-        logging.error(f"Failed to update scheduler job: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to update scheduler job: {e}")
+#     try:
+#         update_scheduler_job(
+#             project_id=PROJECT_ID,
+#             location_id=VERTEX_REGION,
+#             job_id='lstm-health-check-job',
+#             schedule=cron_schedule,
+#         )
+#         logging.info("Scheduler job update invoked successfully.")
+#     except Exception as e:
+#         logging.error(f"Failed to update scheduler job: {e}")
+#         raise HTTPException(status_code=500, detail=f"Failed to update scheduler job: {e}")
     
-    return {"message": f"Schedule updated to '{cron_schedule}' successfully."}
+#     return {"message": f"Schedule updated to '{cron_schedule}' successfully."}
 
 
-def update_scheduler_job(
-    project_id,
-    location_id,
-    job_id,
-    schedule=None,
-    time_zone=None,
-    http_method=None,
-    url=None,
-    service_account_email=None,
-    headers=None,
-    body=None,
-    retry_attempts=None,
-    retry_min_backoff=None,
-    retry_max_backoff=None,
-    max_retry_duration=None
-):
-    logging.info(f"Updating scheduler job: {job_id} in project {project_id}, location {location_id}")
-    client = scheduler_v1.CloudSchedulerClient()
-    job_name = f"projects/{project_id}/locations/{location_id}/jobs/{job_id}"
-    logging.info(f"Job resource name: {job_name}")
-    current_job = client.get_job(name=job_name)
-    update_mask = []
+# def update_scheduler_job(
+#     project_id,
+#     location_id,
+#     job_id,
+#     schedule=None,
+#     time_zone=None,
+#     http_method=None,
+#     url=None,
+#     service_account_email=None,
+#     headers=None,
+#     body=None,
+#     retry_attempts=None,
+#     retry_min_backoff=None,
+#     retry_max_backoff=None,
+#     max_retry_duration=None
+# ):
+#     logging.info(f"Updating scheduler job: {job_id} in project {project_id}, location {location_id}")
+#     client = scheduler_v1.CloudSchedulerClient()
+#     job_name = f"projects/{project_id}/locations/{location_id}/jobs/{job_id}"
+#     logging.info(f"Job resource name: {job_name}")
+#     current_job = client.get_job(name=job_name)
+#     update_mask = []
     
-    updated_job = Job(name=job_name)
+#     updated_job = Job(name=job_name)
     
-    if schedule:
-        updated_job.schedule = schedule
-        update_mask.append("schedule")
-        logging.info(f"Updated schedule to: {schedule}")
+#     if schedule:
+#         updated_job.schedule = schedule
+#         update_mask.append("schedule")
+#         logging.info(f"Updated schedule to: {schedule}")
     
-    if time_zone:
-        updated_job.time_zone = time_zone
-        update_mask.append("time_zone")
-        logging.info(f"Updated time_zone to: {time_zone}")
+#     if time_zone:
+#         updated_job.time_zone = time_zone
+#         update_mask.append("time_zone")
+#         logging.info(f"Updated time_zone to: {time_zone}")
     
-    if url or http_method or service_account_email or headers or body:
-        updated_job.http_target = HttpTarget()
-        if not url:
-            updated_job.http_target.uri = current_job.http_target.uri
-        else:
-            updated_job.http_target.uri = url
-            update_mask.append("http_target.uri")
-        if not http_method:
-            updated_job.http_target.http_method = current_job.http_target.http_method
-        else:
-            updated_job.http_target.http_method = http_method
-            update_mask.append("http_target.http_method")
-        if service_account_email:
-            updated_job.http_target.oidc_token.service_account_email = service_account_email
-            updated_job.http_target.oidc_token.audience = url or current_job.http_target.uri
-            update_mask.append("http_target.oidc_token.service_account_email")
-            update_mask.append("http_target.oidc_token.audience")
-        elif hasattr(current_job.http_target, 'oidc_token') and current_job.http_target.oidc_token.service_account_email:
-            updated_job.http_target.oidc_token.service_account_email = current_job.http_target.oidc_token.service_account_email
-            updated_job.http_target.oidc_token.audience = current_job.http_target.oidc_token.audience
-        if headers:
-            for key, value in headers.items():
-                updated_job.http_target.headers[key] = value
-            update_mask.append("http_target.headers")
-        else:
-            for key, value in current_job.http_target.headers.items():
-                updated_job.http_target.headers[key] = value
-        if body:
-            updated_job.http_target.body = body
-            update_mask.append("http_target.body")
-        elif current_job.http_target.body:
-            updated_job.http_target.body = current_job.http_target.body
-    if any([retry_attempts is not None, retry_min_backoff is not None, 
-            retry_max_backoff is not None, max_retry_duration is not None]):
+#     if url or http_method or service_account_email or headers or body:
+#         updated_job.http_target = HttpTarget()
+#         if not url:
+#             updated_job.http_target.uri = current_job.http_target.uri
+#         else:
+#             updated_job.http_target.uri = url
+#             update_mask.append("http_target.uri")
+#         if not http_method:
+#             updated_job.http_target.http_method = current_job.http_target.http_method
+#         else:
+#             updated_job.http_target.http_method = http_method
+#             update_mask.append("http_target.http_method")
+#         if service_account_email:
+#             updated_job.http_target.oidc_token.service_account_email = service_account_email
+#             updated_job.http_target.oidc_token.audience = url or current_job.http_target.uri
+#             update_mask.append("http_target.oidc_token.service_account_email")
+#             update_mask.append("http_target.oidc_token.audience")
+#         elif hasattr(current_job.http_target, 'oidc_token') and current_job.http_target.oidc_token.service_account_email:
+#             updated_job.http_target.oidc_token.service_account_email = current_job.http_target.oidc_token.service_account_email
+#             updated_job.http_target.oidc_token.audience = current_job.http_target.oidc_token.audience
+#         if headers:
+#             for key, value in headers.items():
+#                 updated_job.http_target.headers[key] = value
+#             update_mask.append("http_target.headers")
+#         else:
+#             for key, value in current_job.http_target.headers.items():
+#                 updated_job.http_target.headers[key] = value
+#         if body:
+#             updated_job.http_target.body = body
+#             update_mask.append("http_target.body")
+#         elif current_job.http_target.body:
+#             updated_job.http_target.body = current_job.http_target.body
+#     if any([retry_attempts is not None, retry_min_backoff is not None, 
+#             retry_max_backoff is not None, max_retry_duration is not None]):
         
-        updated_job.retry_config = RetryConfig()
-        if retry_attempts is not None:
-            updated_job.retry_config.retry_count = retry_attempts
-            update_mask.append("retry_config.retry_count")
-        else:
-            updated_job.retry_config.retry_count = current_job.retry_config.retry_count
-        if retry_min_backoff is not None:
+#         updated_job.retry_config = RetryConfig()
+#         if retry_attempts is not None:
+#             updated_job.retry_config.retry_count = retry_attempts
+#             update_mask.append("retry_config.retry_count")
+#         else:
+#             updated_job.retry_config.retry_count = current_job.retry_config.retry_count
+#         if retry_min_backoff is not None:
             
-            updated_job.retry_config.min_backoff_duration = duration_pb2.Duration(seconds=retry_min_backoff)
-            update_mask.append("retry_config.min_backoff_duration")
-        else:
-            updated_job.retry_config.min_backoff_duration = current_job.retry_config.min_backoff_duration
-        if retry_max_backoff is not None:
+#             updated_job.retry_config.min_backoff_duration = duration_pb2.Duration(seconds=retry_min_backoff)
+#             update_mask.append("retry_config.min_backoff_duration")
+#         else:
+#             updated_job.retry_config.min_backoff_duration = current_job.retry_config.min_backoff_duration
+#         if retry_max_backoff is not None:
             
-            updated_job.retry_config.max_backoff_duration = duration_pb2.Duration(seconds=retry_max_backoff)
-            update_mask.append("retry_config.max_backoff_duration")
-        else:
-            updated_job.retry_config.max_backoff_duration = current_job.retry_config.max_backoff_duration
-        if max_retry_duration is not None:
+#             updated_job.retry_config.max_backoff_duration = duration_pb2.Duration(seconds=retry_max_backoff)
+#             update_mask.append("retry_config.max_backoff_duration")
+#         else:
+#             updated_job.retry_config.max_backoff_duration = current_job.retry_config.max_backoff_duration
+#         if max_retry_duration is not None:
             
-            updated_job.retry_config.max_retry_duration = duration_pb2.Duration(seconds=max_retry_duration)
-            update_mask.append("retry_config.max_retry_duration")
-        else:
-            updated_job.retry_config.max_retry_duration = current_job.retry_config.max_retry_duration
+#             updated_job.retry_config.max_retry_duration = duration_pb2.Duration(seconds=max_retry_duration)
+#             update_mask.append("retry_config.max_retry_duration")
+#         else:
+#             updated_job.retry_config.max_retry_duration = current_job.retry_config.max_retry_duration
     
-    logging.info(f"Update mask: {update_mask}")
-    result = client.update_job(
-        request={
-            "job": updated_job,
-            "update_mask": {"paths": update_mask}
-        }
-    )
-    logging.info(f"Updated scheduler job: {result.name}")
-    return result
+#     logging.info(f"Update mask: {update_mask}")
+#     result = client.update_job(
+#         request={
+#             "job": updated_job,
+#             "update_mask": {"paths": update_mask}
+#         }
+#     )
+#     logging.info(f"Updated scheduler job: {result.name}")
+#     return result
