@@ -409,7 +409,7 @@ async def update_cron_time(datetime: str):
             project_id=PROJECT_ID,
             location_id=VERTEX_REGION,
             job_id='lstm-health-check-job',
-            schedule=cron_schedule,
+            schedule=cron_schedule
         )
         logging.info("Scheduler job update invoked successfully.")
     except Exception as e:
