@@ -28,15 +28,17 @@ def get_latest_data_from_cloud_sql(query, port="3306"):
     user = os.getenv("MYSQL_USER")
     password = os.getenv("MYSQL_PASSWORD")
     database = os.getenv("MYSQL_DATABASE")
+    instance = os.getenv("INSTANCE_CONN_NAME")
     connector = Connector()
 
     def getconn():
         conn = connector.connect(
-            "primordial-veld-450618-n4:us-central1:mlops-sql",  # Cloud SQL instance connection name
+            instance,
             "pymysql",  # Database driver
             user=user,  # Database user
             password=password,  # Database password
             db=database,
+            ip_type="PRIVATE",
         )
         return conn
 
