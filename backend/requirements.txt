@@ -17,7 +17,7 @@
 # pandas
 
 fastapi
-uvicorn
+uvicorn[standard]
 python-dateutil
 google-cloud-storage
 google-cloud-scheduler
