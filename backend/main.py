@@ -23,24 +23,19 @@ load_dotenv()
 app = FastAPI()
 
 # Configuration from environment
-BUCKET_NAME = os.environ.get("BUCKET_NAME")
+BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
 # Database config
-host = os.getenv("DB_HOST")
-user = os.getenv("DB_USER")
-password = os.getenv("DB_PASS")
-database = os.getenv("DB_NAME")
+host = os.getenv("MYSQL_HOST")
+user = os.getenv("MYSQL_USER")
+password = os.getenv("MYSQL_PASSWORD")
+database = os.getenv("MYSQL_DATABASE")
 conn_name = os.getenv("INSTANCE_CONN_NAME")
 connector = Connector()
-host = os.getenv("DB_HOST")
-user = os.getenv("DB_USER")
-password = os.getenv("DB_PASS")
-database = os.getenv("DB_NAME")
-conn_name = os.getenv("INSTANCE_CONN_NAME")
-connector = Connector()
+
 # Vertex AI config
-PROJECT_ID = os.environ.get("PROJECT_ID")
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 VERTEX_REGION = os.environ.get("VERTEX_REGION")
-VERTEX_ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID")
+# VERTEX_ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID")
 API_TOKEN = os.environ.get("API_TOKEN")  # our simple token for auth
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
 AIRFLOW_DAG_ID = os.environ.get("AIRFLOW_DAG_ID")
@@ -48,6 +43,9 @@ VM_IP = os.environ.get("VM_IP")
 AIRFLOW_URL = f"http://{VM_IP}/api/v1/dags/{AIRFLOW_DAG_ID}/dagRuns"
 AIRFLOW_USERNAME = os.environ.get("AIRFLOW_USERNAME")
 AIRFLOW_PASSWORD = os.environ.get("AIRFLOW_PASSWORD")
+
+# Serving
+MODEL_SERVING_URL = os.environ.get("MODEL_SERVING_URL")
 
 
 # Simple token-based authentication dependency
@@ -168,8 +166,12 @@ async def upload_file(
 
 
 @app.get("/data", dependencies=[Depends(verify_token)])
-def get_data(n: int = 5):
+def get_data(n: int = 5, predictions: bool = False):
     """Fetch the last n records from the database."""
+    if predictions:
+        table = "PREDS"
+    else:
+        table = "SALES"
     n = max(0,n)
     try:
         def getconn():
@@ -193,7 +195,7 @@ def get_data(n: int = 5):
         query = f"""
         SELECT 
             sale_date, product_name, total_quantity
-        FROM SALES
+        FROM {table}
         ORDER BY sale_date DESC LIMIT {n};"""
         with pool.connect() as db_conn:
             result = db_conn.execute(sqlalchemy.text(query))
@@ -209,6 +211,72 @@ class PredictRequest(BaseModel):
     product_name: str
     days: int
 
+def get_db_connection() -> sqlalchemy.engine.base.Engine:
+    """
+    Initializes a connection pool for a Cloud SQL instance of MySQL.
+
+    Uses the Cloud SQL Python Connector package.
+    """
+    db_user = user
+    db_pass = password
+    db_name = database
+    instance_connection_name = conn_name
+    
+    # ip_type = IPTypes.PRIVATE if os.environ.get("PRIVATE_IP") else IPTypes.PUBLIC
+    ip_type = IPTypes.PRIVATE
+
+    # initialize Cloud SQL Python Connector object
+    connector = Connector(ip_type=ip_type, refresh_strategy="LAZY")
+
+    def getconn() -> pymysql.connections.Connection:
+        conn: pymysql.connections.Connection = connector.connect(
+            instance_connection_name,
+            "pymysql",
+            user=db_user,
+            password=db_pass,
+            db=db_name,
+        )
+        return conn
+
+    pool = sqlalchemy.create_engine(
+        "mysql+pymysql://",
+        creator=getconn,
+        # ...
+    )
+    return pool
+
+
+def upsert_df(df: pd.DataFrame, engine):
+    """
+    Inserts or updates rows in a MySQL table based on duplicate keys.
+    If a record with the same primary key exists, it will be replaced with the new record.
+    
+    Parameters:
+        df (pd.DataFrame): The DataFrame to insert/update.
+        table_name (str): The target table name.
+        engine: SQLAlchemy engine.
+    """
+    # Convert DataFrame to a list of dictionaries (each dict represents a row)
+    data = df.to_dict(orient='records')
+    
+    # Build dynamic column list and named placeholders
+    columns = df.columns.tolist()
+    col_names = ", ".join(columns)
+    placeholders = ", ".join(":" + col for col in columns)
+    
+    # Build the update clause to update every column with its new value
+    update_clause = ", ".join(f"{col} = VALUES({col})" for col in columns)
+    
+    # Construct the SQL query using ON DUPLICATE KEY UPDATE
+    sql = text(
+        f"INSERT INTO PREDS ({col_names}) VALUES ({placeholders}) "
+        f"ON DUPLICATE KEY UPDATE {update_clause}"
+    )
+    
+    # Execute the query in a transactional scope
+    with engine.begin() as conn:
+        conn.execute(sql, data)
+
 @app.post("/predict")
 async def get_prediction(request: PredictRequest):
     payload = {
@@ -219,14 +287,18 @@ async def get_prediction(request: PredictRequest):
     }
     try:
         response = requests.post(
-            "https://model-serving-148338842941.us-central1.run.app/predict", 
+            f"{MODEL_SERVING_URL}/predict", 
             json=payload
         )
         response.raise_for_status()
     except requests.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Model prediction failed: {e}")
-    predictions = response.json()
-    return {"predictions": predictions}
+    predictions = response['preds']
+    try:
+        upsert_df(predictions,get_db_connection())
+        return {"Success": "True, Uploaded to DB"}
+    except:
+        return {"Success": "False, DB upload Failed"}
 
 
 
@@ -336,7 +408,7 @@ async def update_cron_time(datetime: str):
     update_scheduler_job(
         project_id=PROJECT_ID,
         location_id=VERTEX_REGION,
-        job_id='my_cronjob',
+        job_id='lstm-health-check-job',
         schedule=cron_schedule,
     )
     # 5. Return success message with the new cron expression
