@@ -388,7 +388,7 @@ async def validate_excel(file: UploadFile = File(...)):
     return {"new_products": new_products}
 
 
-@router.post("/update-cron-time", tags=["Scheduler"], dependencies=[Depends(verify_token)])
+@app.post("/update-cron-time", tags=["Scheduler"], dependencies=[Depends(verify_token)])
 async def update_cron_time(datetime: str):
     logging.info(f"Received /update-cron-time request with datetime: {datetime}")
     if not datetime:
