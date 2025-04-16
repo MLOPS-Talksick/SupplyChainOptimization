@@ -19,6 +19,10 @@ import io  # Needed for file pointer operations
 from collections import Counter
 import json
 import logging
+from google.cloud.scheduler_v1.types import RetryConfig
+from google.cloud.scheduler_v1.types import Job, HttpTarget  # ensure we have these types
+from google.protobuf import duration_pb2
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -437,7 +441,7 @@ def update_scheduler_job(
     logging.info(f"Job resource name: {job_name}")
     current_job = client.get_job(name=job_name)
     update_mask = []
-    from google.cloud.scheduler_v1.types import Job, HttpTarget  # ensure we have these types
+    
     updated_job = Job(name=job_name)
     
     if schedule:
@@ -484,7 +488,7 @@ def update_scheduler_job(
             updated_job.http_target.body = current_job.http_target.body
     if any([retry_attempts is not None, retry_min_backoff is not None, 
             retry_max_backoff is not None, max_retry_duration is not None]):
-        from google.cloud.scheduler_v1.types import RetryConfig
+        
         updated_job.retry_config = RetryConfig()
         if retry_attempts is not None:
             updated_job.retry_config.retry_count = retry_attempts
@@ -492,19 +496,19 @@ def update_scheduler_job(
         else:
             updated_job.retry_config.retry_count = current_job.retry_config.retry_count
         if retry_min_backoff is not None:
-            from google.protobuf import duration_pb2
+            
             updated_job.retry_config.min_backoff_duration = duration_pb2.Duration(seconds=retry_min_backoff)
             update_mask.append("retry_config.min_backoff_duration")
         else:
             updated_job.retry_config.min_backoff_duration = current_job.retry_config.min_backoff_duration
         if retry_max_backoff is not None:
-            from google.protobuf import duration_pb2
+            
             updated_job.retry_config.max_backoff_duration = duration_pb2.Duration(seconds=retry_max_backoff)
             update_mask.append("retry_config.max_backoff_duration")
         else:
             updated_job.retry_config.max_backoff_duration = current_job.retry_config.max_backoff_duration
         if max_retry_duration is not None:
-            from google.protobuf import duration_pb2
+            
             updated_job.retry_config.max_retry_duration = duration_pb2.Duration(seconds=max_retry_duration)
             update_mask.append("retry_config.max_retry_duration")
         else:
