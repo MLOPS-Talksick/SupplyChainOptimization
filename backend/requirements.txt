@@ -16,6 +16,7 @@
 # sqlalchemy
 # pandas
 
+
 fastapi
 uvicorn[standard]
 python-dateutil
@@ -31,3 +32,5 @@ pandas
 protobuf
 pydantic
 python-multipart
+openpyxl
+xlrd
