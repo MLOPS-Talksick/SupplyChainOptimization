@@ -89,7 +89,7 @@ resource "google_compute_url_map" "lb_url_map" {
 
     # Route these API endpoints to the Cloud Run backend.
     path_rule {
-      paths   = ["/upload", "/data", "/predict"]
+      paths   = ["/upload", "/data", "/predict", "/update-cron-time", "/validate_excel"]
       service = google_compute_backend_service.cloudrun_backend.self_link
     }
 

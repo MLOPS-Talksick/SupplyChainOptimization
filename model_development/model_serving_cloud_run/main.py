@@ -227,9 +227,9 @@ def predict():
         
         # Create a DataFrame with the predictions
         future_df = pd.DataFrame({
-            'Date': future_dates,
-            'Product_Name': product_name,
-            'Predicted_Quantity': [max(1, int(round(pred))) for pred in predictions]
+            'sale_date': future_dates,
+            'product_name': product_name,
+            'total_quantity': [max(1, int(round(pred))) for pred in predictions]
         })
         
 
@@ -237,7 +237,8 @@ def predict():
         # prediction_df = generate_prediction_data(7, "product_name", pd.to_datetime('2025-04-02'))
         response_json = future_df.to_dict(orient='records')
 
-        return jsonify(response_json)
+        # return jsonify(response_json)
+        return jsonify({"preds": f"{future_df}"})
     
     except Exception as e:
         return jsonify({"error": f"Prediction failed: {str(e)}"}), 500

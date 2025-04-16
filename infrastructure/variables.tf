@@ -260,6 +260,10 @@ variable "gcs_bucket_name" {
   type = string
 }
 
+variable "bucket_uri" {
+  type = string
+}
+
 locals {
   mysql_host = google_sql_database_instance.instance.private_ip_address
 }

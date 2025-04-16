@@ -29,10 +29,16 @@ resource "google_cloudfunctions2_function" "process_data_function" {
   service_config {
     available_memory = "512M"
     environment_variables = {
+      PROJECT_ID         = var.project_id
+      REGION             = var.region
+      MODEL_TRAINING_IMAGE_URI = local.model_training_image_uri
+      BUCKET_URI         = var.bucket_uri
       MYSQL_HOST         = local.mysql_host
       MYSQL_USER         = var.mysql_user
+      MYSQL_DATABASE     = var.mysql_database
       INSTANCE_CONN_NAME = local.instance_conn_name
       MYSQL_PASSWORD     = var.mysql_password
+      TRIGGER_TRAINING_URL = google_cloud_run_v2_service.model_training_trigger.uri
     }
     vpc_connector   = google_vpc_access_connector.cloudrun_connector.id
   }
@@ -92,6 +98,12 @@ resource "google_cloud_run_v2_service" "model_serving" {
         name  = "IMAGE_TAG_HASH"
         value = local.model_serving_image_uri
       }
+
+      env {
+        name  = "INSTANCE_CONN_NAME"
+        value = local.instance_conn_name
+      }
+      
     }
 
     vpc_access {
@@ -105,7 +117,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
     timeout                           = "900s"
   }
 
-  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   traffic {
     percent         = 100
@@ -174,7 +186,7 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
     timeout         = "900s"
   }
 
-  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
@@ -364,4 +376,12 @@ resource "google_project_iam_member" "cloudsql_client_role" {
   project = var.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${var.service_account_email}"
+}
+
+resource "google_cloud_run_service_iam_member" "allow_backend" {
+  project  = var.project_id
+  location = var.region
+  service  = google_cloud_run_v2_service.backend.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
