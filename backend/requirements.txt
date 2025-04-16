@@ -22,7 +22,6 @@ python-dateutil
 google-cloud-storage
 google-cloud-scheduler
 google-cloud-aiplatform
-google-cloud-sql-connector
 cloud-sql-python-connector
 pymysql
 requests
