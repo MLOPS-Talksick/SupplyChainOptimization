@@ -272,7 +272,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "AIRFLOW_URL"
-        value = "http://${data.google_compute_global_forwarding_rule.airflow_http_forwarding_rule.ip_address}/api/v1/dags/${var.airflow_dag_id}/dagRuns"
+        value = "http://${google_compute_global_forwarding_rule.airflow_http_forwarding_rule.ip_address}/api/v1/dags/${var.airflow_dag_id}/dagRuns"
       }
 
       env {
