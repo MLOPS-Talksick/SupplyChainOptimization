@@ -331,6 +331,10 @@ resource "google_cloud_run_v2_service" "backend" {
         value = var.gcs_bucket_name
       }
 
+      env {
+        name  = "VERTEX_REGION"
+        value = var.region   # or wherever your Scheduler lives
+      }
 
       # Optional: You can configure more here
       resources {

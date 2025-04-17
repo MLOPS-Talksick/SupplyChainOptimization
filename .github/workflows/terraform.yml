@@ -348,10 +348,10 @@ jobs:
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
             -var="region=${{ env.GCP_LOCATION }}"
 
-      - name: Import existing resources if any
-        run: |
-          chmod +x scripts/tf_import_all.sh
-          ./scripts/tf_import_all.sh
+      # - name: Import existing resources if any
+      #   run: |
+      #     chmod +x scripts/tf_import_all.sh
+      #     ./scripts/tf_import_all.sh
 
       - name: Terraform Apply (deploy)
         run: |
