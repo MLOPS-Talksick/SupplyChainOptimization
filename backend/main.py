@@ -44,7 +44,7 @@ connector = Connector()
 logging.info("Database configuration loaded.")
 
 # Vertex AI config
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
+PROJECT_ID = os.environ.get("PROJECT_ID")
 VERTEX_REGION = os.environ.get("VERTEX_REGION")
 # VERTEX_ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID")
 API_TOKEN = os.environ.get("API_TOKEN")  # our simple token for auth
@@ -342,7 +342,7 @@ async def validate_excel(file: UploadFile = File(...)):
     
     def canonicalize(col):
         return col.strip().lower().replace(" ", "_")
-    expected_columns = ['Date','Unit Price','Transaction ID','Quantity','Producer ID','Store Location','Product Name']
+    expected_columns = ['date', 'unit_price', 'transaction_id', 'quantity', 'producer_id', 'store_location', 'product_name']
     actual_columns_original = df.columns.tolist()
     actual_canonical = [canonicalize(col) for col in actual_columns_original]
     
