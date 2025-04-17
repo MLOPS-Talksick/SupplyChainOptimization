@@ -13,7 +13,7 @@ import numpy as np
 import pickle
 
 load_dotenv()
-app = Flask(_name_)
+app = Flask(__name__)
 CORS(app)
 
 # Global variable to store the loaded model
@@ -57,7 +57,6 @@ def predict():
         content = request.json
         data = request.get_json()
         latest_date = pd.to_datetime(data.get('date'))
-        print(f"Received date: {latest_date}")
         days = data.get('days') 
 
         scaler_X_path = load_from_gcs("model_training_1", 'scaler_X.pkl')
@@ -325,6 +324,6 @@ with app.app_context():
     except Exception as e:
         print(f"Warning: Failed to load model at startup: {str(e)}")
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port,debug=True)
