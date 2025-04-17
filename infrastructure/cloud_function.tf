@@ -104,7 +104,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
         value = local.instance_conn_name
       }
 
-      
+
       resources {
         limits = {
           memory = "1Gi"
@@ -342,6 +342,11 @@ resource "google_cloud_run_v2_service" "backend" {
       env {
         name  = "VERTEX_REGION"
         value = var.region   # or wherever your Scheduler lives
+      }
+
+      env {
+        name  = "API_TOKEN"
+        value = var.api_token
       }
 
       # Optional: You can configure more here

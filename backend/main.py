@@ -255,7 +255,7 @@ def get_data(n: int = 5, predictions: bool = False):
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
     return {"records": df.to_json(), "count": len(df)}
 
-@@app.get("/get-stats", dependencies=[Depends(verify_token)])
+@app.get("/get-stats", dependencies=[Depends(verify_token)])
 def get_stats():
     logging.info("Received /get-stats request.")
     table = "SALES"
