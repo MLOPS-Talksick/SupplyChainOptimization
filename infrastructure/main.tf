@@ -60,8 +60,8 @@ resource "google_compute_region_autoscaler" "airflow_autoscaler" {
   target = google_compute_region_instance_group_manager.airflow_mig.self_link
 
     autoscaling_policy {
-      cooldown_period = 240
-      max_replicas    = 5
+      cooldown_period = 600
+      max_replicas    = 3
       min_replicas    = 1
       mode            = "ON"
 

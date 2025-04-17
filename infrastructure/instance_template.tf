@@ -25,9 +25,10 @@ resource "google_compute_instance_template" "airflow_template" {
 
 
   lifecycle {
+    create_before_destroy = true
     ignore_changes = [
-      metadata_fingerprint,
-      self_link
+      # Option A: ignore the entire metadata object
+      metadata,
     ]
   }
 
