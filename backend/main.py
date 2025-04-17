@@ -179,22 +179,29 @@ async def upload_file(
         logging.info(f"Airflow URL: {AIRFLOW_URL}")
         logging.info(f"Airflow USERNAME: {AIRFLOW_USERNAME}")
         logging.info(f"Airflow PASSWORD: {AIRFLOW_PASSWORD}")
+        headers = {
+            "User-Agent": "airflow-client",
+            "Content-Type": "application/json"
+        }
         response = requests.post(
             AIRFLOW_URL,
             json=payload,
-            auth=HTTPBasicAuth(AIRFLOW_USERNAME, AIRFLOW_PASSWORD)
+            auth=HTTPBasicAuth(AIRFLOW_USERNAME, AIRFLOW_PASSWORD),
+            headers=headers
         )
         response.raise_for_status()
-        logging.info("Airflow DAG triggered successfully.")
+        logging.info(f"Airflow DAG triggered successfully. Response: {response.status_code} - {response.text}")
     except requests.RequestException as e:
         logging.error(f"Airflow DAG trigger failed: {e}")
-        if e.response is not None:
-            logging.error(f"Airflow response status code: {e.response.status_code}")
-            logging.error(f"Airflow response body: {e.response.text}")
+        status = getattr(e.response, "status_code", None)
+        text = getattr(e.response, "text", None)
+        logging.error(f"Airflow response status code: {status}")
+        logging.error(f"Airflow response body: {text}")
         raise HTTPException(
-            status_code=e.response.status_code if e.response else 500,
-            detail=f"Airflow DAG trigger failed: {e.response.text if e.response else str(e)}"
+            status_code=status or 500,
+            detail=f"Airflow DAG trigger failed: {text or str(e)}"
         )
+
 
     
     return {
