@@ -52,8 +52,8 @@ GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
 AIRFLOW_DAG_ID = os.environ.get("AIRFLOW_DAG_ID")
 VM_IP = os.environ.get("VM_IP")
 AIRFLOW_URL = f"http://{VM_IP}/api/v1/dags/{AIRFLOW_DAG_ID}/dagRuns"
-AIRFLOW_USERNAME = os.environ.get("AIRFLOW_USERNAME")
-AIRFLOW_PASSWORD = os.environ.get("AIRFLOW_PASSWORD")
+AIRFLOW_USERNAME = os.environ.get("AIRFLOW_ADMIN_USERNAME")
+AIRFLOW_PASSWORD = os.environ.get("AIRFLOW_ADMIN_PASSWORD")
 logging.info("Airflow configuration loaded.")
 
 # Serving
@@ -174,6 +174,9 @@ async def upload_file(
     }
     logging.info(f"Triggering Airflow DAG with payload: {payload}")
     try:
+        logging.info(f"Airflow URL: {AIRFLOW_URL}")
+        logging.info(f"Airflow USERNAME: {AIRFLOW_USERNAME}")
+        logging.info(f"Airflow PASSWORD: {AIRFLOW_PASSWORD}")
         response = requests.post(
             AIRFLOW_URL,
             json=payload,
