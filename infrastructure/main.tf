@@ -49,6 +49,21 @@ resource "google_compute_firewall" "allow_lb_health_checks" {
 }
 
 
+resource "google_compute_firewall" "allow_airflow_ui_public" {
+  name    = "allow-airflow-ui"
+  network = google_compute_network.airflow_vpc.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  # Either lock this to your office/home IP, or open wide:
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["airflow-server"]
+}
+
+
 resource "google_compute_region_autoscaler" "airflow_autoscaler" {
   name    = "airflow-autoscaler"
   project = var.project_id
