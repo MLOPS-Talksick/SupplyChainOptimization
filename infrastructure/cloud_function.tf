@@ -24,6 +24,8 @@ resource "google_cloudfunctions2_function" "process_data_function" {
         object = google_storage_bucket_object.cloud_function_zip.name
       }
     }
+
+    
   }
 
   service_config {
