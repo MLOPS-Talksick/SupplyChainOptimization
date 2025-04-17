@@ -10,6 +10,7 @@ import UploadForm from "@/components/upload-form";
 import DataTable from "@/components/data-table";
 import ForecastSection from "@/components/forecast-section";
 import { ThemeToggle } from "@/components/theme-toggle";
+import StatsDisplay from "@/components/stats-display";
 
 export default function Home() {
   return (
@@ -28,47 +29,7 @@ export default function Home() {
             <TabsTrigger value="forecast">Forecast</TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Products
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">--</div>
-                  <p className="text-xs text-muted-foreground">
-                    Unique products in database
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Records
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">--</div>
-                  <p className="text-xs text-muted-foreground">
-                    Sales records in database
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Date Range
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">--</div>
-                  <p className="text-xs text-muted-foreground">
-                    Covered by available data
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <StatsDisplay />
             <div className="grid gap-4 md:grid-cols-1">
               <Card className="col-span-1">
                 <CardHeader>
