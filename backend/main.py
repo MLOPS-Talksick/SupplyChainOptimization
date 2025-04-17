@@ -318,7 +318,7 @@ def get_stats():
 
 # Prediction endpoint
 class PredictRequest(BaseModel):
-    product_name: str
+    date: str
     days: int
 
 def get_db_connection() -> sqlalchemy.engine.base.Engine:
@@ -338,6 +338,7 @@ def get_db_connection() -> sqlalchemy.engine.base.Engine:
             user=db_user,
             password=db_pass,
             db=db_name,
+            ip_type = "PRIVATE"
         )
 
     pool = sqlalchemy.create_engine(
@@ -369,17 +370,21 @@ async def get_prediction(request: PredictRequest):
         "date": request.date
     }
     try:
-        response = requests.post(
+        response, status = requests.post(
             f"{MODEL_SERVING_URL}/predict", 
             json=payload
         )
+        if status == 500:
+            logging.error(f"Not enough data for all products forecast")
+            raise HTTPException(status_code=500, detail=f"Not enough data for all products forecast")
         response.raise_for_status()
         logging.info("Model serving response received successfully.")
     except requests.RequestException as e:
         logging.error(f"Model prediction failed: {e}")
         raise HTTPException(status_code=500, detail=f"Model prediction failed: {e}")
     
-    predictions = response.json().get('preds')
+    pred = response.json().get('preds')
+    predictions = pd.from_json(pred)
     if predictions is None:
         logging.error("Response from model serving did not include 'preds'.")
         raise HTTPException(status_code=500, detail="Invalid response from model serving.")

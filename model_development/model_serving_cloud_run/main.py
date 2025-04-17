@@ -56,7 +56,7 @@ def predict():
     try:
         content = request.json
         data = request.get_json()
-        latest_date = pd.to_datetime(data.get('date'))
+        latest_date = pd.to_datetime(data.get('date', pd.Timestamp.today()))
         days = data.get('days') 
 
         scaler_X_path = load_from_gcs("model_training_1", 'scaler_X.pkl')
@@ -252,7 +252,8 @@ def predict():
         if len(all_predictions_df) == 0:
             return jsonify({"error": "No predictions could be generated for any product"}), 500
 
-        return jsonify({"preds": f"{all_predictions_df}"})
+        json_data = all_predictions_df.to_json(orient='records')
+        return jsonify({"preds": json_data})
     
     except Exception as e:
         return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
