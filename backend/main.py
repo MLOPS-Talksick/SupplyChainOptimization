@@ -188,7 +188,14 @@ async def upload_file(
         logging.info("Airflow DAG triggered successfully.")
     except requests.RequestException as e:
         logging.error(f"Airflow DAG trigger failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Airflow DAG trigger failed: {e}")
+        if e.response is not None:
+            logging.error(f"Airflow response status code: {e.response.status_code}")
+            logging.error(f"Airflow response body: {e.response.text}")
+        raise HTTPException(
+            status_code=e.response.status_code if e.response else 500,
+            detail=f"Airflow DAG trigger failed: {e.response.text if e.response else str(e)}"
+        )
+
     
     return {
         "message": "File uploaded to GCS and Airflow DAG triggered successfully.",
