@@ -157,3 +157,18 @@ resource "google_compute_firewall" "allow_cloudrun_to_sql" {
   # This range should match the IP range used by your VPC Access connector
   source_ranges = ["10.8.0.0/28"]
 }
+
+
+resource "google_compute_router" "nat_router" {
+  name    = "nat-router"
+  network = google_compute_network.airflow_vpc.self_link
+  region  = var.region
+}
+
+resource "google_compute_router_nat" "cloudrun_nat" {
+  name                       = "cloudrun-nat"
+  router                     = google_compute_router.nat_router.name
+  region                     = var.region
+  nat_ip_allocate_option     = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+}
