@@ -255,6 +255,66 @@ def get_data(n: int = 5, predictions: bool = False):
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
     return {"records": df.to_json(), "count": len(df)}
 
+@@app.get("/get-stats", dependencies=[Depends(verify_token)])
+def get_stats():
+    logging.info("Received /get-stats request.")
+    table = "SALES"
+    
+    # 1) Connection setup (unchanged)
+    try:
+        def getconn():
+            return connector.connect(
+                conn_name,
+                "pymysql",
+                user=user,
+                password=password,
+                db=database,
+                ip_type="PRIVATE"
+            )
+        pool = sqlalchemy.create_engine(
+            "mysql+pymysql://",
+            creator=getconn,
+        )
+        logging.info("Database connection pool created successfully.")
+    except Exception as e:
+        logging.error(f"Database connection failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+    
+    # 2) STATISTICS query
+    try:
+        stats_sql = f"""
+            SELECT
+              MIN(sale_date)               AS start_date,
+              MAX(sale_date)               AS end_date,
+              COUNT(*)                     AS total_entries,
+              COUNT(DISTINCT product_name) AS total_products
+            FROM {table};
+        """
+        with pool.connect() as conn:
+            row = conn.execute(sqlalchemy.text(stats_sql)).one()
+        
+        # Convert dates to ISO strings (or None if empty)
+        start_date     = row.start_date.isoformat() if row.start_date else None
+        end_date       = row.end_date.isoformat()   if row.end_date   else None
+        total_entries  = int(row.total_entries)
+        total_products = int(row.total_products)
+
+        logging.info(
+            f"Stats → start: {start_date}, end: {end_date}, "
+            f"entries: {total_entries}, products: {total_products}"
+        )
+    except Exception as e:
+        logging.error(f"Failed to fetch stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch statistics.")
+    
+    # 3) Return them in a nice JSON
+    return {
+        "start_date": start_date,
+        "end_date": end_date,
+        "total_entries": total_entries,
+        "total_products": total_products
+    }
+
 
 # Prediction endpoint
 class PredictRequest(BaseModel):
@@ -392,9 +452,7 @@ async def validate_excel(file: UploadFile = File(...)):
             "mysql+pymysql://",
             creator=getconn,
         )
-        db_query = """
-            SELECT DISTINCT product_name FROM SALES;
-            """
+        db_query = "SELECT DISTINCT product_name FROM SALES"
         with pool.connect() as conn:
             result = conn.execute(sqlalchemy.text(db_query))
             db_products = {row[0] for row in result}
