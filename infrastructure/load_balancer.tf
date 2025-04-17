@@ -93,6 +93,11 @@ resource "google_compute_url_map" "lb_url_map" {
       service = google_compute_backend_service.cloudrun_backend.self_link
     }
 
+    path_rule {
+      paths   = ["/api/v1/*"]
+      service = google_compute_backend_service.airflow_backend.self_link
+    }
+
     # Optionally, if you want to reserve a path (e.g. /airflow/*) to your Airflow backend, add:
     path_rule {
       paths   = ["/airflow/*"]

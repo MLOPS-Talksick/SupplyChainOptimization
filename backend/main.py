@@ -50,9 +50,9 @@ VERTEX_REGION = os.environ.get("VERTEX_REGION")
 API_TOKEN = os.environ.get("API_TOKEN")  # our simple token for auth
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
 AIRFLOW_DAG_ID = os.environ.get("AIRFLOW_DAG_ID")
-# VM_IP = os.environ.get("VM_IP")
-# AIRFLOW_URL = f"http://{VM_IP}/api/v1/dags/{AIRFLOW_DAG_ID}/dagRuns"
-AIRFLOW_URL = os.environ.get("AIRFLOW_URL")
+VM_IP = os.environ.get("VM_IP")
+AIRFLOW_URL = f"http://{VM_IP}/api/v1/dags/{AIRFLOW_DAG_ID}/dagRuns"
+# AIRFLOW_URL = os.environ.get("AIRFLOW_URL")
 AIRFLOW_USERNAME = os.environ.get("AIRFLOW_ADMIN_USERNAME")
 AIRFLOW_PASSWORD = os.environ.get("AIRFLOW_ADMIN_PASSWORD")
 logging.info("Airflow configuration loaded.")
