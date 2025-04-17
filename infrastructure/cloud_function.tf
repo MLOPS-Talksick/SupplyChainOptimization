@@ -355,7 +355,7 @@ resource "google_cloud_run_v2_service" "backend" {
     service_account       = var.service_account_email
   }
 
-  ingress = "INGRESS_TRAFFIC_ALL"
+  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   traffic {
     percent         = 100
