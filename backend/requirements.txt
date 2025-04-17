@@ -1,0 +1,17 @@
+# fastapi
+# uvicorn[standard]
+# python-multipart
+# requests
+# google-cloud-storage
+# PyMySQL
+fastapi
+uvicorn[standard]  # Uvicorn server to run FastAPI
+python-dotenv      # for local development loading .env (optional)
+requests           # for making HTTP calls (to Airflow API, other services)
+google-cloud-storage  # GCS interactions
+cloud-sql-python-connector  # Cloud SQL Python Connector
+pymysql            # MySQL driver (use `pg8000` if PostgreSQL)
+google-cloud-aiplatform    # (Optional) Vertex AI API to call model endpoint
+python-multipart   # for file upload support in FastAPI forms
+sqlalchemy
+pandas
