@@ -33,6 +33,19 @@ resource "google_compute_firewall" "airflow_firewall" {
   source_ranges = ["0.0.0.0/0"] # for demo, allow all
 }
 
+resource "google_compute_firewall" "allow_lb_health_checks" {
+  name    = "allow-lb-health-checks"
+  network = google_compute_network.airflow_vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
+  target_tags   = ["airflow-server"]
+}
+
 
 resource "google_compute_region_autoscaler" "airflow_autoscaler" {
   name    = "airflow-autoscaler"

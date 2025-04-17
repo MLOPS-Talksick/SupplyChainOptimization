@@ -5,7 +5,7 @@ resource "google_compute_health_check" "http_health_check" {
   timeout_sec        = 5
   http_health_check {
     port = 8080
-    request_path = "/"
+    request_path = "/api/v1/health"
   }
 }
 
@@ -98,11 +98,11 @@ resource "google_compute_url_map" "lb_url_map" {
       service = google_compute_backend_service.airflow_backend.self_link
     }
 
-    # Optionally, if you want to reserve a path (e.g. /airflow/*) to your Airflow backend, add:
-    path_rule {
-      paths   = ["/airflow/*"]
-      service = google_compute_backend_service.airflow_backend.self_link
-    }
+    # # Optionally, if you want to reserve a path (e.g. /airflow/*) to your Airflow backend, add:
+    # path_rule {
+    #   paths   = ["/airflow/*"]
+    #   service = google_compute_backend_service.airflow_backend.self_link
+    # }
   }
 }
 
