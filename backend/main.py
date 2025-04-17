@@ -384,6 +384,7 @@ async def validate_excel(file: UploadFile = File(...)):
                 user=user,
                 password=password,
                 db=database,
+                ip_type="PRIVATE"
             )
             return conn
 
