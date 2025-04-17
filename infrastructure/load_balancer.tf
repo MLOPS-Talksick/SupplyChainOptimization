@@ -24,6 +24,12 @@ resource "google_compute_backend_service" "airflow_backend" {
     # This references the instance group defined elsewhere.
     group = google_compute_region_instance_group_manager.airflow_mig.instance_group
   }
+
+  custom_request_headers = [
+    "Host: airflow.internal"  # Or the IP if needed: "Host: 34.8.2.47"
+  ]
+
+  load_balancing_scheme = "EXTERNAL"
 }
 
 
