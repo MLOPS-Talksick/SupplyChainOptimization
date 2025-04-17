@@ -363,10 +363,10 @@ def upsert_df(df: pd.DataFrame, engine):
 
 @app.post("/predict")
 async def get_prediction(request: PredictRequest):
-    logging.info(f"Received /predict request for product: {request.product_name}")
+    # logging.info(f"Received /predict request for product: {request.product_name}")
     payload = {
-        "product_name": request.product_name,
-        "days": request.days
+        "days": request.days,
+        "date": request.date
     }
     try:
         response = requests.post(
