@@ -34,3 +34,4 @@ pydantic
 python-multipart
 openpyxl
 xlrd
+xlwt
