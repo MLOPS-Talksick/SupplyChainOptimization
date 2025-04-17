@@ -30,8 +30,8 @@ resource "google_compute_firewall" "airflow_firewall" {
     protocol = "tcp"
     ports    = ["8080", "22"]  # open SSH + Airflow UI
   }
-  # source_ranges = ["0.0.0.0/0"] # for demo, allow all
-  source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
+  source_ranges = ["0.0.0.0/0"] # for demo, allow all
+  # source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
   target_tags   = ["airflow-server"]
 }
 
