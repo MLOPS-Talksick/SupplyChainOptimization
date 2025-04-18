@@ -555,12 +555,31 @@ resource "google_monitoring_notification_channel" "model_retrain_channel" {
 }
 
 
+resource "google_monitoring_metric_descriptor" "rmse_descriptor" {
+  display_name = "rmse_descriptor"
+  type        = "custom.googleapis.com/model/rmse"
+  metric_kind = "GAUGE"
+  value_type  = "DOUBLE"
+  description = "Root Mean Squared Error of model predictions"
+}
+
+resource "google_monitoring_metric_descriptor" "mape_descriptor" {
+  display_name = "mape_descriptor"
+  type        = "custom.googleapis.com/model/mape"
+  metric_kind = "GAUGE"
+  value_type  = "DOUBLE"
+  description = "Mean Absolute Percentage Error of model predictions"
+}
 
 resource "google_monitoring_alert_policy" "model_retrain_policy" {
+  depends_on  = [
+    google_monitoring_metric_descriptor.rmse_descriptor,
+    google_monitoring_metric_descriptor.mape_descriptor,
+  ]
+
   display_name = "Retrain Model on High Error"
   combiner     = "OR"
 
-  # ─── RMSE condition ────────────────────────────────────────────────────────────
   conditions {
     display_name = "RMSE above threshold"
     condition_threshold {
@@ -575,7 +594,6 @@ resource "google_monitoring_alert_policy" "model_retrain_policy" {
     }
   }
 
-  # ─── MAPE condition ────────────────────────────────────────────────────────────
   conditions {
     display_name = "MAPE above threshold"
     condition_threshold {
