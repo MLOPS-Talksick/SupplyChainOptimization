@@ -221,12 +221,27 @@ jobs:
           ./scripts/build_and_push_backend_docker_image.sh
 
 
+      - name: Check if Docker Build is Needed for Cloud Run Model Health Check
+        id: detect-changes-model-health-check-image
+        run: |
+          chmod +x scripts/check_cloudrun_model_health_check_docker_build.sh
+          ./scripts/check_cloudrun_model_health_check_docker_build.sh
+
+      - name: Build & Push Docker Image for Cloud Run Model Health Check
+        if: steps.detect-changes-model-health-check-image.outputs.build_required == 'true'
+        id: build-model-health-check
+        run: |
+          chmod +x scripts/build_and_push_model_health_check_docker_image.sh
+          ./scripts/build_and_push_model_health_check_docker_image.sh
+
+
       - name: Debug Docker Image URIs (Before Output)
         run: |
           echo "Model Serving Image URI: ${{ steps.build-model-serving.outputs.model_serving_image_uri }}"
           echo "Model Training Image URI: ${{ steps.build-model-training.outputs.model_training_image_uri }}"
           echo "Model Training Trigger Image URI: ${{ steps.build-model-trigger.outputs.model_training_trigger_image_uri }}"
-          echo "Model Training Trigger Image URI: ${{ steps.build-backend.outputs.backend_image_uri }}"
+          echo "Backend Image URI: ${{ steps.build-backend.outputs.backend_image_uri }}"
+          echo "Model Health Check Image URI: ${{ steps.build-model-health-check.outputs.model_health_check_image_uri }}"
 
 
   # -------------------------------------------------------------
@@ -246,6 +261,7 @@ jobs:
       TF_VAR_model_training_image_uri: ${{ needs.build_and_push.outputs.model_training_image_uri }}
       TF_VAR_model_training_trigger_image_uri: ${{ needs.build_and_push.outputs.model_training_trigger_image_uri }}
       TF_VAR_backend_image_uri: ${{ needs.build_and_push.outputs.backend_image_uri }}
+      TF_VAR_model_health_check_image_uri: ${{ needs.build_and_push.outputs.model_health_check_image_uri }}
       TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
       TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
       TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}

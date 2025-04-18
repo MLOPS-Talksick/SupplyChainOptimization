@@ -55,7 +55,7 @@ AIRFLOW_URL = f"http://{VM_IP}/api/v1/dags/{AIRFLOW_DAG_ID}/dagRuns"
 # AIRFLOW_URL = os.environ.get("AIRFLOW_URL")
 AIRFLOW_USERNAME = os.environ.get("AIRFLOW_ADMIN_USERNAME")
 AIRFLOW_PASSWORD = os.environ.get("AIRFLOW_ADMIN_PASSWORD")
-logging.info("Airflow configuration loaded.")
+logging.info("Airflow configuration loaded.") 
 logging.info(f"AIRFLOW_URL: {AIRFLOW_URL}")
 
 # Serving
@@ -421,6 +421,7 @@ def get_db_connection() -> sqlalchemy.engine.base.Engine:
             user=db_user,
             password=db_pass,
             db=db_name,
+            ip_type = "PRIVATE"
         )
 
     pool = sqlalchemy.create_engine(

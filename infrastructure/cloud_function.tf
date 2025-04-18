@@ -447,7 +447,7 @@ resource "google_cloud_run_v2_service" "model_health_check" {
 
       resources {
         limits = {
-          cpu    = "500m"
+          cpu    = "1"
           memory = "512Mi"
         }
       }
@@ -460,10 +460,10 @@ resource "google_cloud_run_v2_service" "model_health_check" {
     }
 
     service_account = var.service_account_email
-    timeout         = "300s"   # adjust if your health check takes longer
+    timeout         = "300s"
   }
 
-  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"  # or change to INTERNAL_LOAD_BALANCER if you front it with your LB
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   traffic {
     percent = 100
