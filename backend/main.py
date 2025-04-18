@@ -338,7 +338,6 @@ def get_db_connection() -> sqlalchemy.engine.base.Engine:
             user=db_user,
             password=db_pass,
             db=db_name,
-            ip_type = "PRIVATE"
         )
 
     pool = sqlalchemy.create_engine(
@@ -362,42 +361,59 @@ def upsert_df(df: pd.DataFrame, engine):
         conn.execute(sql, data)
     logging.info("Data upserted into PREDS table successfully.")
 
-@app.post("/predict")
+@app.post("/predict", dependencies=[Depends(verify_token)])
 async def get_prediction(request: PredictRequest):
-    # logging.info(f"Received /predict request for product: {request.product_name}")
+    logging.info(f"Received /predict request: product_name={request.product_name}, days={request.days}")
+
+    # 1) Build the payload to match your model’s API
     payload = {
-        "days": request.days,
-        "date": request.date
+        "product_name": request.product_name,
+        "days": request.days
     }
+
+    # 2) Call the model‐serving endpoint
     try:
-        response, status = requests.post(
-            f"{MODEL_SERVING_URL}/predict", 
-            json=payload
-        )
-        if status == 500:
-            logging.error(f"Not enough data for all products forecast")
-            raise HTTPException(status_code=500, detail=f"Not enough data for all products forecast")
+        response = requests.post(f"{MODEL_SERVING_URL}/predict", json=payload)
+        # If the service explicitly returns a 500 with a special message:
+        if response.status_code == 500:
+            logging.error("Model serving responded with 500: Not enough data for all products")
+            raise HTTPException(status_code=500, detail="Not enough data for all products")
         response.raise_for_status()
         logging.info("Model serving response received successfully.")
     except requests.RequestException as e:
-        logging.error(f"Model prediction failed: {e}")
+        logging.error(f"Model prediction HTTP error: {e}")
         raise HTTPException(status_code=500, detail=f"Model prediction failed: {e}")
-    
-    pred = response.json().get('preds')
-    predictions = pd.from_json(pred)
-    if predictions is None:
-        logging.error("Response from model serving did not include 'preds'.")
-        raise HTTPException(status_code=500, detail="Invalid response from model serving.")
-    
+
+    # 3) Parse the JSON payload
+    data = response.json()
+    preds = data.get("preds")
+    if preds is None:
+        logging.error("Response JSON missing 'preds' key.")
+        raise HTTPException(status_code=500, detail="Invalid response from model serving: no 'preds' field.")
+
+    # 4) Convert to DataFrame
+    try:
+        # If preds is a JSON string, unwrap it; if it’s already a list of dicts, this still works.
+        if isinstance(preds, str):
+            # preds might be a JSON‐encoded string
+            df_preds = pd.read_json(preds, orient="records")
+        else:
+            df_preds = pd.DataFrame.from_records(preds)
+        logging.info(f"Converted predictions to DataFrame: {df_preds.shape[0]} rows.")
+    except Exception as e:
+        logging.error(f"Failed to parse preds into DataFrame: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to parse predictions: {e}")
+
+    # 5) Upsert into the database
     try:
         engine = get_db_connection()
-        upsert_df(predictions, engine)
+        upsert_df(df_preds, engine)
         logging.info("Predictions upserted into database.")
-        return {"Success": "True, Uploaded to DB"}
+        return {"success": True, "message": "Predictions saved to DB"}
     except Exception as e:
-        logging.error(f"Database upload failed: {e}")
-        return {"Success": "False, DB upload Failed"}
-
+        logging.error(f"Database upsert failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Database upload failed: {e}")
+        
 @app.post("/validate_excel", dependencies=[Depends(verify_token)])
 async def validate_excel(file: UploadFile = File(...)):
     logging.info(f"Received /validate_excel request with file: {file.filename}")
