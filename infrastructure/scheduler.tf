@@ -19,7 +19,8 @@ resource "google_cloud_scheduler_job" "model_health_check_job" {
     uri         = "${google_cloud_run_v2_service.model_health_check.uri}/model/health"
     http_method = "POST"
     headers     = { 
-      "Content-Type" = "application/json"
+      "Content-Type" = "application/json",
+      "token"        = var.api_token
     }
 
     oidc_token {
