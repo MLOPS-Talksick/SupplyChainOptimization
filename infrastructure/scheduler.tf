@@ -17,7 +17,7 @@ resource "google_cloud_scheduler_job" "job" {
 
   http_target {
     uri         = "${google_cloud_run_v2_service.model_health_check.uri}/model/health"
-    http_method = "GET"
+    http_method = "POST"
     headers     = { "Content-Type" = "application/json" }
     body = base64encode(jsonencode({
             days = 7
