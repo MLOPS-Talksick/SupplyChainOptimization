@@ -441,7 +441,7 @@ async def get_prediction(request: PredictRequest):
     engine = get_db_connection()
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT MAX(sale_date) FROM SALES"))
+            result = conn.execute(text("SELECT MAX(sale_date) FROM SALES;"))
             last_sale = result.scalar()
     except Exception as e:
         logging.error(f"Failed to fetch last sale_date: {e}")
@@ -456,7 +456,7 @@ async def get_prediction(request: PredictRequest):
     try:
         df_existing = pd.read_sql(
             text("SELECT sale_date, product_name, prediction FROM PREDS "
-                 "WHERE sale_date BETWEEN :start AND :end"),
+                 "WHERE sale_date BETWEEN :start AND :end ;"),
             engine,
             params={"start": start_date, "end": end_date}
         )
