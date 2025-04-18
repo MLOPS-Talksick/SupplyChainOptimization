@@ -363,11 +363,11 @@ def upsert_df(df: pd.DataFrame, engine):
 
 @app.post("/predict", dependencies=[Depends(verify_token)])
 async def get_prediction(request: PredictRequest):
-    logging.info(f"Received /predict request: product_name={request.product_name}, days={request.days}")
+    logging.info(f"Received /predict request: date={request.date}, days={request.days}")
 
     # 1) Build the payload to match your model’s API
     payload = {
-        "product_name": request.product_name,
+        "date": request.date,
         "days": request.days
     }
 
