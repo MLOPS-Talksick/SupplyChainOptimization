@@ -51,7 +51,7 @@ resource "google_cloud_scheduler_job" "prediction_job" {
     http_method = "POST"
 
     # send {"days": 7} in the request body
-    body = jsonencode({ "days" = 7 })
+    body = base64encode(jsonencode({ days = 7 }))
 
     headers = {
       "Content-Type" = "application/json"
