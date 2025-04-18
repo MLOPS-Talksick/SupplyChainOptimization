@@ -555,13 +555,13 @@ resource "google_monitoring_notification_channel" "model_retrain_channel" {
   }
 }
 
-
+# ─── Custom metric for RMSE ───────────────────────────────────────────────────
 resource "google_monitoring_metric_descriptor" "rmse_descriptor" {
-  display_name = "rmse_descriptor"
-  type        = "custom.googleapis.com/model/rmse"
-  metric_kind = "GAUGE"
-  value_type  = "DOUBLE"
-  description = "Root Mean Squared Error of model predictions"
+  display_name = "Model RMSE"
+  type         = "custom.googleapis.com/model/rmse"
+  metric_kind  = "GAUGE"
+  value_type   = "DOUBLE"
+  description  = "Root Mean Squared Error of model predictions"
 }
 
 # ─── Custom metric for P‑Value ───────────────────────────────────────────────
