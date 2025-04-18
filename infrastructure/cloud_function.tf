@@ -526,9 +526,8 @@ resource "google_cloud_run_service_iam_member" "allow_model_health_check" {
 
 resource "google_monitoring_notification_channel" "model_retrain_webhook" {
   display_name = "Model Retraining Webhook"
-  type         = "webhook"    # uses HTTP POST
+  type         = "webhook"
   labels = {
-    # Cloud Monitoring will POST alert JSON to this URL:
     url = google_cloud_run_v2_service.model_training_trigger.uri
   }
 }
@@ -536,7 +535,7 @@ resource "google_monitoring_notification_channel" "model_retrain_webhook" {
 
 resource "google_monitoring_alert_policy" "model_retrain_policy" {
   display_name = "Retrain Model on High Error"
-  combiner     = "OR"  # fire if **any** condition is true
+  combiner     = "OR"
 
   # RMSE condition
   conditions {
