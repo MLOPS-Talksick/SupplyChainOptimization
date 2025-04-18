@@ -6,6 +6,7 @@ scipy
 scikit-learn
 google-cloud-storage
 google-cloud-scheduler
+google-cloud-monitoring
 cloud-sql-python-connector
 pymysql
 sqlalchemy
