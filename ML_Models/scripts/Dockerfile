@@ -15,11 +15,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the health check API code into the image
+# Copy your code
 COPY . .
 
 # Expose port 8080 for Cloud Run
 EXPOSE 8080
 
-# Command to start the Uvicorn server for health check API
-CMD ["uvicorn", "health_check:router", "--host", "0.0.0.0", "--port", "8080", "--factory"]
+# Start Uvicorn on the FastAPI app
+CMD ["uvicorn", "health_check:app", "--host", "0.0.0.0", "--port", "${PORT:-8080}"]

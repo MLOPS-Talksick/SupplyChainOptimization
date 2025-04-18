@@ -7,7 +7,7 @@ from datetime import datetime, timedelta  # Added timedelta
 import time
 import json
 import requests
-from fastapi import Depends, HTTPException, APIRouter, Header  # Added Header
+from fastapi import Depends, HTTPException, APIRouter, Header, FastAPI  # Added Header
 from scipy import stats
 from google.cloud import scheduler_v1
 from google.protobuf import duration_pb2
@@ -17,7 +17,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from fastapi.responses import JSONResponse
 
 # Create a router for health check endpoints
-router = APIRouter()
+app = FastAPI()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -76,7 +76,7 @@ def verify_token(token: str = Header(None)):
     logging.info("Token verification passed.")
     return True
 
-@router.get("/health", tags=["Health"])
+@app.get("/health", tags=["Health"])
 async def basic_health_check():
     """Basic health check to verify API is running"""
     return {
@@ -86,7 +86,7 @@ async def basic_health_check():
     }
 
 
-@router.get("/model/health", tags=["Health"])
+@app.get("/model/health", tags=["Health"])
 async def model_health_check(token: str = Depends(verify_token)):
     """
     Check the health of the ML model by comparing actual vs. predicted values
@@ -435,14 +435,14 @@ def create_model_health_stats_table():
 
 
 # Make sure to initialize the table
-@router.on_event("startup")
+@app.on_event("startup")
 async def startup_event():
     """Run on API startup - ensures MODEL_HEALTH_STATS table exists"""
     create_model_health_stats_table()
 
 
 # Add manual trigger endpoint for testing
-@router.post("/model/health/trigger", tags=["Health"])
+@app.post("/model/health/trigger", tags=["Health"])
 async def trigger_health_check(token: str = Depends(verify_token)):
     """
     Manually trigger a model health check
@@ -455,7 +455,7 @@ async def trigger_health_check(token: str = Depends(verify_token)):
 
 
 # Add manual retraining trigger for testing
-@router.post("/model/retrain", tags=["Health"])
+@app.post("/model/retrain", tags=["Health"])
 async def manual_retrain(token: str = Depends(verify_token)):
     """
     Manually trigger model retraining
