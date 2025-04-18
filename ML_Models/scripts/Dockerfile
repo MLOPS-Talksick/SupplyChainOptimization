@@ -1,32 +1,25 @@
-# Use Python 3.10 slim as base image
-FROM python:3.10-slim
-
-# Set working directory
-WORKDIR /app
+# Use the official lightweight Python 3.11 image
+FROM python:3.11-slim
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DEFAULT_TIMEOUT=100 \
     PYTHONPATH=/app
 
-# Install system dependencies
-#RUN apt-get update && apt-get install -y --no-install-recommends \
-   # gcc \
-    #python3-dev \
-    #&& apt-get clean \
-    #&& rm -rf /var/lib/apt/lists/*
+# Create app directory
+WORKDIR /app
 
-# Copy requirements file
+# Copy requirements and install them
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy the health check API code into the image
 COPY . .
 
-# Expose port (adjust if using a different port)
-EXPOSE 8000
+# Expose port 8080 for Cloud Run
+EXPOSE 8080
 
-# Command to run the application
-CMD ["uvicorn", "health_check:router", "--host", "0.0.0.0", "--port", "8000", "--factory"]
+# Command to start the Uvicorn server for health check API
+CMD ["uvicorn", "health_check:router", "--host", "0.0.0.0", "--port", "8080", "--factory"]
