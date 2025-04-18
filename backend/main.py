@@ -13,6 +13,7 @@ from requests.auth import HTTPBasicAuth
 import time
 from dotenv import load_dotenv
 import sqlalchemy
+from sqlalchemy import text
 import pandas as pd
 from google.cloud.sql.connector import Connector
 import io  # Needed for file pointer operations
@@ -258,7 +259,7 @@ def get_data(n: int = 5, predictions: bool = False):
 def get_data(n: int = 5, predictions: bool = False):
     logging.info("Received /data request.")
     if predictions:
-        table = "PREDS"
+        table = "PREDICT"
     else:
         table = "SALES"
     n = max(0, n)
@@ -401,7 +402,6 @@ async def upload_email(payload: EmailRequest):
 
 # Prediction endpoint
 class PredictRequest(BaseModel):
-    date: str
     days: int
 
 def get_db_connection() -> sqlalchemy.engine.base.Engine:
@@ -430,74 +430,86 @@ def get_db_connection() -> sqlalchemy.engine.base.Engine:
     )
     logging.info("Database connection pool for prediction established.")
     return pool
-
-def upsert_df(df: pd.DataFrame, engine):
-    data = df.to_dict(orient='records')
-    columns = df.columns.tolist()
-    col_names = ", ".join(columns)
-    placeholders = ", ".join(":" + col for col in columns)
-    update_clause = ", ".join(f"{col} = VALUES({col})" for col in columns)
-    sql = sqlalchemy.text(
-        f"INSERT INTO PREDS ({col_names}) VALUES ({placeholders}) "
-        f"ON DUPLICATE KEY UPDATE {update_clause}"
-    )
-    with engine.begin() as conn:
-        conn.execute(sql, data)
-    logging.info("Data upserted into PREDS table successfully.")
+        
 
 @app.post("/predict", dependencies=[Depends(verify_token)])
 async def get_prediction(request: PredictRequest):
-    logging.info(f"Received /predict request: date={request.date}, days={request.days}")
+    days = request.days
+    logging.info(f"Received /predict request: days={days}")
 
-    # 1) Build the payload to match your model’s API
-    payload = {
-        "date": request.date,
-        "days": request.days
-    }
-
-    # 2) Call the model‐serving endpoint
+    # 1) Compute the date range
+    engine = get_db_connection()
     try:
-        response = requests.post(f"{MODEL_SERVING_URL}/predict", json=payload)
-        # If the service explicitly returns a 500 with a special message:
-        if response.status_code == 500:
-            logging.error("Model serving responded with 500: Not enough data for all products")
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT MAX(sale_date) FROM SALES;"))
+            last_sale = result.scalar()
+    except Exception as e:
+        logging.error(f"Failed to fetch last sale_date: {e}")
+        raise HTTPException(status_code=500, detail="Database error fetching last sale date")
+
+    # If no sales exist yet, start from today
+    start_date = last_sale.date() if hasattr(last_sale, "date") else date.today()
+    end_date = date.today() + timedelta(days=days)
+    logging.info(f"Date range: {start_date} → {end_date}")
+
+    # 2) Check PREDICT table for existing predictions
+    try:
+        df_existing = pd.read_sql(
+            text("SELECT sale_date, product_name, total_quantity FROM PREDICT "
+                 "WHERE sale_date BETWEEN :start AND :end ;"),
+            engine,
+            params={"start": start_date, "end": end_date}
+        )
+        df_existing["sale_date"] = pd.to_datetime(df_existing["sale_date"]).dt.date
+        existing_dates = set(df_existing["sale_date"].unique())
+        expected_dates = { start_date + timedelta(i) 
+                           for i in range((end_date - start_date).days + 1) }
+    except Exception as e:
+        logging.error(f"Failed to query PREDICT table: {e}")
+        raise HTTPException(status_code=500, detail="Database error checking predictions")
+
+    # 3) If we have every date in the range, return from DB
+    if expected_dates.issubset(existing_dates):
+        logging.info("All predictions found in PREDICT; returning cached results.")
+        records = df_existing.to_dict()
+        return {"predictions": records}
+
+    # 4) Otherwise call the model-serving endpoint for fresh predictions
+    logging.info("Missing some dates in PREDICT; calling model-api")
+    payload = {"days": days}
+    try:
+        resp = requests.post(f"{MODEL_SERVING_URL}/predict", json=payload)
+        if resp.status_code == 500:
+            logging.error("Model serving responded 500: Not enough data")
             raise HTTPException(status_code=500, detail="Not enough data for all products")
-        response.raise_for_status()
-        logging.info("Model serving response received successfully.")
+        resp.raise_for_status()
     except requests.RequestException as e:
         logging.error(f"Model prediction HTTP error: {e}")
-        raise HTTPException(status_code=500, detail=f"Model prediction failed: {e}")
+        raise HTTPException(status_code=500, detail="Model prediction failed")
 
-    # 3) Parse the JSON payload
-    data = response.json()
+    data = resp.json()
     preds = data.get("preds")
     if preds is None:
-        logging.error("Response JSON missing 'preds' key.")
-        raise HTTPException(status_code=500, detail="Invalid response from model serving: no 'preds' field.")
+        logging.error("Model response missing 'preds'")
+        raise HTTPException(status_code=500, detail="Invalid model response")
 
-    # 4) Convert to DataFrame
+    # 5) Load into DataFrame
     try:
-        # If preds is a JSON string, unwrap it; if it’s already a list of dicts, this still works.
         if isinstance(preds, str):
-            # preds might be a JSON‐encoded string
-            df_preds = pd.read_json(preds, orient="records")
+            df_new = pd.read_json(preds)
         else:
-            df_preds = pd.DataFrame.from_records(preds)
-        logging.info(f"Converted predictions to DataFrame: {df_preds.shape[0]} rows.")
+            df_new = pd.DataFrame.from_records(preds)
+        df_new["sale_date"] = pd.to_datetime(df_new["sale_date"]).dt.date
+        logging.info(f"Received {len(df_new)} new prediction rows")
     except Exception as e:
-        logging.error(f"Failed to parse preds into DataFrame: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to parse predictions: {e}")
+        logging.error(f"Failed to parse new preds: {e}")
+        raise HTTPException(status_code=500, detail="Error parsing predictions")
 
-    # 5) Upsert into the database
-    try:
-        engine = get_db_connection()
-        upsert_df(df_preds, engine)
-        logging.info("Predictions upserted into database.")
-        return {"success": True, "message": "Predictions saved to DB"}
-    except Exception as e:
-        logging.error(f"Database upsert failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Database upload failed: {e}")
-        
+    # 6) Return the newly fetched predictions
+    return {"predictions": df_new.to_dict()}
+
+
+
 @app.post("/validate_excel", dependencies=[Depends(verify_token)])
 async def validate_excel(file: UploadFile = File(...)):
     logging.info(f"Received /validate_excel request with file: {file.filename}")
