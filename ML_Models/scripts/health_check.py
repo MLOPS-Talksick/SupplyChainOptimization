@@ -21,7 +21,7 @@
 
 # # Configure logging
 # logging.basicConfig(level=logging.INFO)
-# # logger = logging.getLogger(__name__)
+# # logging = logging.getlogging(__name__)
 # logging.info("Model health check module initialized")
 
 # # Define threshold constants
@@ -411,7 +411,7 @@ from datetime import datetime, timedelta
 import time
 import json
 
-from fastapi import Depends, HTTPException, Header, FastAPI
+from fastapi import Depends, HTTPException, Header, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from scipy import stats
@@ -420,52 +420,70 @@ from google.cloud.sql.connector import Connector
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from google.cloud import monitoring_v3
 
-# ─── App Setup ─────────────────────────────────────────────────────────────────
+# ─── Configure Logging ─────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO
+)
 
+# ─── App Setup ─────────────────────────────────────────────────────────────────
 app = FastAPI()
-logging.basicConfig(level=logging.INFO)
+
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logging.info(f"Incoming request: {request.method} {request.url}")
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    logging.info(f"Completed {request.method} {request.url} in {duration:.2f}s with status {response.status_code}")
+    return response
+
 logging.info("Model health check module initialized")
 
 # ─── Thresholds ─────────────────────────────────────────────────────────────────
-
 RMSE_THRESHOLD   = 18.0
 P_VALUE_THRESHOLD = 0.05
 MAPE_THRESHOLD   = 0.25
 
 # ─── Environment ────────────────────────────────────────────────────────────────
-
 PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
 REGION     = os.environ.get('VERTEX_REGION')
 API_TOKEN  = os.environ.get("API_TOKEN")
 
 # ─── Monitoring Client ──────────────────────────────────────────────────────────
-
 monitoring_client = monitoring_v3.MetricServiceClient()
 project_name      = f"projects/{PROJECT_ID}"
 
+
 def log_metric(metric_name: str, value: float):
-    """Write a single data point to a custom metric."""
+    logging.debug(f"Logging metric {metric_name} with value {value}")
     series = monitoring_v3.TimeSeries()
     series.metric.type = f"custom.googleapis.com/{metric_name}"
     series.resource.type = "global"
     series.resource.labels["project_id"] = PROJECT_ID
 
-    now = int(time.time())
-    point = monitoring_v3.Point({
-        "interval": {"end_time": {"seconds": now}},
-        "value":    {"double_value": value},
-    })
-    series.points = [point]
+    now = time.time()
+    seconds = int(now)
+    nanos   = int((now - seconds) * 10**9)
 
+    point = monitoring_v3.Point()
+    point.value.double_value = value
+
+    interval = monitoring_v3.TimeInterval()
+    interval.end_time.seconds = seconds
+    interval.end_time.nanos   = nanos
+    point.interval = interval
+
+    series.points = [point]
     monitoring_client.create_time_series(
         name=project_name,
-        time_series=[series]
+        time_series=[series],
     )
+    logging.debug(f"Sent time series for {metric_name}")
 
 # ─── Database Connection ────────────────────────────────────────────────────────
-
 def get_db_connection():
-    """Cloud SQL Python Connector + SQLAlchemy engine."""
+    logging.info("Creating database connection pool")
     connector = Connector()
     user     = os.getenv("MYSQL_USER")
     pwd      = os.getenv("MYSQL_PASSWORD")
@@ -484,42 +502,43 @@ def get_db_connection():
     return engine
 
 # ─── Security ───────────────────────────────────────────────────────────────────
-
 def verify_token(token: str = Header(None)):
-    """Simple header check; set API_TOKEN if you want auth."""
+    logging.debug("Verifying API token")
     if API_TOKEN is None:
         return True
     if token != API_TOKEN:
+        logging.warning("Unauthorized access attempt with invalid token")
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
-
+# ─── Health Check Endpoint ──────────────────────────────────────────────────────
 @app.post("/model/health", tags=["Health"])
 async def model_health_check(token: str = Depends(verify_token)):
-    """
-    Fetch last 30 days of actuals vs preds, compute metrics,
-    emit them to Cloud Monitoring, and return JSON.
-    """
+    logging.info("Running model health check")
     now = datetime.now()
     start = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
     end   = now.strftime("%Y-%m-%d %H:%M:%S")
 
+    sales_q = f"""
+      SELECT sale_date, product_name, total_quantity
+      FROM SALES
+      WHERE sale_date BETWEEN '{start}' AND '{end}';
+    """
+    preds_q = f"""
+      SELECT sale_date, product_name, total_quantity
+      FROM PREDICT
+      WHERE sale_date BETWEEN '{start}' AND '{end}';
+    """
+
+    logging.debug(f"Sales query: {sales_q}")
+    logging.debug(f"Predictions query: {preds_q}")
+
     try:
         engine = get_db_connection()
-        sales_q = f"""
-          SELECT sale_date, product_name, total_quantity
-          FROM SALES
-          WHERE sale_date BETWEEN '{start}' AND '{end}';
-        """
-        preds_q = f"""
-          SELECT sale_date, product_name, total_quantity
-          FROM PREDICT
-          WHERE sale_date BETWEEN '{start}' AND '{end}';
-        """
-
         with engine.connect() as conn:
             sales_df = pd.read_sql(sales_q, conn)
             preds_df = pd.read_sql(preds_q, conn)
+        logging.info(f"Fetched {len(sales_df)} sales rows and {len(preds_df)} prediction rows")
 
         merged = pd.merge(
             sales_df, preds_df,
@@ -527,9 +546,10 @@ async def model_health_check(token: str = Depends(verify_token)):
             suffixes=("_actual", "_predicted")
         )
         n = len(merged)
+        logging.info(f"Merged dataset has {n} rows")
+
         if n == 0:
-            status = "warning"
-            issues = ["No matching records in last 30 days"]
+            status, issues = "warning", ["No matching records in last 30 days"]
             metrics = {"sample_size": 0}
         else:
             y_true = merged["total_quantity_actual"].values
@@ -546,12 +566,12 @@ async def model_health_check(token: str = Depends(verify_token)):
                 "p_value": float(p_val),
                 "sample_size": n
             }
+            logging.info(f"Calculated metrics: RMSE={rmse:.2f}, MAPE={mape:.2f}, KS={ks_stat:.2f}, p-value={p_val:.4f}")
 
             # Emit to Cloud Monitoring
-            log_metric("model/rmse", rmse)
-            log_metric("model/mape", mape)
-            log_metric("model/ks_statistic", metrics["ks_statistic"])
-            log_metric("model/p_value", metrics["p_value"])
+            for name, val in metrics.items():
+                if name in ("rmse", "mape", "ks_statistic", "p_value"):
+                    log_metric(f"model/{name}", val)
 
             # Determine health
             status = "healthy"
@@ -563,15 +583,12 @@ async def model_health_check(token: str = Depends(verify_token)):
                 status = "unhealthy"
                 issues.append(f"p-value {p_val:.4f} < {P_VALUE_THRESHOLD}")
 
-        return {
-            "status": status,
-            "timestamp": now.isoformat(),
-            "metrics": metrics,
-            "issues": issues
-        }
+        response = {"status": status, "timestamp": now.isoformat(), "metrics": metrics, "issues": issues}
+        logging.info(f"Health check result: {response}")
+        return response
 
-    except Exception as e: 
-        logging.error(f"Model health check error: {e}")
+    except Exception as e:
+        logging.error(f"Model health check error: {e}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"status": "error", "error": str(e)}
