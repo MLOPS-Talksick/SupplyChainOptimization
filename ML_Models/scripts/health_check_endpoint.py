@@ -66,19 +66,9 @@ def get_db_connection():
     return pool
 
 
-def verify_token(token: str = Header(None)):
-    if API_TOKEN is None:
-        logging.warning("No API_TOKEN set on server; skipping token verification.")
-        return True
-    if token is None or token != API_TOKEN:
-        logging.error("Invalid or missing token in request.")
-        raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
-    logging.info("Token verification passed.")
-    return True
-
 
 @router.get("/health", tags=["Health"])
-async def basic_health_check(token: str = Depends(verify_token)):
+async def basic_health_check():
     """Basic health check to verify API is running"""
     return {
         "status": "healthy",
