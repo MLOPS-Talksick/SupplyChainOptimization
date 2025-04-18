@@ -11,6 +11,13 @@ from utils import get_latest_data_from_cloud_sql
 import pandas as pd
 import numpy as np
 import pickle
+import logging
+
+import warnings
+warnings.filterwarnings("ignore")
+
+
+logging.basicConfig(level=logging.INFO)
 
 load_dotenv()
 app = Flask(__name__)
@@ -124,6 +131,8 @@ def predict():
                 df['dayofweek'] = df['Date'].dt.dayofweek
                 df['dayofyear'] = df['Date'].dt.dayofyear
                 df['quarter'] = df['Date'].dt.quarter
+
+                logging.info("Extracted date features")
         
                 # Calculate rolling statistics for the product
                 df = df.sort_values(['Product Name', 'Date'])
@@ -153,6 +162,8 @@ def predict():
                             'lag_1d', 'lag_2d', 'lag_3d', 'lag_7d']
         
                 product_data = df[df['product_encoded'] == product_idx].sort_values('Date')
+
+                logging.info("Extracted Product Data")
                 
                 if len(product_data) < 5:  # Need at least time_steps data points (assuming 5 time steps)
                     raise ValueError(f"Not enough historical data for product '{product_name}'")
@@ -173,7 +184,9 @@ def predict():
                 current_sequence = recent_data_scaled.reshape(1, time_steps, len(features))
                 
                 predictions = []
-                current_sequence = current_sequence[0]  # Get the sequence as a 2D array
+                current_sequence = current_sequence[0]  # Get the sequence as a 2D array\
+
+                logging.info("Started prediction loop....")
                 
                 for i in range(days):
                     # Reshape for prediction
@@ -239,6 +252,8 @@ def predict():
                     'total_quantity': [max(1, int(round(pred))) for pred in predictions]
                 })
 
+                logging.info(f"Completed {product_name} predictions")
+
                 # Append to combined dataframe
                 all_predictions_df = pd.concat([all_predictions_df, future_df], ignore_index=True)
                 
@@ -250,7 +265,7 @@ def predict():
         # Make prediction using the loaded model
         # Return error if no predictions were made
         if len(all_predictions_df) == 0:
-            return jsonify({"error": "No predictions could be generated for any product"}), 500
+            return jsonify({"preds": "No predictions could be generated for any product"}), 500
 
         json_data = all_predictions_df.to_json(orient='records')
         return jsonify({"preds": json_data})
