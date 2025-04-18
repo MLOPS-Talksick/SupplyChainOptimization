@@ -260,7 +260,7 @@ export default function DataTable() {
   const chartConfig: ChartConfig = {
     quantity: {
       label: "Quantity",
-      color: "hsl(var(--primary))",
+      color: "hsl(142 88% 28%)",
     },
   };
 
@@ -464,12 +464,12 @@ export default function DataTable() {
                       >
                         <stop
                           offset="5%"
-                          stopColor="var(--color-quantity)"
-                          stopOpacity={0.8}
+                          stopColor="hsl(142 88% 28%)"
+                          stopOpacity={0.4}
                         />
                         <stop
                           offset="95%"
-                          stopColor="var(--color-quantity)"
+                          stopColor="hsl(142 88% 28%)"
                           stopOpacity={0.1}
                         />
                       </linearGradient>
@@ -512,9 +512,9 @@ export default function DataTable() {
                     />
                     <Area
                       dataKey="quantity"
-                      type="monotone"
+                      type="natural"
                       fill="url(#fillQuantity)"
-                      stroke="var(--color-quantity)"
+                      stroke="hsl(142 88% 28%)"
                       strokeWidth={2}
                     />
                   </AreaChart>
