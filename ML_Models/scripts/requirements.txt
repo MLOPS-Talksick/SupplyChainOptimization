@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pandas
+numpy
+scipy
+scikit-learn
+google-cloud-storage
+google-cloud-scheduler
+cloud-sql-python-connector
+pymysql
+sqlalchemy
+python-dotenv
+requests
+pydantic
