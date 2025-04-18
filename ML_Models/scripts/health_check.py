@@ -579,7 +579,7 @@ async def model_health_check(token: str = Depends(verify_token)):
             "issues": issues
         }
 
-    except Exception as e:
+    except Exception as e: 
         logging.error(f"Model health check error: {e}")
         return JSONResponse(
             status_code=500,
