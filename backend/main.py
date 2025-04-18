@@ -259,7 +259,7 @@ def get_data(n: int = 5, predictions: bool = False):
 def get_data(n: int = 5, predictions: bool = False):
     logging.info("Received /data request.")
     if predictions:
-        table = "PREDS"
+        table = "PREDICT"
     else:
         table = "SALES"
     n = max(0, n)
@@ -452,10 +452,10 @@ async def get_prediction(request: PredictRequest):
     end_date = date.today() + timedelta(days=days)
     logging.info(f"Date range: {start_date} → {end_date}")
 
-    # 2) Check PREDS table for existing predictions
+    # 2) Check PREDICT table for existing predictions
     try:
         df_existing = pd.read_sql(
-            text("SELECT sale_date, product_name, prediction FROM PREDS "
+            text("SELECT sale_date, product_name, prediction FROM PREDICT "
                  "WHERE sale_date BETWEEN :start AND :end ;"),
             engine,
             params={"start": start_date, "end": end_date}
@@ -465,17 +465,17 @@ async def get_prediction(request: PredictRequest):
         expected_dates = { start_date + timedelta(i) 
                            for i in range((end_date - start_date).days + 1) }
     except Exception as e:
-        logging.error(f"Failed to query PREDS table: {e}")
+        logging.error(f"Failed to query PREDICT table: {e}")
         raise HTTPException(status_code=500, detail="Database error checking predictions")
 
     # 3) If we have every date in the range, return from DB
     if expected_dates.issubset(existing_dates):
-        logging.info("All predictions found in PREDS; returning cached results.")
+        logging.info("All predictions found in PREDICT; returning cached results.")
         records = df_existing.to_dict()
         return {"predictions": records}
 
     # 4) Otherwise call the model-serving endpoint for fresh predictions
-    logging.info("Missing some dates in PREDS; calling model-api")
+    logging.info("Missing some dates in PREDICT; calling model-api")
     payload = {"days": days}
     try:
         resp = requests.post(f"{MODEL_SERVING_URL}/predict", json=payload)
