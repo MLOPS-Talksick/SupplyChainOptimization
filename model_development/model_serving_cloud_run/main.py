@@ -7,7 +7,8 @@ from tensorflow.keras.models import load_model
 from google.cloud import storage
 from dotenv import load_dotenv
 from flask_cors import CORS
-from utils import get_latest_data_from_cloud_sql
+from utils import get_latest_data_from_cloud_sql, upsert_df
+
 import pandas as pd
 import numpy as np
 import pickle
@@ -186,7 +187,7 @@ def predict():
                 predictions = []
                 current_sequence = current_sequence[0]  # Get the sequence as a 2D array\
 
-                logging.info("Started prediction loop....")
+                logging.info(f"Started prediction loop for {product_name}....")
                 
                 for i in range(days):
                     # Reshape for prediction
@@ -261,14 +262,14 @@ def predict():
                 print(f"Error processing product '{product_name}': {str(e)}")
                 continue
         
-
         # Make prediction using the loaded model
         # Return error if no predictions were made
         if len(all_predictions_df) == 0:
             return jsonify({"preds": "No predictions could be generated for any product"}), 500
-
-        json_data = all_predictions_df.to_json(orient='records')
-        return jsonify({"preds": json_data})
+        
+        logging.info("Adding data to SQL..")
+        upsert_df(all_predictions_df, 'PREDICT')
+        return jsonify({"preds": "Successfully made predictions"})
     
     except Exception as e:
         return jsonify({"error": f"Prediction failed: {str(e)}"}), 500

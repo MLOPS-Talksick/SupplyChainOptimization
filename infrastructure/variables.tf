@@ -69,7 +69,7 @@ variable "allocated_ip_range_name" {
 
 variable "bucket_names" {
   type    = set(string)
-  default = ["full-raw-data-test", "fully-processed-data-test"]
+  default = ["full-raw-data-test", "fully-processed-data-test", "email"]
 }
 
 
@@ -229,6 +229,7 @@ locals {
   model_training_image_uri         = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
   model_training_trigger_image_uri = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training_trigger:latest"
   backend_image_uri                = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/cloudrun_backend:latest"
+  model_health_check_image_uri     = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/cloudrun_model_health_check:latest"
 }
 
 variable "cloudrun_service_name" {

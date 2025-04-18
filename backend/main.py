@@ -362,7 +362,7 @@ def get_stats():
 class EmailRequest(BaseModel):
     email: EmailStr
 
-@router.post("/upload-email", dependencies=[Depends(get_current_user)])
+@app.post("/upload-email", dependencies=[Depends(verify_token)])
 async def upload_email(payload: EmailRequest):
     """Accepts an email and uploads it as a text file to GCS."""
     email_address = payload.email
@@ -372,11 +372,11 @@ async def upload_email(payload: EmailRequest):
     # Basic validation of config
     
     try:
-        logger.info("Received request to upload email to GCS bucket '%s'", bucket_name)
+        logging.info("Received request to upload email to GCS bucket '%s'", bucket_name)
         # 1. Create a text file with the email content
         with open(file_name, "w") as f:
             f.write(email_address)
-        logger.info("Created file %s with the provided email", file_name)
+        logging.info("Created file %s with the provided email", file_name)
 
         # 2. Initialize GCS client and get the bucket
         storage_client = storage.Client()  # uses credentials from env by default&#8203;:contentReference[oaicite:2]{index=2}
@@ -386,16 +386,16 @@ async def upload_email(payload: EmailRequest):
         blobs = bucket.list_blobs()
         for blob in blobs:
             bucket.delete_blob(blob.name)
-            logger.info("Deleted existing object '%s' from bucket", blob.name)
+            logging.info("Deleted existing object '%s' from bucket", blob.name)
 
         # 4. Upload the new file to GCS (as 'email.txt')
         blob = bucket.blob(file_name)
         blob.upload_from_filename(file_name)
-        logger.info("Uploaded file to GCS bucket '%s' as object '%s'", bucket_name, file_name)
+        logging.info("Uploaded file to GCS bucket '%s' as object '%s'", bucket_name, file_name)
 
         return {"detail": "Email file uploaded successfully to GCS."}
     except Exception as e:
-        logger.error("Failed to upload email to GCS: %s", e, exc_info=True)
+        logging.error("Failed to upload email to GCS: %s", e, exc_info=True)
         # Return a generic error to client
         raise HTTPException(status_code=500, detail="Internal server error")
 

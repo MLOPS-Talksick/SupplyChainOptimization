@@ -379,6 +379,99 @@ resource "google_cloud_run_v2_service" "backend" {
 }
 
 
+resource "google_cloud_run_v2_service" "model_health_check" {
+  name     = "model-health-check"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    containers {
+      image = local.model_health_check_image_uri
+
+      env {
+        name  = "MYSQL_HOST"
+        value = local.mysql_host
+      }
+
+      env {
+        name  = "MYSQL_USER"
+        value = var.mysql_user
+      }
+
+      env {
+        name  = "MYSQL_PASSWORD"
+        value = var.mysql_password
+      }
+
+      env {
+        name  = "MYSQL_DATABASE"
+        value = var.mysql_database
+      }
+
+      env {
+        name  = "INSTANCE_CONN_NAME"
+        value = local.instance_conn_name
+      }
+
+      env {
+        name  = "GCS_BUCKET_NAME"
+        value = var.gcs_bucket_name
+      }
+
+      env {
+        name  = "VERTEX_REGION"
+        value = var.region   # or wherever your Scheduler lives
+      }
+
+      env {
+        name  = "API_TOKEN"
+        value = var.api_token
+      }
+
+      env {
+        name  = "PROJECT_ID"
+        value = var.project_id
+      }
+
+      env {
+        name  = "TRAINING_TRIGGER_URL"
+        value = google_cloud_run_v2_service.model_training_trigger.uri
+      }
+
+      env {
+        name  = "TRAINING_IMAGE_URI"
+        value = local.model_training_trigger_image_uri
+      }
+
+      
+
+      resources {
+        limits = {
+          cpu    = "500m"
+          memory = "512Mi"
+        }
+      }
+    }
+
+    # ─── VPC CONNECTOR & EGRESS ──────────────────────────────────
+    vpc_access {
+      connector = google_vpc_access_connector.cloudrun_connector.id
+      egress    = "ALL_TRAFFIC"
+    }
+
+    service_account = var.service_account_email
+    timeout         = "300s"   # adjust if your health check takes longer
+  }
+
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"  # or change to INTERNAL_LOAD_BALANCER if you front it with your LB
+
+  traffic {
+    percent = 100
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+  }
+}
+
+
 resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
   name                  = "cloudrun-neg"
   region                = var.region
@@ -401,6 +494,31 @@ resource "google_cloud_run_service_iam_member" "allow_backend" {
   project  = var.project_id
   location = var.region
   service  = google_cloud_run_v2_service.backend.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+resource "google_cloud_run_service_iam_member" "allow_model_serving" {
+  project  = var.project_id
+  location = var.region
+  service  = google_cloud_run_v2_service.model_serving.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+resource "google_cloud_run_service_iam_member" "allow_model_training_trigger" {
+  project  = var.project_id
+  location = var.region
+  service  = google_cloud_run_v2_service.model_training_trigger.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+
+resource "google_cloud_run_service_iam_member" "allow_model_health_check" {
+  project  = var.project_id
+  location = var.region
+  service  = google_cloud_run_v2_service.model_health_check.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }

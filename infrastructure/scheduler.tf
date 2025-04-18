@@ -1,7 +1,7 @@
 resource "google_cloud_scheduler_job" "job" {
   name             = "lstm-health-check-job"
   description      = "Cloud Scheduler job that targets a Cloud Run HTTP function"
-  schedule         = "0 0 * * 0"
+  schedule         = "0 8 * * 0"
   time_zone        = "America/New_York"
   project          = var.project_id
   region           = var.region
@@ -16,8 +16,8 @@ resource "google_cloud_scheduler_job" "job" {
   }
 
   http_target {
-    uri         = google_cloud_run_v2_service.backend.uri # I need to hit /predict
-    http_method = "POST"
+    uri         = "${google_cloud_run_v2_service.model_health_check.uri}/model/health"
+    http_method = "GET"
     headers     = { "Content-Type" = "application/json" }
     body = base64encode(jsonencode({
             days = 7
@@ -27,7 +27,7 @@ resource "google_cloud_scheduler_job" "job" {
       for_each = var.service_account_email != null ? [1] : []
       content {
         service_account_email = var.service_account_email
-        audience              = "${google_cloud_run_v2_service.backend.uri}/predict"
+        audience              = google_cloud_run_v2_service.model_health_check.uri
       }
     }
   }
