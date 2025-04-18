@@ -18,7 +18,9 @@ resource "google_cloud_scheduler_job" "model_health_check_job" {
   http_target {
     uri         = "${google_cloud_run_v2_service.model_health_check.uri}/model/health"
     http_method = "POST"
-    headers     = { "Content-Type" = "application/json" }
+    headers     = { 
+      "Content-Type" = "application/json"
+    }
 
     oidc_token {
       service_account_email = var.service_account_email
@@ -54,7 +56,8 @@ resource "google_cloud_scheduler_job" "prediction_job" {
     body = base64encode(jsonencode({ days = 7 }))
 
     headers = {
-      "Content-Type" = "application/json"
+      "Content-Type" = "application/json",
+      "token"        = var.api_token
     }
 
     oidc_token {
