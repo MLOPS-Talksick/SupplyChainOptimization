@@ -27,7 +27,6 @@ def load_dataset(query=None, file_path=None):
     try:
         if query:
             # Use your existing function to get data from Cloud SQL
-            from your_utils import get_latest_data_from_cloud_sql
             df = get_latest_data_from_cloud_sql(query=query)
         elif file_path:
             # Load from local CSV file
@@ -77,22 +76,11 @@ def analyze_data_distribution(df):
     monthly_distribution = df.groupby(['Product Name', 'month'])['Total Quantity'].mean().unstack()
     weekly_distribution = df.groupby(['Product Name', 'dayofweek'])['Total Quantity'].mean().unstack()
     
-    # Check for outliers in demand quantity
-    outliers = {}
-    for product in df['Product Name'].unique():
-        product_df = df[df['Product Name'] == product]
-        q1 = product_df['Total Quantity'].quantile(0.25)
-        q3 = product_df['Total Quantity'].quantile(0.75)
-        iqr = q3 - q1
-        outlier_mask = (product_df['Total Quantity'] < (q1 - 1.5 * iqr)) | (product_df['Total Quantity'] > (q3 + 1.5 * iqr))
-        outliers[product] = product_df[outlier_mask].shape[0] / product_df.shape[0]
-    
     return {
         'product_counts': product_counts,
         'product_time_coverage': product_time_coverage,
         'monthly_distribution': monthly_distribution,
-        'weekly_distribution': weekly_distribution,
-        'outlier_percentage': outliers
+        'weekly_distribution': weekly_distribution
     }
 
 def plot_distribution_bias(analysis_results, output_dir='.'):
@@ -146,17 +134,17 @@ def plot_distribution_bias(analysis_results, output_dir='.'):
     plt.savefig(os.path.join(output_dir, 'weekly_distribution.png'))
     plt.close()
     
-    # Plot outlier percentages
-    plt.figure(figsize=(12, 6))
-    outlier_df = pd.Series(analysis_results['outlier_percentage'])
-    sns.barplot(x=outlier_df.index, y=outlier_df.values)
-    plt.title('Percentage of Outliers by Product')
-    plt.xlabel('Product')
-    plt.ylabel('Outlier Percentage')
-    plt.xticks(rotation=90)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'outlier_percentage.png'))
-    plt.close()
+    # # Plot outlier percentages
+    # plt.figure(figsize=(12, 6))
+    # outlier_df = pd.Series(analysis_results['outlier_percentage'])
+    # sns.barplot(x=outlier_df.index, y=outlier_df.values)
+    # plt.title('Percentage of Outliers by Product')
+    # plt.xlabel('Product')
+    # plt.ylabel('Outlier Percentage')
+    # plt.xticks(rotation=90)
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(output_dir, 'outlier_percentage.png'))
+    # plt.close()
 
 def detect_temporal_bias(df):
     """
@@ -287,6 +275,9 @@ def check_prediction_bias(model, X_test, y_test, scaler_y):
     abs_errors = np.abs(errors)
     hetero_corr, hetero_p = pearsonr(y_test_real.flatten(), abs_errors.flatten())
     
+    # checking if bigger predictions lead to bigger errors — a smart way to test your model’s consistency. If hetero_corr is high and hetero_p is low, your model might need some tweaking (e.g., transforming the target, weighted loss, etc.).
+
+
     return {
         'mean_error': mean_error,
         'median_error': median_error,
@@ -295,40 +286,40 @@ def check_prediction_bias(model, X_test, y_test, scaler_y):
         'heteroscedasticity_p_value': hetero_p
     }
 
-def handle_data_imbalance(df, min_samples=30):
-    """
-    Handle data imbalance through augmentation or weighted sampling
-    """
-    logger.info("Handling data imbalance")
+# def handle_data_imbalance(df, min_samples=30):
+#     """
+#     Handle data imbalance through augmentation or weighted sampling
+#     """
+#     logger.info("Handling data imbalance")
     
-    product_counts = df['Product Name'].value_counts()
-    products_to_augment = product_counts[product_counts < min_samples].index
+#     product_counts = df['Product Name'].value_counts()
+#     products_to_augment = product_counts[product_counts < min_samples].index
     
-    augmented_df = df.copy()
+#     augmented_df = df.copy()
     
-    for product in products_to_augment:
-        product_df = df[df['Product Name'] == product]
+#     for product in products_to_augment:
+#         product_df = df[df['Product Name'] == product]
         
-        # If very few samples, use SMOTE-like approach by adding noise to existing samples
-        if len(product_df) < 10:
-            num_to_generate = min_samples - len(product_df)
+#         # If very few samples, use SMOTE-like approach by adding noise to existing samples
+#         if len(product_df) < 10:
+#             num_to_generate = min_samples - len(product_df)
             
-            # Generate synthetic samples by adding noise to quantity
-            for _ in range(num_to_generate):
-                # Randomly select a row to duplicate with noise
-                sample_idx = np.random.randint(0, len(product_df))
-                new_sample = product_df.iloc[sample_idx].copy()
+#             # Generate synthetic samples by adding noise to quantity
+#             for _ in range(num_to_generate):
+#                 # Randomly select a row to duplicate with noise
+#                 sample_idx = np.random.randint(0, len(product_df))
+#                 new_sample = product_df.iloc[sample_idx].copy()
                 
-                # Add noise to quantity (±10%)
-                noise_factor = 0.1
-                quantity = new_sample['Total Quantity']
-                new_quantity = max(1, int(quantity * (1 + np.random.uniform(-noise_factor, noise_factor))))
-                new_sample['Total Quantity'] = new_quantity
+#                 # Add noise to quantity (±10%)
+#                 noise_factor = 0.1
+#                 quantity = new_sample['Total Quantity']
+#                 new_quantity = max(1, int(quantity * (1 + np.random.uniform(-noise_factor, noise_factor))))
+#                 new_sample['Total Quantity'] = new_quantity
                 
-                # Add to the augmented dataframe
-                augmented_df = pd.concat([augmented_df, pd.DataFrame([new_sample])], ignore_index=True)
+#                 # Add to the augmented dataframe
+#                 augmented_df = pd.concat([augmented_df, pd.DataFrame([new_sample])], ignore_index=True)
     
-    return augmented_df
+#     return augmented_df
 
 def create_balanced_sequences(df, features, target_col, time_steps=5, test_size=0.2):
     """
@@ -546,7 +537,7 @@ def get_latest_data_from_cloud_sql(query, port="3306"):
         pd.DataFrame: Query results.
     """
 
-    MYSQL_HOST = "35.192.172.104"
+    MYSQL_HOST = "34.56.21.150"
     MYSQL_USER = "shrey"
     MYSQL_PASSWORD = "shrey"
     MYSQL_DATABASE = "combined_transaction_data"
@@ -612,16 +603,16 @@ def generate_bias_report(data_analysis, temporal_bias, prediction_bias, fairness
     if max_coverage/max(1, min_coverage) > 3:
         report.append("\n⚠️ **Warning**: Significant variation in time coverage between products. Some products may lack sufficient historical data.")
     
-    # Outliers
-    report.append("\n### 1.3 Outlier Analysis")
-    outlier_pct = data_analysis['outlier_percentage']
-    max_outlier_pct = max(outlier_pct.values())
+    # # Outliers
+    # report.append("\n### 1.3 Outlier Analysis")
+    # outlier_pct = data_analysis['outlier_percentage']
+    # max_outlier_pct = max(outlier_pct.values())
     
-    report.append(f"- Maximum outlier percentage: {max_outlier_pct:.2%}")
-    report.append(f"- Average outlier percentage: {sum(outlier_pct.values())/len(outlier_pct):.2%}")
+    # report.append(f"- Maximum outlier percentage: {max_outlier_pct:.2%}")
+    # report.append(f"- Average outlier percentage: {sum(outlier_pct.values())/len(outlier_pct):.2%}")
     
-    if max_outlier_pct > 0.1:
-        report.append("\n⚠️ **Warning**: High percentage of outliers detected. Consider robust scaling or outlier removal.")
+    # if max_outlier_pct > 0.1:
+    #     report.append("\n⚠️ **Warning**: High percentage of outliers detected. Consider robust scaling or outlier removal.")
     
     # Temporal bias
     report.append("\n## 2. Temporal Bias Analysis")
@@ -735,10 +726,10 @@ def generate_bias_report(data_analysis, temporal_bias, prediction_bias, fairness
         recommendations.append("- **Historical Data Collection**: Collect more historical data for products with limited time coverage.")
         recommendations.append("- **Transfer Learning**: Use knowledge from products with extensive history to inform predictions for newer products.")
     
-    # Outlier recommendations
-    if max_outlier_pct > 0.1:
-        recommendations.append("- **Robust Scaling**: Use robust scaling methods (like RobustScaler) that are less sensitive to outliers.")
-        recommendations.append("- **Anomaly Detection**: Implement anomaly detection to identify and handle extreme values appropriately.")
+    # # Outlier recommendations
+    # if max_outlier_pct > 0.1:
+    #     recommendations.append("- **Robust Scaling**: Use robust scaling methods (like RobustScaler) that are less sensitive to outliers.")
+    #     recommendations.append("- **Anomaly Detection**: Implement anomaly detection to identify and handle extreme values appropriately.")
     
     # Temporal bias recommendations
     if 'autocorr' in locals() and max_autocorr > 0.7:
@@ -805,29 +796,29 @@ def main():
         temporal_bias = detect_temporal_bias(df)
         
         # Handle data imbalance
-        balanced_df = handle_data_imbalance(df)
+        # balanced_df = handle_data_imbalance(df)
         
         # Extract date features
-        balanced_df['year'] = balanced_df['Date'].dt.year
-        balanced_df['month'] = balanced_df['Date'].dt.month
-        balanced_df['day'] = balanced_df['Date'].dt.day
-        balanced_df['dayofweek'] = balanced_df['Date'].dt.dayofweek
-        balanced_df['dayofyear'] = balanced_df['Date'].dt.dayofyear
-        balanced_df['quarter'] = balanced_df['Date'].dt.quarter
+        df['year'] = df['Date'].dt.year
+        df['month'] = df['Date'].dt.month
+        df['day'] = df['Date'].dt.day
+        df['dayofweek'] = df['Date'].dt.dayofweek
+        df['dayofyear'] = df['Date'].dt.dayofyear
+        df['quarter'] = df['Date'].dt.quarter
         
         # Add rolling statistics
-        balanced_df = balanced_df.sort_values(['Product Name', 'Date'])
-        balanced_df['rolling_mean_7d'] = balanced_df.groupby('Product Name')['Total Quantity'].transform(
+        df = df.sort_values(['Product Name', 'Date'])
+        df['rolling_mean_7d'] = df.groupby('Product Name')['Total Quantity'].transform(
             lambda x: x.rolling(window=7, min_periods=1).mean())
-        balanced_df['rolling_std_7d'] = balanced_df.groupby('Product Name')['Total Quantity'].transform(
+        df['rolling_std_7d'] = df.groupby('Product Name')['Total Quantity'].transform(
             lambda x: x.rolling(window=7, min_periods=1).std().fillna(0))
         
         # Add lag features
         for lag in [1, 2, 3, 7]:
-            balanced_df[f'lag_{lag}d'] = balanced_df.groupby('Product Name')['Total Quantity'].shift(lag)
+            df[f'lag_{lag}d'] = df.groupby('Product Name')['Total Quantity'].shift(lag)
         
         # Fill NaN values
-        balanced_df = balanced_df.fillna(0)
+        df = df.fillna(0)
         
         # Define features
         features = ['year', 'month', 'day', 'dayofweek', 'dayofyear', 'quarter', 
@@ -836,7 +827,7 @@ def main():
         
         # Create balanced sequences
         X_train, X_test, y_train, y_test, scaler_X, scaler_y, label_encoder, product_indices, product_names = create_balanced_sequences(
-            balanced_df, features, 'Total Quantity', time_steps=5, test_size=0.2)
+            df, features, 'Total Quantity', time_steps=5, test_size=0.2)
         
         # Load or train your model
         try:

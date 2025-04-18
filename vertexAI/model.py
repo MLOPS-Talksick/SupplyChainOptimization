@@ -33,33 +33,6 @@ class DataQualityError(CustomError):
     """Exception raised for data quality issues"""
     pass
 
-def load_dataset(query=None, file_path=None):
-    """
-    Load dataset either from Cloud SQL or local file
-    """
-    try:
-        if query:
-            df = get_latest_data_from_cloud_sql(query=query)
-        elif file_path:
-            # Load from local CSV file
-            df = pd.read_csv(file_path)
-        else:
-            raise ValueError("Either query or file_path must be provided")
-        
-        logger.info(f"Loaded dataset with {len(df)} rows and {df['Product Name'].nunique()} unique products")
-        
-        # Convert data types
-        df['Total Quantity'] = df['Total Quantity'].astype(int)
-        df['Date'] = pd.to_datetime(df['Date'])
-        
-        # Sort data by date
-        df = df.sort_values('Date')
-        
-        return df
-    except Exception as e:
-        logger.error(f"Error loading dataset: {e}")
-        raise
-
 def detect_data_quality_issues(df):
     """
     Detect data quality issues before proceeding
@@ -1548,25 +1521,19 @@ def main():
         except Exception as e:
             logger.warning(f"Could not load from SQL: {e}")
             logger.info("Trying to load from local CSV file")
-            df = load_dataset(file_path='sales_data.csv')
         
         # 2. Check data quality
         logger.info("Step 2: Checking data quality")
         issues = detect_data_quality_issues(df)
 
+        print("@@@@@@@@@@@@@@@@@@@@@")
+        print(issues)
+
         df['Date'] = pd.to_datetime(df['Date'])
-        
-        # 3. Clean data
-        logger.info("Step 3: Cleaning data")
-        cleaned_df = clean_data(df)
-        
-        # 4. Handle outliers
-        logger.info("Step 4: Handling outliers")
-        cleaned_df = handle_outliers(cleaned_df, method='winsorize')
         
         # 5. Handle class imbalance
         logger.info("Step 5: Handling class imbalance")
-        balanced_df = handle_data_imbalance(cleaned_df, min_samples=30)
+        balanced_df = handle_data_imbalance(df, min_samples=30)
         
         # 6. Create features
         logger.info("Step 6: Creating features")
