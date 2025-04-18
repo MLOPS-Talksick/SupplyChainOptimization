@@ -556,33 +556,17 @@ resource "google_monitoring_notification_channel" "model_retrain_channel" {
 
 
 
-
 resource "google_monitoring_alert_policy" "model_retrain_policy" {
   display_name = "Retrain Model on High Error"
   combiner     = "OR"
 
-  # RMSE condition
+  # ─── RMSE condition ────────────────────────────────────────────────────────────
   conditions {
     display_name = "RMSE above threshold"
     condition_threshold {
-      filter          = "metric.type=\"custom.googleapis.com/model/rmse\""
+      filter          = "resource.type=\"global\" AND metric.type=\"custom.googleapis.com/model/rmse\""
       comparison      = "COMPARISON_GT"
-      threshold_value = 18.0             # your RMSE_THRESHOLD
-      duration        = "300s"           # must stay high for 5m
-      aggregations {
-        alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MEAN"
-      }
-    }
-  }
-
-  # MAPE condition
-  conditions {
-    display_name = "MAPE above threshold"
-    condition_threshold {
-      filter          = "metric.type=\"custom.googleapis.com/model/mape\""
-      comparison      = "COMPARISON_GT"
-      threshold_value = 0.25             # your MAPE_THRESHOLD
+      threshold_value = 18.0
       duration        = "300s"
       aggregations {
         alignment_period   = "60s"
@@ -591,7 +575,21 @@ resource "google_monitoring_alert_policy" "model_retrain_policy" {
     }
   }
 
-  # When the policy fires, send to the webhook channel
+  # ─── MAPE condition ────────────────────────────────────────────────────────────
+  conditions {
+    display_name = "MAPE above threshold"
+    condition_threshold {
+      filter          = "resource.type=\"global\" AND metric.type=\"custom.googleapis.com/model/mape\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0.25
+      duration        = "300s"
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
+    }
+  }
+
   notification_channels = [
     google_monitoring_notification_channel.model_retrain_channel.id
   ]
