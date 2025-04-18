@@ -455,7 +455,7 @@ async def get_prediction(request: PredictRequest):
     # 2) Check PREDICT table for existing predictions
     try:
         df_existing = pd.read_sql(
-            text("SELECT sale_date, product_name, prediction FROM PREDICT "
+            text("SELECT sale_date, product_name, total_quantity FROM PREDICT "
                  "WHERE sale_date BETWEEN :start AND :end ;"),
             engine,
             params={"start": start_date, "end": end_date}
