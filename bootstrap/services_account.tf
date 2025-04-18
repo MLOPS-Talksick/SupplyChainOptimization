@@ -62,7 +62,8 @@ locals {
     "roles/vpcaccess.admin",                                   // VPC access
     "roles/run.invoker",
     "roles/cloudsql.client",
-    "roles/cloudscheduler.admin"
+    "roles/cloudscheduler.admin",
+    "roles/monitoring.metricWriter"
   ]
 }
 

@@ -196,7 +196,8 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
     timeout         = "900s"
   }
 
-  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  # ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  ingress = "INGRESS_TRAFFIC_ALL"
 
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
@@ -521,4 +522,54 @@ resource "google_cloud_run_service_iam_member" "allow_model_health_check" {
   service  = google_cloud_run_v2_service.model_health_check.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+resource "google_monitoring_notification_channel" "model_retrain_webhook" {
+  display_name = "Model Retraining Webhook"
+  type         = "webhook"    # uses HTTP POST
+  labels = {
+    # Cloud Monitoring will POST alert JSON to this URL:
+    url = google_cloud_run_v2_service.model_training_trigger.uri
+  }
+}
+
+
+resource "google_monitoring_alert_policy" "model_retrain_policy" {
+  display_name = "Retrain Model on High Error"
+  combiner     = "OR"  # fire if **any** condition is true
+
+  # RMSE condition
+  conditions {
+    display_name = "RMSE above threshold"
+    condition_threshold {
+      filter          = "metric.type=\"custom.googleapis.com/model/rmse\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 18.0             # your RMSE_THRESHOLD
+      duration        = "300s"           # must stay high for 5m
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
+    }
+  }
+
+  # MAPE condition
+  conditions {
+    display_name = "MAPE above threshold"
+    condition_threshold {
+      filter          = "metric.type=\"custom.googleapis.com/model/mape\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0.25             # your MAPE_THRESHOLD
+      duration        = "300s"
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
+    }
+  }
+
+  # When the policy fires, send to the webhook channel
+  notification_channels = [
+    google_monitoring_notification_channel.model_retrain_webhook.id
+  ]
 }
