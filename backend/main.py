@@ -210,6 +210,49 @@ async def upload_file(
         "dag_run_id": dag_run_id
     }
 
+@app.get("/monitoring", dependencies=[Depends(verify_token)])
+def get_data(n: int = 5, predictions: bool = False):
+    logging.info("Received /monitoring request.")
+    
+        
+    table = "STATS"
+    n = max(0, n)
+    try:
+        def getconn():
+            conn = connector.connect(
+                conn_name,      # Cloud SQL instance connection name
+                "pymysql",      # Database driver
+                user=user,      # Database user
+                password=password,  # Database password
+                db=database,    # Database name
+                ip_type="PRIVATE"
+            )
+            return conn
+
+        pool = sqlalchemy.create_engine(
+            "mysql+pymysql://",
+            creator=getconn,
+        )
+        logging.info("Database connection pool created successfully.")
+    except Exception as e:
+        logging.error(f"Database connection failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+    try:
+        query = f"""
+        SELECT 
+            *
+        FROM {table}
+        ORDER BY check_date DESC LIMIT {n};"""
+        with pool.connect() as db_conn:
+            result = db_conn.execute(sqlalchemy.text(query))
+            logging.info("Database query executed. First scalar value: " + str(result.scalar()))
+        df = pd.read_sql(query, pool)
+        logging.info(f"Data retrieved successfully. Rows count: {len(df)}")
+    except Exception as e:
+        logging.error(f"Database query failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
+    return {"records": df.to_json(), "count": len(df)}
+
 
 @app.get("/data", dependencies=[Depends(verify_token)])
 def get_data(n: int = 5, predictions: bool = False):
