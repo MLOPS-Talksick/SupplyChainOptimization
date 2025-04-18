@@ -113,7 +113,6 @@ resource "google_cloud_run_v2_service" "model_serving" {
           cpu    = "1"
         }
       }
-      
     }
 
     vpc_access {
@@ -133,6 +132,8 @@ resource "google_cloud_run_v2_service" "model_serving" {
     percent         = 100
     type            = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
   }
+
+  
 }
 
 
@@ -371,7 +372,7 @@ resource "google_cloud_run_v2_service" "backend" {
     service_account       = var.service_account_email
   }
 
-  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   traffic {
     percent         = 100
@@ -563,21 +564,23 @@ resource "google_monitoring_metric_descriptor" "rmse_descriptor" {
   description = "Root Mean Squared Error of model predictions"
 }
 
-resource "google_monitoring_metric_descriptor" "mape_descriptor" {
-  display_name = "mape_descriptor"
-  type        = "custom.googleapis.com/model/mape"
-  metric_kind = "GAUGE"
-  value_type  = "DOUBLE"
-  description = "Mean Absolute Percentage Error of model predictions"
+# ─── Custom metric for P‑Value ───────────────────────────────────────────────
+resource "google_monitoring_metric_descriptor" "p_value_descriptor" {
+  display_name = "Model P‑Value"
+  type         = "custom.googleapis.com/model/p_value"
+  metric_kind  = "GAUGE"
+  value_type   = "DOUBLE"
+  description  = "P‑Value from KS test between actuals and predictions"
 }
 
+# ─── Alert policy on RMSE > 18 OR P‑Value < 0.05 ────────────────────────────
 resource "google_monitoring_alert_policy" "model_retrain_policy" {
-  depends_on  = [
+  depends_on = [
     google_monitoring_metric_descriptor.rmse_descriptor,
-    google_monitoring_metric_descriptor.mape_descriptor,
+    google_monitoring_metric_descriptor.p_value_descriptor,
   ]
 
-  display_name = "Retrain Model on High Error"
+  display_name = "Retrain Model on High Error / Low P‑Value"
   combiner     = "OR"
 
   conditions {
@@ -595,11 +598,11 @@ resource "google_monitoring_alert_policy" "model_retrain_policy" {
   }
 
   conditions {
-    display_name = "MAPE above threshold"
+    display_name = "P‑Value below threshold"
     condition_threshold {
-      filter          = "resource.type=\"global\" AND metric.type=\"custom.googleapis.com/model/mape\""
-      comparison      = "COMPARISON_GT"
-      threshold_value = 0.25
+      filter          = "resource.type=\"global\" AND metric.type=\"custom.googleapis.com/model/p_value\""
+      comparison      = "COMPARISON_LT"
+      threshold_value = 0.05
       duration        = "300s"
       aggregations {
         alignment_period   = "60s"

@@ -493,14 +493,8 @@ def verify_token(token: str = Header(None)):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
-# ─── Endpoints ──────────────────────────────────────────────────────────────────
 
-@app.get("/health")
-async def basic_health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-
-
-@app.get("/model/health", tags=["Health"])
+@app.post("/model/health", tags=["Health"])
 async def model_health_check(token: str = Depends(verify_token)):
     """
     Fetch last 30 days of actuals vs preds, compute metrics,
@@ -515,12 +509,12 @@ async def model_health_check(token: str = Depends(verify_token)):
         sales_q = f"""
           SELECT sale_date, product_name, total_quantity
           FROM SALES
-          WHERE sale_date BETWEEN '{start}' AND '{end}'
+          WHERE sale_date BETWEEN '{start}' AND '{end}';
         """
         preds_q = f"""
           SELECT sale_date, product_name, total_quantity
-          FROM PREDS
-          WHERE sale_date BETWEEN '{start}' AND '{end}'
+          FROM PREDICT
+          WHERE sale_date BETWEEN '{start}' AND '{end}';
         """
 
         with engine.connect() as conn:
@@ -568,9 +562,6 @@ async def model_health_check(token: str = Depends(verify_token)):
             if p_val < P_VALUE_THRESHOLD:
                 status = "unhealthy"
                 issues.append(f"p-value {p_val:.4f} < {P_VALUE_THRESHOLD}")
-            if mape > MAPE_THRESHOLD:
-                status = "unhealthy"
-                issues.append(f"MAPE {mape:.2f} > {MAPE_THRESHOLD}")
 
         return {
             "status": status,
