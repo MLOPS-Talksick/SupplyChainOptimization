@@ -64,7 +64,6 @@ locals {
     "roles/cloudsql.client",
     "roles/cloudscheduler.admin",
     "roles/monitoring.metricWriter",
-    "roles/monitoring.notificationChannelCreator",
     "roles/monitoring.admin"
   ]
 }
