@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 from utils import get_latest_data_from_cloud_sql, upsert_df
 
+from datetime import datetime
+
 import pandas as pd
 import numpy as np
 import pickle
@@ -64,7 +66,7 @@ def predict():
     try:
         content = request.json
         data = request.get_json()
-        latest_date = pd.to_datetime(data.get('date', pd.Timestamp.today()))
+        # latest_date = pd.to_datetime(data.get('date', pd.Timestamp.today()))
         days = data.get('days') 
 
         scaler_X_path = load_from_gcs("model_training_1", 'scaler_X.pkl')
@@ -107,6 +109,12 @@ def predict():
 
         # Convert the 'Date' column to datetime
         df['Date'] = pd.to_datetime(df['Date'])
+        latest_date = df['Date'].max()
+        # Get the current date
+        current_date = datetime.now().date()
+        days_difference = (current_date - latest_date.date()).days
+
+        days = days + days_difference
         df_copy = df.copy()
         # Process each product
         for product_name in unique_products:
@@ -269,7 +277,9 @@ def predict():
         
         logging.info("Adding data to SQL..")
         upsert_df(all_predictions_df, 'PREDICT')
-        return jsonify({"preds": "Successfully made predictions"})
+        df_json = all_predictions_df.to_dict(orient='records')
+
+        return jsonify({"preds": df_json})
     
     except Exception as e:
         return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
