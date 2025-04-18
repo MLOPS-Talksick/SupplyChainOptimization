@@ -524,13 +524,37 @@ resource "google_cloud_run_service_iam_member" "allow_model_health_check" {
   member   = "allUsers"
 }
 
-resource "google_monitoring_notification_channel" "model_retrain_webhook" {
-  display_name = "Model Retraining Webhook"
-  type         = "webhook"
-  labels = {
-    url = google_cloud_run_v2_service.model_training_trigger.uri
+resource "google_pubsub_topic" "retrain_trigger" {
+  name    = "model-retrain-trigger"
+  project = var.project_id
+}
+
+
+resource "google_pubsub_subscription" "retrain_trigger_push" {
+  name  = "retrain-trigger-push"
+  topic = google_pubsub_topic.retrain_trigger.name
+
+  # Push directly into your Cloud Run retraining endpoint:
+  push_config {
+    push_endpoint = "${google_cloud_run_v2_service.model_training_trigger.uri}/"
+    oidc_token {
+      service_account_email = var.service_account_email
+      audience              = google_cloud_run_v2_service.model_training_trigger.uri
+    }
   }
 }
+
+
+resource "google_monitoring_notification_channel" "model_retrain_channel" {
+  display_name = "Model Retrain Pub/Sub Channel"
+  type         = "pubsub"
+
+  labels = {
+    topic = google_pubsub_topic.retrain_trigger.id
+  }
+}
+
+
 
 
 resource "google_monitoring_alert_policy" "model_retrain_policy" {
@@ -569,6 +593,6 @@ resource "google_monitoring_alert_policy" "model_retrain_policy" {
 
   # When the policy fires, send to the webhook channel
   notification_channels = [
-    google_monitoring_notification_channel.model_retrain_webhook.id
+    google_monitoring_notification_channel.model_retrain_channel.id
   ]
 }
