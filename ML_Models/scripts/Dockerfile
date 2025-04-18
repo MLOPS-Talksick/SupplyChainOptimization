@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose port 8080 for Cloud Run
+# …
 EXPOSE 8080
 
-# Start Uvicorn on the FastAPI app
-CMD ["uvicorn", "health_check:app", "--host", "0.0.0.0", "--port", "${PORT:-8080}"]
+CMD ["uvicorn", "health_check:app", "--host", "0.0.0.0", "--port", "8080"]
+
