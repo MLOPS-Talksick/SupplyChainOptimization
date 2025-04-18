@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      GCP_PROJECT_ID: primordial-veld-450618-n4
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GCP_LOCATION: us-central1
       TF_VAR_gcp_service_account_key: ${{ secrets.BOOTSTRAP_GCP_KEY }}
 
@@ -117,7 +117,7 @@ jobs:
     needs: bootstrap
     runs-on: ubuntu-latest
     env:
-      GCP_PROJECT_ID: primordial-veld-450618-n4
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
     outputs:
       model_serving_image_uri: ${{ steps.build-model-serving.outputs.model_serving_image_uri }}
       model_training_image_uri: ${{ steps.build-model-training.outputs.model_training_image_uri }}
@@ -155,23 +155,31 @@ jobs:
 
       - name: Check if Docker Build is Needed for airflow.
         id: detect-changes-airflow-image
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           chmod +x scripts/check_docker_build.sh
           ./scripts/check_docker_build.sh
 
       - name: Build & Push Docker Image for airflow.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         if: steps.detect-changes-airflow-image.outputs.build_required == 'true'
         run: |
           chmod +x scripts/build_and_push.sh
           ./scripts/build_and_push.sh
 
       - name: Check if Docker Build is Needed for Cloud Run Model Training.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         id: detect-changes-model_training-image
         run: |
           chmod +x scripts/check_cloudrun_model_training_docker_build.sh
           ./scripts/check_cloudrun_model_training_docker_build.sh
 
       - name: Build & Push Docker Image for Model Training
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         if: steps.detect-changes-model_training-image.outputs.build_required == 'true'
         id: build-model-training
         run: |
@@ -180,12 +188,16 @@ jobs:
 
       
       - name: Check if Docker Build is Needed for Cloud Run Model Serving.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         id: detect-changes-model_serving-image
         run: |
           chmod +x scripts/check_cloudrun_model_serving_docker_build.sh
           ./scripts/check_cloudrun_model_serving_docker_build.sh
 
       - name: Build & Push Docker Image for Cloud Run Model Serving.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         if: steps.detect-changes-model_serving-image.outputs.build_required == 'true'
         id: build-model-serving
         run: |
@@ -194,12 +206,16 @@ jobs:
 
 
       - name: Check if Docker Build is Needed for Cloud Run Training Trigger.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         id: detect-changes-model_training_trigger-image
         run: |
           chmod +x scripts/check_cloudrun_model_training_trigger_docker_build.sh
           ./scripts/check_cloudrun_model_training_trigger_docker_build.sh
 
       - name: Build & Push Docker Image for Training Trigger
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         if: steps.detect-changes-model_training_trigger-image.outputs.build_required == 'true'
         id: build-model-trigger
         run: |
@@ -208,12 +224,16 @@ jobs:
 
 
       - name: Check if Docker Build is Needed for Cloud Run Backend
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         id: detect-changes-backend-image
         run: |
           chmod +x scripts/check_cloudrun_backend_docker_build.sh
           ./scripts/check_cloudrun_backend_docker_build.sh
 
       - name: Build & Push Docker Image for Cloud Run Backend
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         if: steps.detect-changes-backend-image.outputs.build_required == 'true'
         id: build-backend
         run: |
@@ -222,12 +242,16 @@ jobs:
 
 
       - name: Check if Docker Build is Needed for Cloud Run Model Health Check
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         id: detect-changes-model-health-check-image
         run: |
           chmod +x scripts/check_cloudrun_model_health_check_docker_build.sh
           ./scripts/check_cloudrun_model_health_check_docker_build.sh
 
       - name: Build & Push Docker Image for Cloud Run Model Health Check
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         if: steps.detect-changes-model-health-check-image.outputs.build_required == 'true'
         id: build-model-health-check
         run: |
@@ -253,7 +277,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      GCP_PROJECT_ID: primordial-veld-450618-n4
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GCP_LOCATION: us-central1
       # TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.service_account_key }}
       # TF_VAR_service_account_email: ${{ needs.bootstrap.outputs.service_account_email }}
