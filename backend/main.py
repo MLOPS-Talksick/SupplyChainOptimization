@@ -367,7 +367,7 @@ async def upload_email(payload: EmailRequest):
     """Accepts an email and uploads it as a text file to GCS."""
     email_address = payload.email
     file_name = "email.txt"
-    bucket_name = "email"
+    bucket_name = "sco-user-email"
 
     # Basic validation of config
     
