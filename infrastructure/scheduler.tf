@@ -19,9 +19,9 @@ resource "google_cloud_scheduler_job" "job" {
     uri         = google_cloud_run_v2_service.backend.uri # I need to hit /predict
     http_method = "POST"
     headers     = { "Content-Type" = "application/json" }
-    body        =  jsonencode({
-                    "days": 7
-                  })
+    body = base64encode(jsonencode({
+            days = 7
+          }))
 
     dynamic "oidc_token" {
       for_each = var.service_account_email != null ? [1] : []
