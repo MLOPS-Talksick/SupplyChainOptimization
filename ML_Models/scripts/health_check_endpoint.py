@@ -3,11 +3,11 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta  # Added timedelta
 import time
 import json
 import requests
-from fastapi import Depends, HTTPException, APIRouter
+from fastapi import Depends, HTTPException, APIRouter, Header  # Added Header
 from scipy import stats
 from google.cloud import scheduler_v1
 from google.protobuf import duration_pb2
@@ -65,7 +65,16 @@ def get_db_connection():
     logging.info("Database connection pool created for health check")
     return pool
 
-
+# Add the verify_token function that was missing from the original code
+def verify_token(token: str = Header(None)):
+    if API_TOKEN is None:
+        logging.warning("No API_TOKEN set on server; skipping token verification.")
+        return True
+    if token is None or token != API_TOKEN:
+        logging.error("Invalid or missing token in request.")
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
+    logging.info("Token verification passed.")
+    return True
 
 @router.get("/health", tags=["Health"])
 async def basic_health_check():
@@ -84,6 +93,14 @@ async def model_health_check(token: str = Depends(verify_token)):
     Returns metrics and status information
     """
     check_date = datetime.now()
+    
+    # Calculate date one month ago
+    one_month_ago = check_date - timedelta(days=30)
+    
+    # Format dates for SQL query
+    current_date_str = check_date.strftime('%Y-%m-%d %H:%M:%S')
+    month_ago_str = one_month_ago.strftime('%Y-%m-%d %H:%M:%S')
+    
     metrics = {
         "rmse": None,
         "mape": None,
@@ -99,22 +116,22 @@ async def model_health_check(token: str = Depends(verify_token)):
         # Get database connection
         db_engine = get_db_connection()
         
-        # Fetch actual values from SALES table
-        sales_query = """
+        # Updated query to use date range for past month
+        sales_query = f"""
         SELECT 
             sale_date, product_name, total_quantity
         FROM SALES
-        ORDER BY sale_date DESC
-        LIMIT 1000;
+        WHERE sale_date BETWEEN '{month_ago_str}' AND '{current_date_str}'
+        ORDER BY sale_date DESC;
         """
         
-        # Fetch predictions from PREDS table
-        preds_query = """
+        # Updated query to use date range for past month
+        preds_query = f"""
         SELECT 
             sale_date, product_name, total_quantity
         FROM PREDS
-        ORDER BY sale_date DESC
-        LIMIT 1000;
+        WHERE sale_date BETWEEN '{month_ago_str}' AND '{current_date_str}'
+        ORDER BY sale_date DESC;
         """
         
         # Execute queries
@@ -122,7 +139,7 @@ async def model_health_check(token: str = Depends(verify_token)):
             sales_df = pd.read_sql(sales_query, conn)
             preds_df = pd.read_sql(preds_query, conn)
         
-        logging.info(f"Retrieved {len(sales_df)} sales records and {len(preds_df)} prediction records")
+        logging.info(f"Retrieved {len(sales_df)} sales records and {len(preds_df)} prediction records from {month_ago_str} to {current_date_str}")
         
         # Merge datasets on date and product_name to align actual vs predicted values
         merged_df = pd.merge(
