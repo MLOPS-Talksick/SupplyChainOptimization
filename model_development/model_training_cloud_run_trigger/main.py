@@ -144,7 +144,7 @@ def trigger_training():
     # 5) Fire it off
     job.run(
       service_account=sa_email,
-      sync=True,
+      sync=False,
     )
 
     return jsonify({"message": "Training started"})
