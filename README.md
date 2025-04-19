@@ -1,23 +1,29 @@
-# Supply Chain Optimization
+# SupplyChainOptimization
 
 > **Smarter Demand. Leaner Supply. 
 > Forecasting product demand isn't just about predicting numbers—it's about enabling intelligent decisions across your supply chain. This project delivers a production-ready, cloud-deployable LSTM pipeline backed by a complete MLOps stack for real-time business impact.
 
-## Project Overview
+---
+
+## Objective
 
 This repository implements an end-to-end **LSTM-based demand forecasting system** with a fully integrated **MLOps architecture**. It automates the lifecycle from raw data ingestion to model health checks, Dockerized deployment, and real-time monitoring. Designed for high-frequency retail or manufacturing data, the system scales effortlessly using **Google Cloud Platform (GCP)** and **Vertex AI**.
 
-Architecture Overview
+---
+
+## Architecture Overview
 
 ```
-Raw Sales Data
+ Raw Sales Data
    └── Data Validation
         └── Data Preprocessing
-             └── LSTM Model Training (Vertex AI)
-                  └── Model Health Check & Diagnostics
-                       └── Dockerized CI/CD Pipeline
+             └──  LSTM Model Training (Vertex AI)
+                  └──  Model Health Check & Diagnostics
+                       └──  Dockerized CI/CD Pipeline
                             └── Monitoring + Email Alerts
 ```
+
+---
 
 ## Project Structure
 
@@ -31,6 +37,20 @@ SupplyChainOptimization/
 ├── Dockerfile                          # Containerization for deployment
 ├── requirements.txt                    # Python dependencies
 └── README.md
+```
+
+---
+
+## Key Features
+
+- **LSTM Forecasting:** Deep learning model tailored for time series prediction of product demand.
+- **Robust Data Handling:** Includes pre-validation, preprocessing, and post-cleaning checks.
+- **Productionized Model:** Packaged using Docker and deployed via CI/CD on GCP.
+- **Automated Health Checks:** Validates model accuracy and detects drift using metrics like RMSE, MAPE, and KS-test p-values.
+- **Email Notifications:** Alerts stakeholders in real time upon failure or anomalies.
+- **Scalable Training:** Leveraged via **Vertex AI** for on-demand model retraining.
+
+---
 
 ## Quick Start
 
@@ -44,14 +64,56 @@ cd SupplyChainOptimization
 ### 2. Set Up Environment
 
 ```bash
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+
+# Upgrade pip and install dependencies
+pip install --upgrade pip
 pip install -r requirements.txt
+
+# Set environment variables
+touch .env
 ```
+
+Edit the `.env` file and add:
+
+```env
+GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/your/cloud_run.json
+MLFLOW_TRACKING_URI=http://localhost:5001
+GCP_PROJECT=your-gcp-project-id
+BUCKET_NAME=your-gcs-bucket-name
+```
+
+(Optional) Start MLflow Tracking Server:
+
+```bash
+mlflow ui --port 5001
+```
+
+(Optional) Authenticate with GCP CLI:
+
+```bash
+gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+gcloud config set project $GCP_PROJECT
+```
+
+(Optional) Build and run Docker container:
+
+```bash
+docker build -t supplychain-lstm .
+docker run -p 8080:8080 supplychain-lstm
+```
+
+---
 
 ### 3. Train the LSTM Model
 
 ```bash
 python ML_Models/lstm_pipeline.py
 ```
+
+---
 
 ### 4. Run the Model Health Check
 
@@ -61,7 +123,7 @@ python ML_Models/model_health_check_api.py
 
 ---
 
-## Model Monitoring & Validation
+## 🔍 Model Monitoring & Validation
 
 | Metric           | Description                                       |
 |------------------|---------------------------------------------------|
@@ -73,7 +135,7 @@ python ML_Models/model_health_check_api.py
 
 ---
 
-## Cloud Infrastructure
+## ☁️ Cloud Infrastructure
 
 | Component        | Tool                     |
 |------------------|--------------------------|
@@ -96,19 +158,18 @@ python ML_Models/model_health_check_api.py
 
 ---
 
-##  Use Cases
+## Use Cases
 
 - Inventory management and warehouse stocking
 - Retail demand prediction
 - Logistics and supply optimization
 - Production planning for manufacturing
 
-## License
+---
 
-This project is licensed under the terms of the LICENSE file included in the repository.
+## Future Enhancements
 
-## Acknowledgments
 
-- Yahoo Finance API for providing commodity data
-- Apache Airflow for workflow orchestration
-- Docker for containerization
+---
+
+---
