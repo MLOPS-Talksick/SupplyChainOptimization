@@ -17,8 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Supply Chain Optimization",
+  title: "SupplySense",
   description: "Optimize your supply chain with data-driven insights",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -41,7 +44,7 @@ export default function RootLayout({
             <header className="border-b">
               <div className="flex h-16 items-center justify-between px-8">
                 <Link href="/" className="text-2xl font-bold">
-                  Supply Chain Optimization
+                  SupplySense
                 </Link>
                 <NavigationMenu />
                 <ThemeToggle />

@@ -32,6 +32,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { useDropzone } from "react-dropzone";
 
 interface NewProduct {
   name: string;
@@ -54,14 +56,24 @@ export default function UploadForm() {
     newName: string;
   } | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setUploadStatus(null);
-      setValidationComplete(false);
-      setNewProducts([]);
-    }
-  };
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        setFile(acceptedFiles[0]);
+        setUploadStatus(null);
+        setValidationComplete(false);
+        setNewProducts([]);
+      }
+    },
+    accept: {
+      "application/vnd.ms-excel": [".xls"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+        ".xlsx",
+      ],
+    },
+    maxFiles: 1,
+    disabled: validationComplete,
+  });
 
   const validateFile = async () => {
     if (!file) {
@@ -225,12 +237,6 @@ export default function UploadForm() {
         setFile(null);
         setValidationComplete(false);
         setNewProducts([]);
-
-        // Clear the file input
-        const fileInput = document.getElementById(
-          "file-upload"
-        ) as HTMLInputElement;
-        if (fileInput) fileInput.value = "";
       } else {
         setUploadStatus({
           success: false,
@@ -263,12 +269,6 @@ export default function UploadForm() {
     setUploadStatus(null);
     setValidationComplete(false);
     setNewProducts([]);
-
-    // Clear the file input
-    const fileInput = document.getElementById(
-      "file-upload"
-    ) as HTMLInputElement;
-    if (fileInput) fileInput.value = "";
   };
 
   const getProductCounts = () => {
@@ -282,62 +282,92 @@ export default function UploadForm() {
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid w-full max-w-sm items-center gap-1.5">
-          <label
-            htmlFor="file-upload"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
+        <div className="grid w-full items-center gap-1.5">
+          <label className="text-sm font-medium leading-none">
             Upload Excel File
           </label>
-          <Input
-            id="file-upload"
-            type="file"
-            accept=".xls,.xlsx"
-            onChange={handleFileChange}
-            className="cursor-pointer"
-            disabled={validationComplete}
-          />
-          <p className="text-sm text-muted-foreground">
-            Upload .xls or .xlsx files containing sales data
-          </p>
-        </div>
 
-        {uploadStatus && (
-          <Alert variant={uploadStatus.success ? "default" : "destructive"}>
-            {uploadStatus.success ? (
-              <CheckCircle2 className="h-4 w-4" />
-            ) : (
-              <AlertCircle className="h-4 w-4" />
-            )}
-            <AlertTitle>
-              {uploadStatus.success ? "Success" : "Error"}
-            </AlertTitle>
-            <AlertDescription>{uploadStatus.message}</AlertDescription>
-          </Alert>
-        )}
-
-        <Button
-          type="submit"
-          disabled={
-            isUploading || isValidating || (!file && !validationComplete)
-          }
-        >
-          {isValidating ? (
-            <>Validating...</>
-          ) : isUploading ? (
-            <>Uploading...</>
-          ) : !validationComplete ? (
-            <>
-              <UploadCloud className="mr-2 h-4 w-4" />
-              Validate File
-            </>
+          {validationComplete ? (
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex-1 p-3 border rounded-md">
+                <div className="flex items-center">
+                  <CheckCircle2 className="h-5 w-5 text-primary mr-2" />
+                  <span className="font-medium">{file?.name}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {file?.size ? (file.size / (1024 * 1024)).toFixed(2) : 0} MB
+                </p>
+              </div>
+              <Button size="sm" variant="outline" onClick={resetForm}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           ) : (
-            <>
-              <CheckCheck className="mr-2 h-4 w-4" />
-              Upload File
-            </>
+            <div
+              {...getRootProps()}
+              className={cn(
+                "border-2 border-dashed rounded-md p-8 transition-colors cursor-pointer hover:border-primary/50",
+                isDragActive
+                  ? "border-primary bg-primary/5"
+                  : "border-muted-foreground/25"
+              )}
+            >
+              <input {...getInputProps()} />
+              <div className="flex flex-col items-center justify-center gap-1 text-center">
+                <UploadCloud className="h-10 w-10 text-muted-foreground mb-2" />
+                <p className="text-sm font-medium">
+                  {isDragActive
+                    ? "Drop the file here"
+                    : "Drag and drop your Excel file here"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  or click to select file (.xls or .xlsx)
+                </p>
+              </div>
+            </div>
           )}
-        </Button>
+
+          {uploadStatus && (
+            <Alert
+              variant={uploadStatus.success ? "default" : "destructive"}
+              className="mt-4"
+            >
+              {uploadStatus.success ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}
+              <AlertTitle>
+                {uploadStatus.success ? "Success" : "Error"}
+              </AlertTitle>
+              <AlertDescription>{uploadStatus.message}</AlertDescription>
+            </Alert>
+          )}
+
+          <Button
+            type="submit"
+            disabled={
+              isUploading || isValidating || (!file && !validationComplete)
+            }
+            className="mt-4"
+          >
+            {isValidating ? (
+              <>Validating...</>
+            ) : isUploading ? (
+              <>Uploading...</>
+            ) : !validationComplete ? (
+              <>
+                <UploadCloud className="mr-2 h-4 w-4" />
+                Validate File
+              </>
+            ) : (
+              <>
+                <CheckCheck className="mr-2 h-4 w-4" />
+                Upload File
+              </>
+            )}
+          </Button>
+        </div>
       </form>
 
       {/* Product validation section */}
