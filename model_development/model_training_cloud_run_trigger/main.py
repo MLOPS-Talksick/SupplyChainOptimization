@@ -19,6 +19,7 @@ def trigger_training():
     region = data.get('REGION')
     staging_bucket_uri = data.get('BUCKET_URI')
     image_uri = data.get('IMAGE_URI')
+    sa_email  = os.environ["TRAINING_SERVICE_ACCOUNT"]
 
     aiplatform.init(project=project_id, location=region, staging_bucket=staging_bucket_uri)
 
@@ -34,6 +35,7 @@ def trigger_training():
         accelerator_type="ACCELERATOR_TYPE_UNSPECIFIED",
         accelerator_count=0,
         sync=False,
+        service_account=sa_email,
     )
     return jsonify({"message": "Training started"})
 

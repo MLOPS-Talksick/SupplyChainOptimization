@@ -187,6 +187,11 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
         name  = "MYSQL_DATABASE"
         value = var.mysql_database
       }
+
+      env {
+        name  = "TRAINING_SERVICE_ACCOUNT"
+        value = var.service_account_email
+      }
     }
 
     vpc_access {
@@ -204,67 +209,6 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
-  }
-}
-
-
-resource "google_cloud_run_v2_job" "model_training_job" {
-  name     = "model-training-job"
-  location = var.region
-  project  = var.project_id
-
-  template {
-    template {
-      containers {
-        # image = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/model_training:latest"
-        image = local.model_training_image_uri
-
-        env {
-          name  = "MYSQL_HOST"
-          value = local.mysql_host
-        }
-
-        env {
-          name  = "MYSQL_USER"
-          value = var.mysql_user
-        }
-
-        env {
-          name  = "MYSQL_PASSWORD"
-          value = var.mysql_password
-        }
-
-        env {
-          name  = "MYSQL_DATABASE"
-          value = var.mysql_database
-        }
-
-        env {
-          name  = "MODEL_NAME"
-          value = var.model_name
-        }
-
-        env {
-          name  = "IMAGE_TAG_HASH"
-          value = local.model_training_image_uri
-        }
-
-        env {
-          name  = "VERTEX_REGION"
-          value = var.vertex_region
-        }
-
-        env {
-          name  = "VERTEX_ENDPOINT_ID"
-          value = var.vertex_endpoint_id
-        }
-
-      }
-
-      max_retries    = 1
-      timeout        = "900s"  # Adjust based on training duration
-      service_account = var.service_account_email
-    }
   }
 }
 

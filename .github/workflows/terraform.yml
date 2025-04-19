@@ -56,6 +56,7 @@ jobs:
         working-directory: bootstrap
         run: |
           terraform init \
+          terraform init -upgrade \
             -backend-config="bucket=tf-state-${{ env.GCP_PROJECT_ID }}" \
             -backend-config="prefix=terraform/state"
 
@@ -376,6 +377,7 @@ jobs:
         working-directory: infrastructure
         run: |
           terraform init \
+          terraform init -upgrade \
             -backend-config="bucket=tf-state-deploy-${{ env.GCP_PROJECT_ID }}" \
             -backend-config="prefix=terraform/state"
 
