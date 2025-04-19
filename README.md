@@ -1,8 +1,8 @@
-SupplySense
-AI-powered demand forecasting for modern supply chains
+# *SupplySense*
+## AI-powered demand forecasting for modern supply chains
 
-Introduction
-SupplySense is an end-to-end, MLOps-driven demand forecasting platform built to address the long-standing inefficiencies in supply chain inventory management. The core idea stems from a simple but critical gap — most supply chains today rely on static ERP-based rule systems or manual spreadsheets to predict demand. These systems fall short when facing real-world volatility like seasonality, market shocks, or dynamic pricing.
+## Introduction: \ 
+SupplySense is an end-to-end, MLOps-driven demand forecasting platform built to address the long-standing inefficiencies in supply chain inventory management. The core idea stems from a simple but critical gap — most supply chains today rely on static ERP-based rule systems or manual spreadsheets to predict demand. These systems fall short when facing real-world volatility like seasonality, market shocks, or dynamic pricing.\
 
 In this project, we’ve developed a modular, scalable, and cloud-native machine learning system that forecasts product-level demand with high accuracy. The platform automates the full forecasting lifecycle — from raw data ingestion and preprocessing, through model training and deployment, all the way to real-time prediction and monitoring. It’s built to serve enterprises handling thousands of SKUs across geographies, and it’s designed to be easily integrated with existing retail, e-commerce, or manufacturing systems.
 
