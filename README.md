@@ -11,7 +11,7 @@ This repository implements an end-to-end **LSTM-based demand forecasting system*
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```
 Raw Sales Data
