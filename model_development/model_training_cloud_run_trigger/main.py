@@ -56,12 +56,12 @@ def trigger_training():
     job = aiplatform.CustomJob(
         display_name="custom-lstm-model-training",
         worker_pool_specs=worker_pool_specs,
-        network = network_path,
     )
 
     
     model = job.run(
       service_account=sa_email,
+      network = network_path,
       sync=False,
     )
 
