@@ -41,6 +41,7 @@ locals {
     "roles/eventarc.admin",
     "roles/logging.logWriter",
     "roles/storage.admin",
+    "roles/storage.objectAdmin",
     "roles/aiplatform.admin",
     "roles/artifactregistry.admin",                           // Artifact Registry Administrator
     "roles/artifactregistry.createOnPushRepoAdmin",           // Artifact Registry Create-on-Push Repository Administrator (custom role; adjust if needed)

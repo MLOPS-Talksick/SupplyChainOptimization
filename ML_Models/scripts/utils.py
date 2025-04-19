@@ -9,6 +9,7 @@ import smtplib
 from email.message import EmailMessage
 import polars as pl
 from Data_Pipeline.scripts.logger import logger
+from google.auth import default
 
 
 def extracting_time_series_and_lagged_features_pd(
@@ -156,6 +157,7 @@ def get_latest_data_from_cloud_sql(query, port="3306"):
     user = os.getenv("MYSQL_USER")
     password = os.getenv("MYSQL_PASSWORD")
     database = os.getenv("MYSQL_DATABASE")
+    creds, project = default()
     connector = Connector()
 
     def getconn():
