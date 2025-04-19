@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
+# Configuration
 PROJECT_ID="${GCP_PROJECT_ID:-primordial-veld-450618-n4}"
 REPO_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
 IMAGE_NAME="${DOCKER_IMAGE_NAME:-model_training}"
@@ -10,7 +11,8 @@ LOCATION="${GCP_LOCATION:-us-central1}"
 FULL_IMAGE_PATH="${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}"
 
 echo "🔍 Checking if '${IMAGE_NAME}:${IMAGE_TAG}' exists in Artifact Registry..."
-IMAGES_JSON=$(gcloud artifacts docker images list "${FULL_IMAGE_PATH}" --include-tags --format="json" 2>/dev/null || echo "[]")
+IMAGES_JSON=$(gcloud artifacts docker images list "${FULL_IMAGE_PATH}" \
+  --include-tags --format="json" 2>/dev/null || echo "[]")
 
 BUILD_REQUIRED=false
 
@@ -24,23 +26,31 @@ else
   BUILD_REQUIRED=true
 fi
 
-echo "🔍 Checking if files in 'model_development/model_training' have changed..."
+# Watch all of your training code directories, not just model_development/model_training
+CODE_DIRS=(
+  "model_development/model_training"
+  "ML_Models/scripts"
+  "Data_Pipeline/scripts"
+)
 
+echo "🔍 Checking if files in training dirs have changed..."
 if git rev-parse HEAD~1 >/dev/null 2>&1; then
-  if git diff --quiet HEAD~1 HEAD -- model_development/model_training; then
-    echo "✅ No changes detected in last commit."
-  else
-    echo "⚠️ Changes detected in last commit. A new build is required."
-    BUILD_REQUIRED=true
-  fi
+  for dir in "${CODE_DIRS[@]}"; do
+    if ! git diff --quiet HEAD~1 HEAD -- "$dir"; then
+      echo "⚠️ Changes detected in last commit under '$dir'. A new build is required."
+      BUILD_REQUIRED=true
+      break
+    fi
+  done
 else
   echo "ℹ️ Only one commit found. Checking working directory changes instead..."
-  if git diff --quiet -- model_development/model_training; then
-    echo "✅ No changes in working directory."
-  else
-    echo "⚠️ Uncommitted or staged changes found. A new build is required."
-    BUILD_REQUIRED=true
-  fi
+  for dir in "${CODE_DIRS[@]}"; do
+    if ! git diff --quiet -- "$dir"; then
+      echo "⚠️ Uncommitted or staged changes found under '$dir'. A new build is required."
+      BUILD_REQUIRED=true
+      break
+    fi
+  done
 fi
 
 echo "build_required=${BUILD_REQUIRED}" >> "$GITHUB_OUTPUT"
