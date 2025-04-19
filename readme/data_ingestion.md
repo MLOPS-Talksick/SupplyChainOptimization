@@ -116,3 +116,42 @@ Provides shared utilities for GCS operations, validation, and alerting.
 _Not meant to be executed directly._
 
 ---
+
+# ===============================
+# Core Data Libraries
+# ===============================
+numpy>=1.21.0,<1.24.0           # Numerical operations
+pandas>=1.3.0,<1.5.0            # Tabular data processing
+polars-lts-cpu==1.22.0          # High-performance DataFrame library (Polars LTS)
+
+# ===============================
+# File I/O Support
+# ===============================
+pyarrow>=10.0.0                 # Parquet & Arrow format handling
+openpyxl==3.1.5                 # Read Excel files (.xlsx)
+XlsxWriter==3.2.2               # Write Excel files (.xlsx)
+
+# ===============================
+# Environment & Config
+# ===============================
+python-dotenv==1.0.1            # Load env vars from .env file
+pyyaml>=6.0.0                   # YAML config file handling
+
+# ===============================
+# Testing & Mocking
+# ===============================
+pytest>=7.0.0                   # Unit testing framework
+pytest-cov>=4.0.0               # Code coverage plugin
+mock>=5.0.0                     # Mocking library for tests
+
+# ===============================
+# Google Cloud Platform (GCP) Mocks
+# ===============================
+google-api-core>=2.8.2,<2.9.0   # Core utilities for GCP APIs
+google-cloud-storage>=1.30.0,<2.0.0  # GCS client library
+
+# ===============================
+# DVC (Data Version Control)
+# ===============================
+dvc==3.30.1                     # Core DVC CLI & logic
+dvc-gs==3.0.1                   # Google Storage remote support for DVC
