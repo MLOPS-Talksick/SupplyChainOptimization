@@ -569,7 +569,7 @@ async def validate_excel(file: UploadFile = File(...)):
             "mysql+pymysql://",
             creator=getconn,
         )
-        db_query = "SELECT DISTINCT product_name FROM SALES"
+        db_query = "SELECT product_name FROM PRODUCT;"
         with pool.connect() as conn:
             result = conn.execute(sqlalchemy.text(db_query))
             db_products = {row[0] for row in result}
