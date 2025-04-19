@@ -400,6 +400,7 @@
 # #     else:
 # #         raise HTTPException(status_code=500, detail="Failed to trigger model retraining")
 
+
 import os
 import logging
 import pandas as pd
@@ -484,55 +485,54 @@ def verify_token(token: str = Header(None)):
 # ─── Health Check Endpoint ─────────────────────────────────────────────────────
 @app.post("/model/health", tags=["Health"])
 async def model_health_check(token: str = Depends(verify_token)):
-    now        = datetime.now(timezone.utc)
-    today      = now.date()
+    now   = datetime.now(timezone.utc)
+    today = now.date()
+    # 1) pull 30-day window of predictions
     full_start = today - timedelta(days=30)
-    start_str  = full_start.isoformat()
-    end_str    = today.isoformat()
+    preds_start_str = full_start.isoformat()
+    preds_end_str   = today.isoformat()
 
-    logging.info(f"Querying PREDICT between {start_str} and {end_str}")
+    logging.info(f"Querying PREDICT between {preds_start_str} and {preds_end_str}")
     preds_q = f"""
       SELECT sale_date, product_name, total_quantity
       FROM PREDICT
-      WHERE sale_date BETWEEN '{start_str}' AND '{end_str}'
+      WHERE sale_date BETWEEN '{preds_start_str}' AND '{preds_end_str}'
     """
 
     try:
-        engine = get_db_connection()
-
-        # 1) Load predictions
+        engine   = get_db_connection()
         with engine.connect() as conn:
             preds_df = pd.read_sql(preds_q, conn, parse_dates=["sale_date"])
         preds_df["sale_date"] = preds_df["sale_date"].dt.date
         logging.info(f"Fetched {len(preds_df)} prediction rows for {preds_df['product_name'].nunique()} products")
 
-        # 2) No preds → warning
         if preds_df.empty:
             return {
-                "status": "warning",
+                "status":    "warning",
                 "timestamp": now.isoformat(),
-                "metrics": {},
-                "issues": ["No predictions found in past 30 days"]
+                "metrics":   {},
+                "issues":    ["No predictions found in past 30 days"]
             }
 
-        # 3) Shrink window to earliest prediction
-        earliest_pred = preds_df["sale_date"].min()
-        window_start  = max(full_start, earliest_pred)
-        ws_str        = window_start.isoformat()
+        # 2) derive the actual date-range of your predictions
+        pred_min = preds_df["sale_date"].min()
+        pred_max = preds_df["sale_date"].max()
+        start_str = pred_min.isoformat()
+        end_str   = pred_max.isoformat()
 
-        # 4) Load matching sales
-        logging.info(f"Querying SALES between {ws_str} and {end_str}")
+        # 3) now query SALES over that same exact range
+        logging.info(f"Querying SALES between {start_str} and {end_str}")
         sales_q = f"""
           SELECT sale_date, product_name, total_quantity
           FROM SALES
-          WHERE sale_date BETWEEN '{ws_str}' AND '{end_str}'
+          WHERE sale_date BETWEEN '{start_str}' AND '{end_str}'
         """
         with engine.connect() as conn:
             sales_df = pd.read_sql(sales_q, conn, parse_dates=["sale_date"])
         sales_df["sale_date"] = sales_df["sale_date"].dt.date
         logging.info(f"Fetched {len(sales_df)} sales rows for {sales_df['product_name'].nunique()} products")
 
-        # 5) Merge
+        # 4) merge and compute metrics only on matching date × product
         merged = pd.merge(
             sales_df, preds_df,
             on=["sale_date", "product_name"],
@@ -541,55 +541,46 @@ async def model_health_check(token: str = Depends(verify_token)):
         logging.info(f"Merged dataset: {len(merged)} rows across {merged['product_name'].nunique()} products")
         if merged.empty:
             return {
-                "status": "warning",
+                "status":    "warning",
                 "timestamp": now.isoformat(),
-                "metrics": {},
-                "issues": ["No overlapping sale_date/product_name between SALES and PREDICT"]
+                "metrics":   {},
+                "issues":    ["No overlapping sale_date/product_name between SALES and PREDICT"]
             }
 
-        # 6) Per-product RMSE & p-value
+        # 5) per‑product RMSE & KS p‑value
         rmse_by_product = {}
         pval_by_product = {}
         for prod, grp in merged.groupby("product_name"):
             y_true = grp["total_quantity_actual"]
             y_pred = grp["total_quantity_predicted"]
-
-            rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-            _, pval = ks_2samp(y_true, y_pred)
-
+            rmse     = np.sqrt(mean_squared_error(y_true, y_pred))
+            _, pval  = ks_2samp(y_true, y_pred)
             rmse_by_product[prod] = float(rmse)
             pval_by_product[prod] = float(pval)
 
-        logging.info(f"Per-product RMSE: {rmse_by_product}")
-        logging.info(f"Per-product p-values: {pval_by_product}")
+        # 6) averages and emit to Cloud Monitoring
+        avg_rmse   = float(np.mean(list(rmse_by_product.values())))
+        avg_pvalue = float(np.mean(list(pval_by_product.values())))
+        log_metric("model/rmse",   avg_rmse)
+        log_metric("model/p_value", avg_pvalue)
 
-        # 7) Averages
-        rmse   = float(np.mean(list(rmse_by_product.values())))
-        p_value = float(np.mean(list(pval_by_product.values())))
-        logging.info(f"Avg RMSE: {rmse:.2f}, Avg p-value: {p_value:.4f}")
-
-        # 8) Emit both metrics to Cloud Monitoring
-        log_metric("model/rmse", rmse)
-        log_metric("model/p_value", p_value)
-
-        # 9) Determine health
+        # 7) decide health
         status = "healthy"
         issues = []
-        if rmse > RMSE_THRESHOLD:
+        if avg_rmse > RMSE_THRESHOLD:
             status = "unhealthy"
-            issues.append(f"RMSE {rmse:.2f} > {RMSE_THRESHOLD}")
+            issues.append(f"RMSE {avg_rmse:.2f} > {RMSE_THRESHOLD}")
 
-        # 10) Return response
         return {
-            "status": status,
+            "status":    status,
             "timestamp": now.isoformat(),
             "metrics": {
                 "rmse_by_product":    rmse_by_product,
                 "p_value_by_product": pval_by_product,
-                "rmse":               rmse,
-                "p_value":            p_value,
-                "window_start":       window_start.isoformat(),
-                "window_end":         today.isoformat()
+                "rmse":               avg_rmse,
+                "p_value":            avg_pvalue,
+                "window_start":       start_str,
+                "window_end":         end_str
             },
             "issues": issues
         }
