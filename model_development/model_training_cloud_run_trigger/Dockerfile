@@ -20,8 +20,5 @@ ENV PORT 8080
 
 # Set the entrypoint
 # CMD ["gunicorn", "-b", "0.0.0.0:8080", "main:app"]
-CMD ["gunicorn",
-     "-b", "0.0.0.0:8080",
-     "--workers", "1",
-     "--timeout", "1800",
-     "main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "1800", "main:app"]
+
