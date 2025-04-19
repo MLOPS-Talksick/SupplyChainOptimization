@@ -513,49 +513,62 @@ async def get_prediction(request: PredictRequest):
 @app.post("/validate_excel", dependencies=[Depends(verify_token)])
 async def validate_excel(file: UploadFile = File(...)):
     logging.info(f"Received /validate_excel request with file: {file.filename}")
-    ext = file.filename.rsplit('.', 1)[-1].lower()
+
+    # 1. Validate extension
+    ext = file.filename.rsplit(".", 1)[-1].lower()
     if ext not in ("xls", "xlsx"):
         logging.error("Invalid file type for validate_excel.")
         raise HTTPException(status_code=400, detail="Invalid file type. Only .xls or .xlsx files are allowed.")
-    
+
+    # 2. Enforce 50 MB size limit
     file.file.seek(0, io.SEEK_END)
-    file_size = file.file.tell()
-    if file_size > 50 * 1024 * 1024:
+    if file.file.tell() > 50 * 1024 * 1024:
         logging.error("File too large in validate_excel.")
         raise HTTPException(status_code=400, detail="File too large. Maximum allowed size is 50MB.")
     file.file.seek(0)
     logging.info("File pointer reset successfully in validate_excel.")
-    
+
+    # 3. Read into DataFrame
     try:
         if ext == "xls":
             df = pd.read_excel(file.file, engine="xlrd")
         else:
             df = pd.read_excel(file.file, engine="openpyxl")
-        logging.info(f"Excel file read in validate_excel. Rows: {df.shape[0]}")
+        logging.info(f"Excel file read. Rows: {df.shape[0]} Columns: {df.columns.tolist()}")
     except Exception as e:
-        logging.error(f"Failed to read Excel file in validate_excel: {e}")
-        raise HTTPException(status_code=400, detail="Failed to read the Excel file. Ensure it is a valid .xls or .xlsx file.")
-    
-    def canonicalize(col):
+        logging.error(f"Failed to read Excel file: {e}")
+        raise HTTPException(status_code=400, detail="Failed to read the Excel file. Ensure it is valid .xls or .xlsx.")
+
+    # 4. Canonicalize and validate headers
+    def canonicalize(col: str) -> str:
         return col.strip().lower().replace(" ", "_")
-    expected_columns = ['date', 'unit_price', 'transaction_id', 'quantity', 'producer_id', 'store_location', 'product_name']
-    actual_columns_original = df.columns.tolist()
-    actual_canonical = [canonicalize(col) for col in actual_columns_original]
-    
-    if Counter(actual_canonical) != Counter(expected_columns):
-        logging.error("Excel header validation failed in validate_excel.")
+
+    expected_columns = [
+        "date", "unit_price", "transaction_id",
+        "quantity", "producer_id", "store_location", "product_name"
+    ]
+    original_cols = df.columns.tolist()
+    canon_cols = [canonicalize(c) for c in original_cols]
+
+    if Counter(canon_cols) != Counter(expected_columns):
+        logging.error("Excel header validation failed.")
         raise HTTPException(
-            status_code=400, 
-            detail=f"Invalid Excel header. Expected columns (any order): {expected_columns}. Found (canonicalized): {actual_canonical}"
+            status_code=400,
+            detail=(
+                f"Invalid Excel header. Expected (any order): {expected_columns}. "
+                f"Found (canonicalized): {canon_cols}"
+            )
         )
-    
-    mapping = {orig: canonicalize(orig) for orig in actual_columns_original}
-    df.rename(columns=mapping, inplace=True)
-    logging.info("Excel columns canonicalized successfully in validate_excel.")
-    
+
+    # rename columns in-place
+    rename_map = {orig: canonicalize(orig) for orig in original_cols}
+    df.rename(columns=rename_map, inplace=True)
+    logging.info(f"Columns canonicalized to: {df.columns.tolist()}")
+
+    # 5. Fetch existing products from DB
     try:
         def getconn():
-            conn = connector.connect(
+            return connector.connect(
                 conn_name,
                 "pymysql",
                 user=user,
@@ -563,25 +576,30 @@ async def validate_excel(file: UploadFile = File(...)):
                 db=database,
                 ip_type="PRIVATE"
             )
-            return conn
 
-        pool = sqlalchemy.create_engine(
-            "mysql+pymysql://",
-            creator=getconn,
-        )
-        db_query = "SELECT DISTINCT product_name FROM SALES"
+        pool = sqlalchemy.create_engine("mysql+pymysql://", creator=getconn)
+        db_query = "SELECT DISTINCT product_name FROM PRODUCT;"
         with pool.connect() as conn:
             result = conn.execute(sqlalchemy.text(db_query))
-            db_products = {row[0] for row in result}
-        logging.info(f"Fetched {len(db_products)} unique product names from database.")
-    except Exception as e:
-        logging.error(f"Database query in validate_excel failed: {e}")
-        raise HTTPException(status_code=500, detail="Database error occurred while fetching products.")
+            raw_db = {row[0] for row in result if row[0] is not None}
 
-    excel_products = set(df["product_name"].dropna().unique().tolist())
-    new_products = list(excel_products.difference(db_products))
-    logging.info(f"Identified {len(new_products)} new products in Excel file.")
-    
+        # normalize DB names
+        db_products = {p.strip().lower() for p in raw_db}
+        logging.info(f"DB products (normalized): {db_products}")
+    except Exception as e:
+        logging.error(f"Database query failed: {e}")
+        raise HTTPException(status_code=500, detail="Database error fetching products.")
+
+    # 6. Normalize Excel product names
+    raw_excel = set(df["product_name"].dropna().astype(str).tolist())
+    excel_products = {p.strip().lower() for p in raw_excel}
+    logging.info(f"Excel products (normalized): {excel_products}")
+
+    # 7. Compute new products
+    missing = excel_products - db_products
+    new_products = [p for p in raw_excel if p.strip().lower() in missing]
+    logging.info(f"Identified {len(new_products)} new products: {new_products}")
+
     return {"new_products": new_products}
 
 
