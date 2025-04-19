@@ -401,93 +401,65 @@
 # #         raise HTTPException(status_code=500, detail="Failed to trigger model retraining")
 
 
-
-
 import os
 import logging
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import time
-import json
 
 from fastapi import Depends, HTTPException, Header, FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from scipy import stats
 import sqlalchemy
 from google.cloud.sql.connector import Connector
-from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_squared_error
 from google.cloud import monitoring_v3
 
-# ─── Configure Logging ─────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO
-)
-
-# ─── App Setup ─────────────────────────────────────────────────────────────────
+# ─── Configure Logging & App ──────────────────────────────────────────────────
+logging.basicConfig(level=logging.INFO)
 app = FastAPI()
 
-# Request logging middleware
+# ─── Middleware ────────────────────────────────────────────────────────────────
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logging.info(f"Incoming request: {request.method} {request.url}")
-    start_time = time.time()
-    response = await call_next(request)
-    duration = time.time() - start_time
-    logging.info(f"Completed {request.method} {request.url} in {duration:.2f}s with status {response.status_code}")
-    return response
+    start = time.time()
+    resp = await call_next(request)
+    logging.info(f"Completed {request.method} {request.url} in {(time.time() - start):.2f}s → {resp.status_code}")
+    return resp
 
-logging.info("Model health check module initialized")
-
-# ─── Thresholds ─────────────────────────────────────────────────────────────────
+# ─── Constants & Monitoring Client ─────────────────────────────────────────────
 RMSE_THRESHOLD   = 18.0
-P_VALUE_THRESHOLD = 0.05
-MAPE_THRESHOLD   = 0.25
-
-# ─── Environment ────────────────────────────────────────────────────────────────
-PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
-REGION     = os.environ.get('VERTEX_REGION')
-API_TOKEN  = os.environ.get("API_TOKEN")
-
-# ─── Monitoring Client ──────────────────────────────────────────────────────────
+PROJECT_ID       = os.environ.get("GCP_PROJECT_ID")
+API_TOKEN        = os.environ.get("API_TOKEN")
 monitoring_client = monitoring_v3.MetricServiceClient()
-project_name      = f"projects/{PROJECT_ID}"
-
+project_name     = f"projects/{PROJECT_ID}"
 
 def log_metric(metric_name: str, value: float):
-    logging.debug(f"Logging metric {metric_name} with value {value}")
     series = monitoring_v3.TimeSeries()
     series.metric.type = f"custom.googleapis.com/{metric_name}"
     series.resource.type = "global"
     series.resource.labels["project_id"] = PROJECT_ID
 
-    now = time.time()
-    seconds = int(now)
-    nanos   = int((now - seconds) * 10**9)
+    now_ts = time.time()
+    seconds = int(now_ts)
+    nanos   = int((now_ts - seconds) * 1e9)
 
     point = monitoring_v3.Point()
     point.value.double_value = value
-
-    interval = monitoring_v3.TimeInterval()
-    interval.end_time.seconds = seconds
-    interval.end_time.nanos   = nanos
+    interval = monitoring_v3.TimeInterval(end_time={"seconds": seconds, "nanos": nanos})
     point.interval = interval
-
     series.points = [point]
-    monitoring_client.create_time_series(
-        name=project_name,
-        time_series=[series],
-    )
-    logging.debug(f"Sent time series for {metric_name}")
+
+    monitoring_client.create_time_series(name=project_name, time_series=[series])
 
 # ─── Database Connection ────────────────────────────────────────────────────────
 def get_db_connection():
-    logging.info("Creating database connection pool")
     connector = Connector()
-    user     = os.getenv("MYSQL_USER")
-    pwd      = os.getenv("MYSQL_PASSWORD")
-    db       = os.getenv("MYSQL_DATABASE")
+    user      = os.getenv("MYSQL_USER")
+    pwd       = os.getenv("MYSQL_PASSWORD")
+    db        = os.getenv("MYSQL_DATABASE")
     conn_name = os.getenv("INSTANCE_CONN_NAME")
 
     def getconn():
@@ -497,98 +469,118 @@ def get_db_connection():
             ip_type="PRIVATE"
         )
 
-    engine = sqlalchemy.create_engine("mysql+pymysql://", creator=getconn)
-    logging.info("Database connection pool created")
-    return engine
+    return sqlalchemy.create_engine("mysql+pymysql://", creator=getconn)
 
-# ─── Security ───────────────────────────────────────────────────────────────────
+# ─── Auth Dependency ───────────────────────────────────────────────────────────
 def verify_token(token: str = Header(None)):
-    logging.debug("Verifying API token")
-    if API_TOKEN is None:
-        return True
-    if token != API_TOKEN:
-        logging.warning("Unauthorized access attempt with invalid token")
+    if API_TOKEN and token != API_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
-# ─── Health Check Endpoint ──────────────────────────────────────────────────────
-@app.post("/model/health", tags=["Health"]) 
+# ─── Health Check Endpoint ─────────────────────────────────────────────────────
+@app.post("/model/health", tags=["Health"])
 async def model_health_check(token: str = Depends(verify_token)):
-    logging.info("Running model health check")
-    now = datetime.now()
-    start = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-    end   = now.strftime("%Y-%m-%d %H:%M:%S")
+    # a) timezone-aware now for timestamps
+    now = datetime.now(timezone.utc)
 
-    sales_q = f"""
-      SELECT sale_date, product_name, total_quantity
-      FROM SALES
-      WHERE sale_date BETWEEN '{start}' AND '{end}';
-    """
+    # b) date-based window for your tables
+    today      = now.date()
+    full_start = today - timedelta(days=30)
+
+    start_str = full_start.isoformat()  # e.g. "2025-03-20"
+    end_str   = today.isoformat()       # e.g. "2025-04-19"
+
     preds_q = f"""
       SELECT sale_date, product_name, total_quantity
       FROM PREDICT
-      WHERE sale_date BETWEEN '{start}' AND '{end}';
+      WHERE sale_date BETWEEN '{start_str}' AND '{end_str}'
     """
-
-    logging.debug(f"Sales query: {sales_q}")
-    logging.debug(f"Predictions query: {preds_q}")
 
     try:
         engine = get_db_connection()
-        with engine.connect() as conn:
-            sales_df = pd.read_sql(sales_q, conn)
-            preds_df = pd.read_sql(preds_q, conn)
-        logging.info(f"Fetched {len(sales_df)} sales rows and {len(preds_df)} prediction rows")
 
+        # 1) load predictions
+        with engine.connect() as conn:
+            preds_df = pd.read_sql(preds_q, conn, parse_dates=["sale_date"])
+        preds_df["sale_date"] = preds_df["sale_date"].dt.date
+
+        # 2) no predictions → warning
+        if preds_df.empty:
+            return {
+                "status": "warning",
+                "timestamp": now.isoformat(),
+                "metrics": {},
+                "issues": ["No predictions found in past 30 days"]
+            }
+
+        # 3) shrink window to earliest prediction date
+        earliest_pred = preds_df["sale_date"].min()
+        window_start  = max(full_start, earliest_pred)
+        ws_str        = window_start.isoformat()
+
+        # 4) load matching sales
+        sales_q = f"""
+          SELECT sale_date, product_name, total_quantity
+          FROM SALES
+          WHERE sale_date BETWEEN '{ws_str}' AND '{end_str}'
+        """
+        with engine.connect() as conn:
+            sales_df = pd.read_sql(sales_q, conn, parse_dates=["sale_date"])
+        sales_df["sale_date"] = sales_df["sale_date"].dt.date
+
+        # 5) inner‑join actuals + preds
         merged = pd.merge(
             sales_df, preds_df,
             on=["sale_date", "product_name"],
             suffixes=("_actual", "_predicted")
         )
-        n = len(merged)
-        logging.info(f"Merged dataset has {n} rows")
-
-        if n == 0:
-            status, issues = "warning", ["No matching records in last 30 days"]
-            metrics = {"sample_size": 0}
-        else:
-            y_true = merged["total_quantity_actual"].values
-            y_pred = merged["total_quantity_predicted"].values
-
-            rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
-            mape = float(mean_absolute_percentage_error(y_true, y_pred))
-            ks_stat, p_val = stats.ks_2samp(y_true, y_pred)
-
-            metrics = {
-                "rmse": rmse,
-                "mape": mape,
-                "ks_statistic": float(ks_stat),
-                "p_value": float(p_val),
-                "sample_size": n
+        if merged.empty:
+            return {
+                "status": "warning",
+                "timestamp": now.isoformat(),
+                "metrics": {},
+                "issues": ["No overlapping sale_date/product_name between SALES and PREDICT"]
             }
-            logging.info(f"Calculated metrics: RMSE={rmse:.2f}, MAPE={mape:.2f}, KS={ks_stat:.2f}, p-value={p_val:.4f}")
 
-            # Emit to Cloud Monitoring
-            for name, val in metrics.items():
-                if name in ("rmse", "mape", "ks_statistic", "p_value"):
-                    log_metric(f"model/{name}", val)
+        # 6) compute per‑product RMSE
+        rmse_by_product = (
+            merged
+            .groupby("product_name")
+            .apply(lambda df: np.sqrt(
+                mean_squared_error(df["total_quantity_actual"],
+                                   df["total_quantity_predicted"])
+            ))
+            .to_dict()
+        )
 
-            # Determine health
-            status = "healthy"
-            issues = []
-            if rmse > RMSE_THRESHOLD:
-                status = "unhealthy"
-                issues.append(f"RMSE {rmse:.2f} > {RMSE_THRESHOLD}")
-            if p_val < P_VALUE_THRESHOLD:
-                status = "unhealthy"
-                issues.append(f"p-value {p_val:.4f} < {P_VALUE_THRESHOLD}")
+        # 7) average those RMSEs
+        avg_rmse = float(np.mean(list(rmse_by_product.values())))
 
-        response = {"status": status, "timestamp": now.isoformat(), "metrics": metrics, "issues": issues}
-        logging.info(f"Health check result: {response}")
-        return response
+        # 8) emit to Cloud Monitoring
+        log_metric("model/avg_rmse", avg_rmse)
+
+        # 9) determine health
+        status = "healthy"
+        issues = []
+        if avg_rmse > RMSE_THRESHOLD:
+            status = "unhealthy"
+            issues.append(f"avg RMSE {avg_rmse:.2f} > {RMSE_THRESHOLD}")
+
+        # 10) final response
+        return {
+            "status": status,
+            "timestamp":   now.isoformat(),
+            "metrics": {
+                "rmse_by_product": rmse_by_product,
+                "avg_rmse":        avg_rmse,
+                "window_start":    window_start.isoformat(),
+                "window_end":      today.isoformat()
+            },
+            "issues": issues
+        }
 
     except Exception as e:
-        logging.error(f"Model health check error: {e}", exc_info=True)
+        logging.error("Model health check error", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"status": "error", "error": str(e)}
