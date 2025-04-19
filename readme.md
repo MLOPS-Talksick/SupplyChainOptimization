@@ -1,6 +1,6 @@
-# 🧩 Project Architecture – SupplyChainOptimization
+#  Project Architecture – SupplyChainOptimization
 
-## 📁 Data_Pipeline/
+##  Data_Pipeline/
 ```
 Data_Pipeline/
 ├── scripts/
@@ -26,7 +26,7 @@ Data_Pipeline/
 
 ---
 
-## 📁 ML_Models/
+##  ML_Models/
 ```
 ML_Models/
 ├── experiments/
@@ -49,7 +49,7 @@ ML_Models/
 
 ---
 
-## 📁 backend/
+## backend/
 ```
 backend/
 ├── main.py                        # API logic and routes
@@ -60,7 +60,7 @@ backend/
 
 ---
 
-## 📁 frontend/
+## frontend/
 ```
 frontend/
 ├── components/
@@ -81,7 +81,7 @@ frontend/
 
 ---
 
-## 📁 infrastructure/
+## infrastructure/
 ```
 infrastructure/
 ├── artifact_registry.tf           # GCP Artifact Registry for models/images
@@ -101,7 +101,7 @@ infrastructure/
 
 ---
 
-## 📁 dags/
+## dags/
 ```
 dags/
 ├── data_pipeline_dag.py           # Orchestration of ingestion → preprocessing
@@ -110,7 +110,7 @@ dags/
 
 ---
 
-## 📁 .github/workflows/
+## .github/workflows/
 ```
 .github/workflows/
 ├── ci.yml                         # Linting, testing, DVC check
@@ -119,7 +119,7 @@ dags/
 
 ---
 
-## 📁 Root-Level Files
+## Root-Level Files
 ```
 ├── docker-compose.yaml            # Spins up entire stack locally
 ├── .env                           # Local env vars
