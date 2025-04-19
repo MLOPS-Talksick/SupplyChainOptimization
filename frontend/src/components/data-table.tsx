@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -88,13 +88,28 @@ export default function DataTable() {
   const [selectedProduct, setSelectedProduct] = useState<string>("");
   const [productOptions, setProductOptions] = useState<string[]>([]);
 
+  // Add a ref to store the current values
+  const currentValuesRef = useRef({
+    recordsToFetch: prefs.recordsToFetch,
+    customCount: prefs.customCount,
+  });
+
+  // Update the ref when the values change
+  useEffect(() => {
+    currentValuesRef.current = {
+      recordsToFetch,
+      customCount,
+    };
+  }, [recordsToFetch, customCount]);
+
   // Memoize the loadData function to prevent unnecessary recreations
   const loadData = useCallback(async () => {
     setLoading(true);
     setRefreshing(true);
     setError(null);
 
-    // If a custom count is entered, use it instead of the dropdown selection
+    // Use the current values from the ref
+    const { recordsToFetch, customCount } = currentValuesRef.current;
     const countToUse = customCount || recordsToFetch;
 
     try {
@@ -130,6 +145,9 @@ export default function DataTable() {
           ).sort();
 
           setProductOptions(uniqueProducts);
+
+          // Save preferences after successful data load
+          savePreferences(recordsToFetch, customCount);
         } catch (parseError) {
           console.error("Error parsing data:", parseError);
           setError("Error parsing data from server");
@@ -146,7 +164,7 @@ export default function DataTable() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [customCount, recordsToFetch]); // Only re-create when these dependencies change
+  }, []); // No dependencies needed since we're using the ref
 
   // Filter data based on selected product
   const filteredData = useMemo(() => {
@@ -182,6 +200,7 @@ export default function DataTable() {
       }
     };
 
+    // Initial data load
     fetchDataWithRetry();
 
     // Set up auto-refresh every 30 seconds
@@ -192,7 +211,7 @@ export default function DataTable() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [loadData]);
+  }, []); // Remove loadData dependency to prevent automatic refreshing
 
   const handleRefresh = useCallback(() => {
     loadData();
@@ -201,7 +220,7 @@ export default function DataTable() {
   const handleRecordCountChange = useCallback((value: string) => {
     setRecordsToFetch(value);
     setCustomCount(""); // Clear custom count when selecting from dropdown
-    savePreferences(value, "");
+    // Don't save preferences or load data here - wait for explicit refresh
   }, []);
 
   const handleCustomCountChange = useCallback(
@@ -213,10 +232,8 @@ export default function DataTable() {
         // Clear dropdown selection when entering custom count
         if (value) {
           setRecordsToFetch("custom");
-          savePreferences("custom", value);
         } else {
           setRecordsToFetch(API_CONFIG.DEFAULT_RECORDS);
-          savePreferences(API_CONFIG.DEFAULT_RECORDS, "");
         }
       }
     },
@@ -260,7 +277,7 @@ export default function DataTable() {
   const chartConfig: ChartConfig = {
     quantity: {
       label: "Quantity",
-      color: "hsl(var(--primary))",
+      color: "hsl(142 88% 28%)",
     },
   };
 
@@ -464,12 +481,12 @@ export default function DataTable() {
                       >
                         <stop
                           offset="5%"
-                          stopColor="var(--color-quantity)"
-                          stopOpacity={0.8}
+                          stopColor="hsl(142 88% 28%)"
+                          stopOpacity={0.4}
                         />
                         <stop
                           offset="95%"
-                          stopColor="var(--color-quantity)"
+                          stopColor="hsl(142 88% 28%)"
                           stopOpacity={0.1}
                         />
                       </linearGradient>
@@ -512,9 +529,9 @@ export default function DataTable() {
                     />
                     <Area
                       dataKey="quantity"
-                      type="monotone"
+                      type="natural"
                       fill="url(#fillQuantity)"
-                      stroke="var(--color-quantity)"
+                      stroke="hsl(142 88% 28%)"
                       strokeWidth={2}
                     />
                   </AreaChart>

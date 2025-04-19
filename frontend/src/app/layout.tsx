@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
+import Link from "next/link";
+import NavigationMenu from "@/components/navigation-menu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Supply Chain Optimization",
-  description: "Demand prediction for items in a store",
+  title: "SupplySense",
+  description: "Optimize your supply chain with data-driven insights",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -28,8 +34,24 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="flex min-h-screen flex-col">
+            <header className="border-b">
+              <div className="flex h-16 items-center justify-between px-8">
+                <Link href="/" className="text-2xl font-bold">
+                  SupplySense
+                </Link>
+                <NavigationMenu />
+                <ThemeToggle />
+              </div>
+            </header>
+            <main className="flex-1 space-y-4 p-8 pt-6">{children}</main>
+          </div>
         </ThemeProvider>
       </body>
     </html>
