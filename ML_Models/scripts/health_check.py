@@ -432,7 +432,7 @@ async def log_requests(request: Request, call_next):
 
 # ─── Constants & Monitoring Client ─────────────────────────────────────────────
 RMSE_THRESHOLD   = 18.0
-PROJECT_ID       = os.environ.get("GCP_PROJECT_ID")
+PROJECT_ID       = os.environ.get("PROJECT_ID")
 API_TOKEN        = os.environ.get("API_TOKEN")
 monitoring_client = monitoring_v3.MetricServiceClient()
 project_name     = f"projects/{PROJECT_ID}"
