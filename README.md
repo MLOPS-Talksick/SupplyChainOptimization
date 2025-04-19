@@ -1,33 +1,33 @@
 # *SupplySense*
 ## AI-powered demand forecasting for modern supply chains
 
-## Introduction: \ 
-SupplySense is an end-to-end, MLOps-driven demand forecasting platform built to address the long-standing inefficiencies in supply chain inventory management. The core idea stems from a simple but critical gap — most supply chains today rely on static ERP-based rule systems or manual spreadsheets to predict demand. These systems fall short when facing real-world volatility like seasonality, market shocks, or dynamic pricing.\
+## Introduction: 
+SupplySense is an end-to-end, MLOps-driven demand forecasting platform built to address the long-standing inefficiencies in supply chain inventory management. The core idea stems from a simple but critical gap — most supply chains today rely on static ERP-based rule systems or manual spreadsheets to predict demand. These systems fall short when facing real-world volatility like seasonality, market shocks, or dynamic pricing.
 
 In this project, we’ve developed a modular, scalable, and cloud-native machine learning system that forecasts product-level demand with high accuracy. The platform automates the full forecasting lifecycle — from raw data ingestion and preprocessing, through model training and deployment, all the way to real-time prediction and monitoring. It’s built to serve enterprises handling thousands of SKUs across geographies, and it’s designed to be easily integrated with existing retail, e-commerce, or manufacturing systems.
 
-Problem Statement
+## Problem Statement
 Global supply chains suffer from a persistent mismatch between inventory and actual demand. This leads to overstocking, stockouts, missed revenue, and bloated operational costs. According to recent reports, companies lose over $1.8 trillion every year due to poor demand-supply alignment. Traditional ERP systems, while widely used, are rigid and reactive — they cannot adapt to complex, fast-changing environments.
 
 Manual forecasting introduces delays and inaccuracies. Businesses struggle to scale these processes or to incorporate external signals (like pricing trends, seasonal behavior, or sudden demand spikes) into their planning. What’s needed is an intelligent, adaptive system that learns from historical and real-time data to produce reliable, actionable demand forecasts.
 
-Vision
+# Vision
 SupplySense aims to be the intelligence layer that powers future-ready supply chains. The platform leverages the latest advancements in machine learning, time-series modeling, and cloud automation to bring precision forecasting into operational workflows.
 
-Project Objective
+# Project Objective
 The primary objective of SupplySense is to build an end-to-end system capable of:
-Forecasting product demand across thousands of SKUs and regions
-Reducing forecast error and its downstream impact on inventory decisions
-Automatically retraining and redeploying models as new data arrives
-Providing infrastructure that is scalable, portable, and easy to monitor
+1. Forecasting product demand across thousands of SKUs and regions
+2. Reducing forecast error and its downstream impact on inventory decisions
+3. Automatically retraining and redeploying models as new data arrives
+4. Providing infrastructure that is scalable, portable, and easy to monitor
 
 The platform is designed for integration with existing ERP, warehouse management, or POS systems and can be customized for use in sectors such as retail, FMCG, logistics, and manufacturing.
 
-Methodology and System Overview
-SupplySense operates through a modular MLOps pipeline divided into five core stages: data ingestion, data preprocessing, model training, deployment, and monitoring. The architecture is built with automation, scalability, and traceability at its core, enabling the system to be fully reproducible and production-ready.
+## Methodology and System Overview
+SupplySense operates through a modular MLOps pipeline divided into five core stages: data ingestion, data preprocessing, model training, deployment, and monitoring. The architecture is built with automation, scalability, and reliability at its core, enabling the system to be fully reproducible and production-ready.
 
 1. Data Ingestion
-Users can upload structured transaction or product-level data into a Google Cloud Storage bucket. This step serves as the entry point to the pipeline. Ingestion DAGs are orchestrated using Apache Airflow, ensuring that all operations are scheduled, monitored, and recoverable in case of failure.
+Users can upload structured transaction data into a Google Cloud Storage bucket. This step serves as the entry point to the data pipeline. We are doing orchestration using Apache Airflow, ensuring that all operations are scheduled and monitored.
 
 Data versioning is managed using DVC, allowing us to maintain strict control over every dataset used for model training or inference.
 
