@@ -20,6 +20,7 @@ def trigger_training():
     staging_bucket_uri = data.get('BUCKET_URI')
     image_uri = data.get('IMAGE_URI')
     sa_email  = os.environ["TRAINING_SERVICE_ACCOUNT"]
+    vpc_name  = os.environ["VPC_NETWORK"]
 
     aiplatform.init(project=project_id, location=region, staging_bucket=staging_bucket_uri)
 
@@ -50,9 +51,12 @@ def trigger_training():
     #     container_uri=image_uri,
     # )
 
+    network_path = f"projects/{project_id}/locations/{region}/networks/{vpc_name}"
+
     job = aiplatform.CustomJob(
         display_name="custom-lstm-model-training",
         worker_pool_specs=worker_pool_specs,
+        network = network_path,
     )
 
     

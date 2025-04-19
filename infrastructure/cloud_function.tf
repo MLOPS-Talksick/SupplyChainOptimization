@@ -197,6 +197,11 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
         name  = "TRAINING_SERVICE_ACCOUNT"
         value = var.service_account_email
       }
+
+      env {
+        name  = "VPC_NETWORK"
+        value = google_compute_network.airflow_vpc.name   # e.g. "airflow_vpc"
+      }
     }
 
     vpc_access {
