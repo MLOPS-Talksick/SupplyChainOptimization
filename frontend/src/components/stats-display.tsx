@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, BarChart2, ShoppingCart, Calendar } from "lucide-react";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface Stats {
   start_date: string;
@@ -90,40 +91,94 @@ export default function StatsDisplay() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <div className="p-6 border rounded-lg">
-        <h3 className="text-sm font-medium text-muted-foreground mb-2">
-          Total Products
-        </h3>
-        <div className="text-2xl font-bold">
-          {stats?.total_products || "--"}
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Unique products in database
-        </p>
-      </div>
+    <ul className="grid grid-cols-1 gap-2 md:grid-cols-12 mb-4">
+      <StatsItem
+        area="md:[grid-area:1/1/2/5]"
+        icon={
+          <ShoppingCart className="h-4 w-4 text-black dark:text-neutral-400" />
+        }
+        title="Total Products"
+        description={
+          <>
+            <span className="text-xl font-bold">
+              {stats?.total_products || "--"}
+            </span>
+            <p className="text-xs text-muted-foreground">
+              Unique products in database
+            </p>
+          </>
+        }
+      />
 
-      <div className="p-6 border rounded-lg">
-        <h3 className="text-sm font-medium text-muted-foreground mb-2">
-          Total Records
-        </h3>
-        <div className="text-2xl font-bold">
-          {stats?.total_entries?.toLocaleString() || "--"}
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Sales records in database
-        </p>
-      </div>
+      <StatsItem
+        area="md:[grid-area:1/5/2/9]"
+        icon={
+          <BarChart2 className="h-4 w-4 text-black dark:text-neutral-400" />
+        }
+        title="Total Records"
+        description={
+          <>
+            <span className="text-xl font-bold">
+              {stats?.total_entries?.toLocaleString() || "--"}
+            </span>
+            <p className="text-xs text-muted-foreground">
+              Sales records in database
+            </p>
+          </>
+        }
+      />
 
-      <div className="p-6 border rounded-lg">
-        <h3 className="text-sm font-medium text-muted-foreground mb-2">
-          Date Range
-        </h3>
-        <div className="text-2xl font-bold">{formatDateRange()}</div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Covered by available data
-        </p>
-      </div>
-    </div>
+      <StatsItem
+        area="md:[grid-area:1/9/2/13]"
+        icon={<Calendar className="h-4 w-4 text-black dark:text-neutral-400" />}
+        title="Date Range"
+        description={
+          <>
+            <span className="text-xl font-bold">{formatDateRange()}</span>
+            <p className="text-xs text-muted-foreground">
+              Covered by available data
+            </p>
+          </>
+        }
+      />
+    </ul>
   );
 }
+
+interface StatsItemProps {
+  area: string;
+  icon: React.ReactNode;
+  title: string;
+  description: React.ReactNode;
+}
+
+const StatsItem = ({ area, icon, title, description }: StatsItemProps) => {
+  return (
+    <li className={`min-h-[5rem] list-none ${area}`}>
+      <div className="relative h-full rounded-xl border p-1 md:rounded-2xl md:p-2">
+        <GlowingEffect
+          spread={40}
+          glow={true}
+          disabled={false}
+          proximity={64}
+          inactiveZone={0.01}
+        />
+        <div className="border-0.75 relative flex h-full flex-col justify-between gap-1 overflow-hidden rounded-lg p-2 md:p-3 dark:shadow-[0px_0px_27px_0px_#2D2D2D]">
+          <div className="relative flex flex-1 flex-col justify-between gap-2">
+            <div className="w-fit rounded-lg border border-gray-600 p-1.5">
+              {icon}
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-sans text-base font-semibold text-balance text-black dark:text-white">
+                {title}
+              </h3>
+              <div className="font-sans text-sm/[1.125rem] text-black dark:text-neutral-400">
+                {description}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+};

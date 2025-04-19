@@ -31,14 +31,43 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Loader2 } from "lucide-react";
+import { TooltipProps } from "recharts";
 
 interface ForecastData {
   dates: string[];
   quantities: number[];
   product: string;
 }
+
+// Custom tooltip component for better styling
+interface CustomTooltipProps extends TooltipProps<number, string> {
+  active?: boolean;
+  payload?: Array<{
+    value: number;
+    dataKey: string;
+    name?: string;
+  }>;
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-lg border bg-background p-3 shadow-md">
+        <p className="mb-2 font-medium">{label}</p>
+        <div className="flex items-center justify-between gap-8">
+          <span className="text-sm text-muted-foreground">
+            Predicted Demand:
+          </span>
+          <span className="font-medium">{payload[0].value}</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function ForecastSection() {
   const [selectedProduct, setSelectedProduct] = useState<string>("");
@@ -172,6 +201,11 @@ export default function ForecastSection() {
       }))
     : [];
 
+  // Sort chart data by date and limit to the last 7 days
+  const sortedChartData = [...chartData]
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(-7);
+
   // Calculate trend if we have data
   const calculateTrend = () => {
     if (!forecastData || forecastData.quantities.length < 2) return 0;
@@ -189,7 +223,7 @@ export default function ForecastSection() {
   // Chart configuration
   const chartConfig: ChartConfig = {
     quantity: {
-      label: "Predicted Demand",
+      label: "Predicted Demand ",
       color: "hsl(142 88% 28%)",
     },
   };
@@ -215,14 +249,10 @@ export default function ForecastSection() {
             </SelectContent>
           </Select>
 
-          {!forecastData && (
-            <button
-              onClick={handleForecast}
-              disabled={loading || !selectedProduct}
-              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
-            >
-              {loading ? "Generating Forecast..." : "Generate Forecast"}
-            </button>
+          {loading && (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
           )}
 
           {error && (
@@ -239,7 +269,7 @@ export default function ForecastSection() {
                 className="aspect-auto h-[300px] w-full"
               >
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
+                  <BarChart data={sortedChartData}>
                     <defs>
                       <linearGradient
                         id="fillQuantity"
@@ -274,10 +304,7 @@ export default function ForecastSection() {
                       tickMargin={8}
                       tick={{ fill: "var(--foreground)" }}
                     />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent indicator="dot" />}
-                    />
+                    <ChartTooltip cursor={false} content={<CustomTooltip />} />
                     <Bar
                       dataKey="quantity"
                       fill="url(#fillQuantity)"
