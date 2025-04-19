@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
+import NavigationMenu from "@/components/navigation-menu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,26 +43,7 @@ export default function RootLayout({
                 <Link href="/" className="text-2xl font-bold">
                   Supply Chain Optimization
                 </Link>
-                <nav className="flex gap-6 mx-6 flex-1 justify-center">
-                  <Link
-                    href="/dashboard"
-                    className="font-medium hover:text-primary transition-colors"
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/upload"
-                    className="font-medium hover:text-primary transition-colors"
-                  >
-                    Upload Data
-                  </Link>
-                  <Link
-                    href="/forecast"
-                    className="font-medium hover:text-primary transition-colors"
-                  >
-                    Forecast
-                  </Link>
-                </nav>
+                <NavigationMenu />
                 <ThemeToggle />
               </div>
             </header>
