@@ -23,27 +23,51 @@ def trigger_training():
 
     aiplatform.init(project=project_id, location=region, staging_bucket=staging_bucket_uri)
 
-    job = aiplatform.CustomContainerTrainingJob(
-        display_name="custom-lstm-model-training",
-        container_uri=image_uri,
-    )
-
-
-    model = job.run(
-        replica_count=1,
-        machine_type="n1-standard-4",
-        accelerator_type="ACCELERATOR_TYPE_UNSPECIFIED",
-        accelerator_count=0,
-        sync=False,
-        service_account=sa_email,
-        env={
-          "MYSQL_HOST":     os.environ["MYSQL_HOST"],
-          "MYSQL_USER":     os.environ["MYSQL_USER"],
-          "MYSQL_PASSWORD": os.environ["MYSQL_PASSWORD"],
-          "MYSQL_DATABASE": os.environ["MYSQL_DATABASE"],
-          "INSTANCE_CONN_NAME":   os.environ["INSTANCE_CONN_NAME"],
+    worker_pool_specs = [
+      {
+        "machine_spec": {
+          "machine_type": "n1-standard-4",
         },
+        "replica_count": 1,
+        "container_spec": {
+          "image_uri": image_uri,
+          # Inject your env vars here
+          "env": [
+            {"name": "MYSQL_HOST",      "value": os.environ["MYSQL_HOST"]},
+            {"name": "MYSQL_USER",      "value": os.environ["MYSQL_USER"]},
+            {"name": "MYSQL_PASSWORD",  "value": os.environ["MYSQL_PASSWORD"]},
+            {"name": "MYSQL_DATABASE",  "value": os.environ["MYSQL_DATABASE"]},
+            {"name": "INSTANCE_CONN_NAME", "value": os.environ["INSTANCE_CONN_NAME"]},
+          ],
+        },
+      }
+    ]
+
+    # job = aiplatform.CustomContainerTrainingJob(
+    #     display_name="custom-lstm-model-training",
+    #     container_uri=image_uri,
+    # )
+
+    job = aiplatform.CustomJob(
+        display_name="custom-lstm-model-training",
+        worker_pool_specs=worker_pool_specs,
+        base_output_dir=f"{staging_bucket_uri}/output/",
     )
+
+    
+    model = job.run(
+      service_account=sa_email,
+      sync=False,
+    )
+
+    # model = job.run(
+    #     replica_count=1,
+    #     machine_type="n1-standard-4",
+    #     accelerator_type="ACCELERATOR_TYPE_UNSPECIFIED",
+    #     accelerator_count=0,
+    #     sync=False,
+    #     service_account=sa_email,
+    # )
     return jsonify({"message": "Training started"})
 
 if __name__ == "__main__":
