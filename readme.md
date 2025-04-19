@@ -27,6 +27,21 @@ Cost Analysis
 Logging and Monitoring Setup
 Version Rollback
 Understand the Project Folder Structure
+## 📚 Further Documentation
+
+For detailed understanding of each part of the system, refer to the following modules:
+
+- [Understand the API Payloads](./api_payloads/README.md)
+- [Explore ML Pipelines](./ml_pipelines/)
+  - [Stage 1 - Base Model](./ml_pipelines/stage1_base_model.md)
+  - [Stage 2 - Test Data Ingestion](./ml_pipelines/stage2_test_data.md)
+  - [Stage 3 - Model Evaluation](./ml_pipelines/stage3_evaluation.md)
+  - [Stage 4 - Bias Detection](./ml_pipelines/stage4_bias_detection.md)
+- [CI/CD Workflow](./ci_cd/README.md)
+- [Cost Analysis](./cost_analysis/README.md)
+- [Logging and Monitoring Setup](./logging_monitoring/README.md)
+- [Version Rollback](./rollback/README.md)
+- [Understand the Project Folder Structure](./folder_structure/README.md)
 
 
 #  Project Architecture – SupplyChainOptimization
