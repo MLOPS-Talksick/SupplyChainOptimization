@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/chart";
 import { Loader2 } from "lucide-react";
 import { TooltipProps } from "recharts";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface ForecastData {
   dates: string[];
@@ -229,122 +230,134 @@ export default function ForecastSection() {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Demand Forecast</CardTitle>
-        <CardDescription>7-Day Product Demand Prediction</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a product" />
-            </SelectTrigger>
-            <SelectContent>
-              {productNames.map((product) => (
-                <SelectItem key={product} value={product}>
-                  {product}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <Card className="w-full relative">
+      <GlowingEffect
+        spread={40}
+        glow={true}
+        disabled={false}
+        proximity={64}
+        inactiveZone={0.01}
+      />
+      <div className="relative">
+        <CardHeader>
+          <CardTitle>Demand Forecast</CardTitle>
+          <CardDescription>7-Day Product Demand Prediction</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a product" />
+              </SelectTrigger>
+              <SelectContent>
+                {productNames.map((product) => (
+                  <SelectItem key={product} value={product}>
+                    {product}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          {loading && (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
+            {loading && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
 
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          {forecastData ? (
-            <div className="mt-6">
-              <ChartContainer
-                config={chartConfig}
-                className="aspect-auto h-[300px] w-full"
-              >
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={sortedChartData}>
-                    <defs>
-                      <linearGradient
-                        id="fillQuantity"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="hsl(142 88% 28%)"
-                          stopOpacity={0.4}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="hsl(142 88% 28%)"
-                          stopOpacity={0.1}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={10}
-                      tick={{ fill: "var(--foreground)" }}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tick={{ fill: "var(--foreground)" }}
-                    />
-                    <ChartTooltip cursor={false} content={<CustomTooltip />} />
-                    <Bar
-                      dataKey="quantity"
-                      fill="url(#fillQuantity)"
-                      stroke="hsl(142 88% 28%)"
-                      strokeWidth={2}
-                      name="Predicted Demand"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-[300px] text-center text-muted-foreground">
-              Select a product and generate a forecast to see predictions
-            </div>
-          )}
-        </div>
-      </CardContent>
-
-      {forecastData && (
-        <CardFooter className="flex flex-col items-start gap-2 text-sm border-t pt-4">
-          <div className="flex items-center gap-2 font-medium">
-            {trendingUp ? (
-              <>
-                Trending up by {trend}% over the forecast period{" "}
-                <TrendingUp className="h-4 w-4" />
-              </>
+            {forecastData ? (
+              <div className="mt-6">
+                <ChartContainer
+                  config={chartConfig}
+                  className="aspect-auto h-[300px] w-full"
+                >
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={sortedChartData}>
+                      <defs>
+                        <linearGradient
+                          id="fillQuantity"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="hsl(142 88% 28%)"
+                            stopOpacity={0.4}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="hsl(142 88% 28%)"
+                            stopOpacity={0.1}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={10}
+                        tick={{ fill: "var(--foreground)" }}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tick={{ fill: "var(--foreground)" }}
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<CustomTooltip />}
+                      />
+                      <Bar
+                        dataKey="quantity"
+                        fill="url(#fillQuantity)"
+                        stroke="hsl(142 88% 28%)"
+                        strokeWidth={2}
+                        name="Predicted Demand"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
             ) : (
-              <>
-                Trending down by {Math.abs(Number(trend))}% over the forecast
-                period <TrendingUp className="h-4 w-4 rotate-180" />
-              </>
+              <div className="flex items-center justify-center h-[300px] text-center text-muted-foreground">
+                Select a product and generate a forecast to see predictions
+              </div>
             )}
           </div>
-          <div className="text-muted-foreground">
-            Showing predicted demand for {selectedProduct}
-          </div>
-        </CardFooter>
-      )}
+        </CardContent>
+
+        {forecastData && (
+          <CardFooter className="flex flex-col items-start gap-2 text-sm border-t pt-4">
+            <div className="flex items-center gap-2 font-medium">
+              {trendingUp ? (
+                <>
+                  Trending up by {trend}% over the forecast period{" "}
+                  <TrendingUp className="h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  Trending down by {Math.abs(Number(trend))}% over the forecast
+                  period <TrendingUp className="h-4 w-4 rotate-180" />
+                </>
+              )}
+            </div>
+            <div className="text-muted-foreground">
+              Showing predicted demand for {selectedProduct}
+            </div>
+          </CardFooter>
+        )}
+      </div>
     </Card>
   );
 }
