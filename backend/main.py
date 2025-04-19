@@ -572,7 +572,7 @@ async def validate_excel(file: UploadFile = File(...)):
         db_query = "SELECT product_name FROM PRODUCT;"
         with pool.connect() as conn:
             result = conn.execute(sqlalchemy.text(db_query))
-            db_products = {row[0] for row in result}
+            db_products = set([row[0] for row in result])
             logging.info(f"Products in DB:",db_products)
         logging.info(f"Fetched {len(db_products)} unique product names from database.")
     except Exception as e:
