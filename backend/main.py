@@ -573,14 +573,14 @@ async def validate_excel(file: UploadFile = File(...)):
         with pool.connect() as conn:
             result = conn.execute(sqlalchemy.text(db_query))
             db_products = {row[0] for row in result}
-            logging.info(f"Products in DB:",db_products[0])
+            logging.info(f"Products in DB:",db_products)
         logging.info(f"Fetched {len(db_products)} unique product names from database.")
     except Exception as e:
         logging.error(f"Database query in validate_excel failed: {e}")
         raise HTTPException(status_code=500, detail="Database error occurred while fetching products.")
 
     excel_products = set(df["product_name"].dropna().unique().tolist())
-    new_products = list(excel_products.difference(db_products[0]))
+    new_products = list(excel_products.difference(db_products))
     logging.info(f"Identified {len(new_products)} new products in Excel file.")
     
     return {"new_products": new_products}
