@@ -97,6 +97,7 @@ def trigger_training():
     sa_email          = os.environ["TRAINING_SERVICE_ACCOUNT"]
     vpc_name          = os.environ["VPC_NETWORK"]           # e.g. "airflow_vpc"
     reserved_range    = os.environ["PRIVATE_IP_RANGE_NAME"]  # e.g. "private-ip-range"
+    project_number    = os.environ["PROJECT_NUMBER"]
 
     # 1) Initialize the SDK
     aiplatform.init(
@@ -134,7 +135,7 @@ def trigger_training():
     )
 
     # 4) Inject your VPC peering settings onto the proto
-    network_path = f"projects/{project_id}/global/networks/{vpc_name}"
+    network_path = f"projects/{project_number}/global/networks/{vpc_name}"
     job.job_spec.network             = network_path
     job.job_spec.reserved_ip_ranges  = [reserved_range]
 

@@ -204,9 +204,14 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
       }
 
       env {
-       name  = "PRIVATE_IP_RANGE_NAME"
-       value = google_compute_global_address.private_ip_range.name
-     }
+        name  = "PRIVATE_IP_RANGE_NAME"
+        value = google_compute_global_address.private_ip_range.name
+      }
+
+      env {
+        name  = "PROJECT_NUMBER"
+        value = var.project_number
+      }
     }
 
     vpc_access {
