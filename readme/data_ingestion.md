@@ -139,3 +139,28 @@ Performs post-processing validation on cleaned data to ensure type correctness, 
 _Not meant to be run directly. Called as a module function in the pipeline._  
 
 ---
+
+**File:** `utils.py`  
+
+**Purpose:**  
+Provides utility functions for cloud operations, data loading, validation, and email alerting. Centralized support module for interacting with GCP, sending emails, and handling file I/O.
+
+**Key Features:**
+- **GCP Integration:**
+  - `setup_gcp_credentials()` – Sets up environment for GCP access.
+  - `load_bucket_data()` – Reads `.csv`, `.json`, or `.xlsx` files from a GCS bucket into Polars or Pandas DataFrames.
+  - `upload_to_gcs()` – Uploads DataFrames to GCS in supported formats (CSV, JSON).
+  - `list_bucket_blobs()` – Lists all files in a specified GCS bucket.
+  - `delete_blob_from_bucket()` – Deletes specific files from a GCS bucket.
+
+- **Email Alerts:**
+  - `send_email()` – Sends SMTP-based email with optional DataFrame attachment (converted to CSV).
+  - `send_anomaly_alert()` – Composes and sends anomaly detection alerts with details as attachments.
+
+- **Validation Support:**
+  - `collect_validation_errors()` – Records validation issues by marking rows with missing required columns.
+
+**Execution Command:**  
+_Not meant to be executed directly. Designed as an importable module to support validation, preprocessing, and monitoring scripts._
+
+---
