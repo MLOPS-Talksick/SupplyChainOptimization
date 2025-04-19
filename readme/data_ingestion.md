@@ -1,4 +1,4 @@
-![Data Pipeline Architecture](./Media/data_pipeline.png)
+![Data Pipeline Architecture](/Media/data_pipeline.png)
 **File:** `requirements.txt`  
 
 **Purpose:**  
