@@ -1,6 +1,6 @@
 # SupplyChainOptimization
 
-> **Smarter Demand. Leaner Supply. 
+> Smarter Demand. Leaner Supply. 
 > Forecasting product demand isn't just about predicting numbers—it's about enabling intelligent decisions across your supply chain. This project delivers a production-ready, cloud-deployable LSTM pipeline backed by a complete MLOps stack for real-time business impact.
 
 ---
