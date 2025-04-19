@@ -27,6 +27,8 @@ def trigger_training():
       {
         "machine_spec": {
           "machine_type": "n1-standard-4",
+          "accelerator_type": "ACCELERATOR_TYPE_UNSPECIFIED",
+          "accelerator_count": 0,
         },
         "replica_count": 1,
         "container_spec": {
@@ -56,8 +58,6 @@ def trigger_training():
     
     model = job.run(
       service_account=sa_email,
-      accelerator_type="ACCELERATOR_TYPE_UNSPECIFIED",
-      accelerator_count=0,
       sync=False,
     )
 
