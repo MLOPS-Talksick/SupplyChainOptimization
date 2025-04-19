@@ -175,13 +175,13 @@ export default function ForecastSection() {
   const trendingUp = Number(trend) >= 0;
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Demand Forecast</CardTitle>
         <CardDescription>7-Day Product Demand Prediction</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
+      <CardContent>
+        <div className="space-y-4">
           <Select value={selectedProduct} onValueChange={setSelectedProduct}>
             <SelectTrigger>
               <SelectValue placeholder="Select a product" />
@@ -199,7 +199,7 @@ export default function ForecastSection() {
             <button
               onClick={handleForecast}
               disabled={loading || !selectedProduct}
-              className="mt-4 w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? "Generating Forecast..." : "Generate Forecast"}
             </button>
@@ -211,38 +211,40 @@ export default function ForecastSection() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-        </div>
 
-        {forecastData ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tickLine={false}
-                tickMargin={10}
-                axisLine={false}
-              />
-              <YAxis />
-              <Tooltip />
-              <Bar
-                dataKey="quantity"
-                fill="var(--chart-1)"
-                name="Predicted Demand"
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex items-center justify-center h-[300px] text-center text-muted-foreground">
-            Select a product and generate a forecast to see predictions
-          </div>
-        )}
+          {forecastData ? (
+            <div className="mt-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    tickMargin={10}
+                    axisLine={false}
+                  />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar
+                    dataKey="quantity"
+                    fill="var(--chart-1)"
+                    name="Predicted Demand"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-center text-muted-foreground">
+              Select a product and generate a forecast to see predictions
+            </div>
+          )}
+        </div>
       </CardContent>
 
       {forecastData && (
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          <div className="flex gap-2 font-medium leading-none">
+        <CardFooter className="flex flex-col items-start gap-2 text-sm border-t pt-4">
+          <div className="flex items-center gap-2 font-medium">
             {trendingUp ? (
               <>
                 Trending up by {trend}% over the forecast period{" "}
@@ -255,7 +257,7 @@ export default function ForecastSection() {
               </>
             )}
           </div>
-          <div className="leading-none text-muted-foreground">
+          <div className="text-muted-foreground">
             Showing predicted demand for {selectedProduct}
           </div>
         </CardFooter>
