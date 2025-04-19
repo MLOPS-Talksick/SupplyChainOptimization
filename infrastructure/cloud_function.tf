@@ -40,7 +40,8 @@ resource "google_cloudfunctions2_function" "process_data_function" {
       MYSQL_DATABASE     = var.mysql_database
       INSTANCE_CONN_NAME = local.instance_conn_name
       MYSQL_PASSWORD     = var.mysql_password
-      TRIGGER_TRAINING_URL = google_cloud_run_v2_service.model_training_trigger.uri
+      TRIGGER_TRAINING_URL = "${google_cloud_run_v2_service.model_training_trigger.uri}/trigger-training"
+
     }
     vpc_connector   = google_vpc_access_connector.cloudrun_connector.id
   }
@@ -437,7 +438,7 @@ resource "google_cloud_run_v2_service" "model_health_check" {
 
       env {
         name  = "TRAINING_TRIGGER_URL"
-        value = google_cloud_run_v2_service.model_training_trigger.uri
+        value = "${google_cloud_run_v2_service.model_training_trigger.uri}/trigger-training"
       }
 
       env {
@@ -537,10 +538,10 @@ resource "google_pubsub_subscription" "retrain_trigger_push" {
 
   # Push directly into your Cloud Run retraining endpoint:
   push_config {
-    push_endpoint = "${google_cloud_run_v2_service.model_training_trigger.uri}/"
+    push_endpoint = "${google_cloud_run_v2_service.model_training_trigger.uri}/trigger-training"
     oidc_token {
       service_account_email = var.service_account_email
-      audience              = google_cloud_run_v2_service.model_training_trigger.uri
+      audience              = "${google_cloud_run_v2_service.model_training_trigger.uri}/trigger-training"
     }
   }
 }
