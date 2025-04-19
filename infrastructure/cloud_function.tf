@@ -50,12 +50,12 @@ resource "google_cloudfunctions2_function" "process_data_function" {
 
     event_filters {
       attribute = "bucket"
-      value     = google_storage_bucket.buckets["fully-processed-data-test"].name
+      value     = google_storage_bucket.buckets["fully-processed-data"].name
     }
   }
 
   depends_on = [
-    google_storage_bucket.buckets["fully-processed-data-test"],
+    google_storage_bucket.buckets["fully-processed-data"],
     google_storage_bucket_object.cloud_function_zip
   ]
 }
