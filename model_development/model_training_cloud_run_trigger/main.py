@@ -51,12 +51,13 @@ def trigger_training():
     job = aiplatform.CustomJob(
         display_name="custom-lstm-model-training",
         worker_pool_specs=worker_pool_specs,
-        base_output_dir=f"{staging_bucket_uri}/output/",
     )
 
     
     model = job.run(
       service_account=sa_email,
+      accelerator_type="ACCELERATOR_TYPE_UNSPECIFIED",
+      accelerator_count=0,
       sync=False,
     )
 

@@ -161,7 +161,7 @@ def get_latest_data_from_cloud_sql(query, port="3306"):
     conn_name    = os.getenv("INSTANCE_CONN_NAME")
 
     creds, project = default()
-    connector = Connector(ip_types=[IPTypes.PRIVATE])
+    connector = Connector()
 
     def getconn():
         conn = connector.connect(
@@ -170,7 +170,7 @@ def get_latest_data_from_cloud_sql(query, port="3306"):
                 user=user,      # Database user
                 password=password,  # Database password
                 db=database,    # Database name
-                ip_type=IPTypes.PRIVATE,
+                ip_type="PRIVATE",
             )
         return conn
 
