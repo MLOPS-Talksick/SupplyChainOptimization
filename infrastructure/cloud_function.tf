@@ -202,6 +202,11 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
         name  = "VPC_NETWORK"
         value = google_compute_network.airflow_vpc.name   # e.g. "airflow_vpc"
       }
+
+      env {
+       name  = "PRIVATE_IP_RANGE_NAME"
+       value = google_compute_global_address.private_ip_range.name
+     }
     }
 
     vpc_access {
