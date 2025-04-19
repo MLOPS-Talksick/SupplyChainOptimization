@@ -69,7 +69,7 @@ variable "allocated_ip_range_name" {
 
 variable "bucket_names" {
   type    = set(string)
-  default = ["full-raw-data-test", "fully-processed-data-test", "sco-user-email"]
+  default = ["full-raw-data", "fully-processed-data", "sco-user-email"]
 }
 
 
