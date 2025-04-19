@@ -16,7 +16,7 @@ import os
 from google.cloud import aiplatform
 from tensorflow.keras.models import load_model
 from Data_Pipeline.scripts.logger import logger
-from Data_Pipeline.scripts.utils import send_email, setup_gcp_credentials
+from Data_Pipeline.scripts.utils import send_email
 from google.cloud import storage
 from ML_Models.scripts.utils import get_latest_data_from_cloud_sql
 
@@ -25,9 +25,9 @@ logger.info("Starting LSTM model training script")
 np.random.seed(42)
 tf.random.set_seed(42)
 
-# email = "talksick530@gmail.com"
-email = "svarunanusheel@gmail.com"
-setup_gcp_credentials()
+email = "talksick530@gmail.com"
+# email = "svarunanusheel@gmail.com"
+# setup_gcp_credentials()
 
 query = """
         SELECT 
