@@ -44,3 +44,58 @@ python scripts/dvc_versioning.py \
 ```
 ---
 
+**File:** `logger.py`  
+
+**Purpose:**  
+Provides a flexible logging utility that uses Apache Airflow's logging system if available, or falls back to standard Python logging. Ensures consistent and formatted logging across all scripts.
+
+**Key Features:**
+- Configures a global logger instance (`logger`) for use across modules.
+- Automatically uses Airflow’s `LoggingMixin` when running within an Airflow environment.
+- Falls back to a standard `logging.StreamHandler` when Airflow is not present.
+- Supports log levels: `info`, `warning`, `error`, `debug`, `critical`, and `exception`.
+- Includes a `setLevel()` method to dynamically change the logging verbosity.
+
+**Execution Command:**  
+_Not meant to be executed directly. Used as a utility module to be imported in other scripts._
+
+---
+
+**File:** `post_validation.py`  
+
+**Purpose:**  
+Performs post-processing validation on cleaned data to ensure type correctness, presence of required fields, and statistical profiling. Sends alerts if any data anomalies are found.
+
+**Key Features:**
+- Validates columns like `Product Name`, `Total Quantity`, and `Date` for correct types and formats.
+- Identifies and logs missing or invalid entries; appends detailed anomaly reasons.
+- Sends email alerts with attached CSVs for rows that fail validation using `send_anomaly_alert()` from [`utils.py`](./utils.py).
+- Generates grouped statistical summaries (mean, std, min, max, median, skewness, etc.) by product and uploads them to a GCS bucket as a `.json` file using `upload_to_gcs()`.
+- Provides a `post_validation()` entry function to execute the entire flow (validation + stats generation + alerting) in one call.
+
+**Execution Command:**  
+_Not meant to be run directly. Called as a module function in the pipeline._  
+
+---
+
+**File:** `pre_validation.py`  
+
+**Purpose:**  
+Performs schema validation on raw input files stored in a GCS bucket. Ensures required columns exist, deletes invalid files if necessary, and sends an email report summarizing validation results.
+
+**Key Features:**
+- Defines required schema for raw data via `PRE_VALIDATION_COLUMNS`.
+- Loads and validates files from a specified GCS bucket using `load_bucket_data()`.
+- Deletes files with missing required columns or empty datasets via `delete_blob_from_bucket()`.
+- Collects validation errors and optionally sends a report email using `send_email()`.
+- Supports batch processing of all files in a bucket and aggregates results into a single validation report.
+- Accepts CLI arguments for:
+  - Target bucket (`--bucket`)
+  - Retaining invalid files (`--keep_invalid`)
+
+**Execution Command:**  
+```bash
+python scripts/pre_validation.py --bucket full-raw-data --keep_invalid
+```
+
+---
