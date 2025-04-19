@@ -36,6 +36,13 @@ def trigger_training():
         accelerator_count=0,
         sync=False,
         service_account=sa_email,
+        env={
+          "MYSQL_HOST":     os.environ["MYSQL_HOST"],
+          "MYSQL_USER":     os.environ["MYSQL_USER"],
+          "MYSQL_PASSWORD": os.environ["MYSQL_PASSWORD"],
+          "MYSQL_DATABASE": os.environ["MYSQL_DATABASE"],
+          "INSTANCE_CONN_NAME":   os.environ["INSTANCE_CONN_NAME"],
+        },
     )
     return jsonify({"message": "Training started"})
 

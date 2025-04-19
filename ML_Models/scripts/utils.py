@@ -10,6 +10,7 @@ from email.message import EmailMessage
 import polars as pl
 from Data_Pipeline.scripts.logger import logger
 from google.auth import default
+from google.cloud.sql.connector import IPTypes
 
 
 def extracting_time_series_and_lagged_features_pd(
@@ -153,21 +154,24 @@ def get_latest_data_from_cloud_sql(query, port="3306"):
         pd.DataFrame: Query results.
     """
 
-    host = os.getenv("MYSQL_HOST")
-    user = os.getenv("MYSQL_USER")
-    password = os.getenv("MYSQL_PASSWORD")
-    database = os.getenv("MYSQL_DATABASE")
+    host        = os.getenv("MYSQL_HOST")
+    user        = os.getenv("MYSQL_USER")
+    password    = os.getenv("MYSQL_PASSWORD")
+    database    = os.getenv("MYSQL_DATABASE")
+    conn_name    = os.getenv("INSTANCE_CONN_NAME")
+
     creds, project = default()
-    connector = Connector()
+    connector = Connector(ip_types=[IPTypes.PRIVATE])
 
     def getconn():
         conn = connector.connect(
-            "primordial-veld-450618-n4:us-central1:mlops-sql",  # Cloud SQL instance connection name
-            "pymysql",  # Database driver
-            user=user,  # Database user
-            password=password,  # Database password
-            db=database,
-        )
+                conn_name,      # Cloud SQL instance connection name
+                "pymysql",      # Database driver
+                user=user,      # Database user
+                password=password,  # Database password
+                db=database,    # Database name
+                ip_type=IPTypes.PRIVATE,
+            )
         return conn
 
     pool = sqlalchemy.create_engine(
