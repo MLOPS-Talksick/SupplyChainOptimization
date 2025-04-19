@@ -1,6 +1,42 @@
 
 ---
 
+**File:** `requirements.txt`  
+
+**Purpose:**  
+Specifies all Python dependencies required for running the Airflow-based data pipeline, including data processing, cloud operations, email alerts, and data versioning.
+
+**Key Features:**
+- **Airflow & Providers:**  
+  - `apache-airflow` for DAG-based orchestration.  
+  - Google & Docker providers for GCP and containerized task support.
+
+- **Data Processing:**  
+  - `numpy`, `pandas`, and `polars` for fast, scalable data handling.  
+  - `pyarrow` for cross-format compatibility.
+
+- **GCP Integration:**  
+  - `google-cloud-storage` and `google-api-core` for interacting with Google Cloud services.
+
+- **Excel Support:**  
+  - `openpyxl`, `XlsxWriter`, and `fastexcel` for reading/writing Excel files.
+
+- **Utility Libraries:**  
+  - `python-dotenv` for environment variable management.  
+  - `pyyaml` for YAML configuration parsing.
+
+- **Email Alerts:**  
+  - `sendgrid` to send anomaly or pipeline failure notifications.
+
+- **Data Versioning:**  
+  - `dvc` and `dvc-gs` for managing and syncing versioned datasets on GCS.
+
+**Installation Command:**  
+```bash
+pip install -r requirements.txt
+```
+---
+
 **File:** `__init__.py`  
 
 **Purpose:**  
@@ -115,43 +151,30 @@ Provides shared utilities for GCS operations, validation, and alerting.
 **Execution Command:**  
 _Not meant to be executed directly._
 
----
+--- 
 
-# ===============================
-# Core Data Libraries
-# ===============================
-numpy>=1.21.0,<1.24.0           # Numerical operations
-pandas>=1.3.0,<1.5.0            # Tabular data processing
-polars-lts-cpu==1.22.0          # High-performance DataFrame library (Polars LTS)
+**File:** `Dockerfile`  
 
-# ===============================
-# File I/O Support
-# ===============================
-pyarrow>=10.0.0                 # Parquet & Arrow format handling
-openpyxl==3.1.5                 # Read Excel files (.xlsx)
-XlsxWriter==3.2.2               # Write Excel files (.xlsx)
+**Purpose:**  
+Defines a lightweight and efficient container environment for running the Python-based data pipeline application.
 
-# ===============================
-# Environment & Config
-# ===============================
-python-dotenv==1.0.1            # Load env vars from .env file
-pyyaml>=6.0.0                   # YAML config file handling
+**Key Features:**
+- Uses the official `python:3.10-slim` base image for minimal footprint.
+- Sets environment variables to improve Python runtime behavior and pip performance.
+- Separates dependency installation (`requirements.txt`) to leverage Docker layer caching.
+- Installs all Python dependencies without using the pip cache.
+- Copies the full application code into the container.
+- Sets `/app/scripts` as the working directory to target script execution.
+- Specifies a default container command to run `main.py`.
 
-# ===============================
-# Testing & Mocking
-# ===============================
-pytest>=7.0.0                   # Unit testing framework
-pytest-cov>=4.0.0               # Code coverage plugin
-mock>=5.0.0                     # Mocking library for tests
+**Build Command:**  
+```bash
+docker build -t your-image-name .
+```
 
-# ===============================
-# Google Cloud Platform (GCP) Mocks
-# ===============================
-google-api-core>=2.8.2,<2.9.0   # Core utilities for GCP APIs
-google-cloud-storage>=1.30.0,<2.0.0  # GCS client library
+**Run Command:**  
+```bash
+docker run --rm your-image-name
+```
 
-# ===============================
-# DVC (Data Version Control)
-# ===============================
-dvc==3.30.1                     # Core DVC CLI & logic
-dvc-gs==3.0.1                   # Google Storage remote support for DVC
+--- 
