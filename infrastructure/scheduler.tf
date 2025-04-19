@@ -26,7 +26,7 @@ resource "google_cloud_scheduler_job" "model_health_check_job" {
     oidc_token {
       service_account_email = var.service_account_email
       # For Cloud Run, audience must match the service URI
-      audience              = google_cloud_run_v2_service.model_health_check.uri
+      audience              = "${google_cloud_run_v2_service.model_health_check.uri}/model/health"
     }
   }
 }
@@ -63,7 +63,7 @@ resource "google_cloud_scheduler_job" "prediction_job" {
 
     oidc_token {
       service_account_email = var.service_account_email
-      audience              = google_cloud_run_v2_service.backend.uri
+      audience              = "${google_cloud_run_v2_service.backend.uri}/predict"
     }
   }
 }

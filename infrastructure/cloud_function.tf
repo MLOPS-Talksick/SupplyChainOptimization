@@ -1,11 +1,11 @@
 # 1. Upload your Cloud Function source code (ZIP file) to the bucket.
 resource "google_storage_bucket_object" "cloud_function_zip" {
   name   = "cloud_function_source.zip"                                 # Object name in the bucket
-  bucket = google_storage_bucket.buckets["fully-processed-data-test"].name # Reference to your bucket using for_each key
+  bucket = google_storage_bucket.buckets["fully-processed-data"].name # Reference to your bucket using for_each key
   source = "${path.module}/../Cloudrun_Function/GCS_TO_SQL.zip"
 
   depends_on = [
-    google_storage_bucket.buckets["fully-processed-data-test"]
+    google_storage_bucket.buckets["fully-processed-data"]
   ]
 }
 
@@ -13,14 +13,14 @@ resource "google_storage_bucket_object" "cloud_function_zip" {
 resource "google_cloudfunctions2_function" "process_data_function" {
   name        = "processDataFunction"
   location    = var.region
-  description = "Triggered when a file is ingested into fully-processed-data-test bucket"
+  description = "Triggered when a file is ingested into fully-processed-data bucket"
 
   build_config {
     runtime     = "python39"
     entry_point = "hello_gcs"
     source {
       storage_source {
-        bucket = google_storage_bucket.buckets["fully-processed-data-test"].name
+        bucket = google_storage_bucket.buckets["fully-processed-data"].name
         object = google_storage_bucket_object.cloud_function_zip.name
       }
     }

@@ -512,7 +512,7 @@ def verify_token(token: str = Header(None)):
     return True
 
 # ─── Health Check Endpoint ──────────────────────────────────────────────────────
-@app.post("/model/health", tags=["Health"])
+@app.get("/model/health", tags=["Health"])
 async def model_health_check(token: str = Depends(verify_token)):
     logging.info("Running model health check")
     now = datetime.now()
