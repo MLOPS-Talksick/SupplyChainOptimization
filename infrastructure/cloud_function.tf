@@ -189,6 +189,11 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
       }
 
       env {
+        name  = "INSTANCE_CONN_NAME"
+        value = local.instance_conn_name
+      }
+
+      env {
         name  = "TRAINING_SERVICE_ACCOUNT"
         value = var.service_account_email
       }
