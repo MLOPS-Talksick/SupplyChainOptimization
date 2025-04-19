@@ -400,7 +400,6 @@
 # #     else:
 # #         raise HTTPException(status_code=500, detail="Failed to trigger model retraining")
 
-
 import os
 import logging
 import pandas as pd
@@ -414,6 +413,7 @@ from fastapi.responses import JSONResponse
 import sqlalchemy
 from google.cloud.sql.connector import Connector
 from sklearn.metrics import mean_squared_error
+from scipy.stats import ks_2samp
 from google.cloud import monitoring_v3
 
 # ─── Configure Logging & App ──────────────────────────────────────────────────
@@ -452,7 +452,11 @@ def log_metric(metric_name: str, value: float):
     point.interval = interval
     series.points = [point]
 
-    monitoring_client.create_time_series(name=project_name, time_series=[series])
+    try:
+        monitoring_client.create_time_series(name=project_name, time_series=[series])
+        logging.info(f"Pushed metric {metric_name}={value}")
+    except Exception as e:
+        logging.error(f"Failed to push metric {metric_name}: {e}", exc_info=True)
 
 # ─── Database Connection ────────────────────────────────────────────────────────
 def get_db_connection():
@@ -480,16 +484,13 @@ def verify_token(token: str = Header(None)):
 # ─── Health Check Endpoint ─────────────────────────────────────────────────────
 @app.post("/model/health", tags=["Health"])
 async def model_health_check(token: str = Depends(verify_token)):
-    # a) timezone-aware now for timestamps
-    now = datetime.now(timezone.utc)
-
-    # b) date-based window for your tables
+    now        = datetime.now(timezone.utc)
     today      = now.date()
     full_start = today - timedelta(days=30)
+    start_str  = full_start.isoformat()
+    end_str    = today.isoformat()
 
-    start_str = full_start.isoformat()  # e.g. "2025-03-20"
-    end_str   = today.isoformat()       # e.g. "2025-04-19"
-
+    logging.info(f"Querying PREDICT between {start_str} and {end_str}")
     preds_q = f"""
       SELECT sale_date, product_name, total_quantity
       FROM PREDICT
@@ -499,12 +500,13 @@ async def model_health_check(token: str = Depends(verify_token)):
     try:
         engine = get_db_connection()
 
-        # 1) load predictions
+        # 1) Load predictions
         with engine.connect() as conn:
             preds_df = pd.read_sql(preds_q, conn, parse_dates=["sale_date"])
         preds_df["sale_date"] = preds_df["sale_date"].dt.date
+        logging.info(f"Fetched {len(preds_df)} prediction rows for {preds_df['product_name'].nunique()} products")
 
-        # 2) no predictions → warning
+        # 2) No preds → warning
         if preds_df.empty:
             return {
                 "status": "warning",
@@ -513,12 +515,13 @@ async def model_health_check(token: str = Depends(verify_token)):
                 "issues": ["No predictions found in past 30 days"]
             }
 
-        # 3) shrink window to earliest prediction date
+        # 3) Shrink window to earliest prediction
         earliest_pred = preds_df["sale_date"].min()
         window_start  = max(full_start, earliest_pred)
         ws_str        = window_start.isoformat()
 
-        # 4) load matching sales
+        # 4) Load matching sales
+        logging.info(f"Querying SALES between {ws_str} and {end_str}")
         sales_q = f"""
           SELECT sale_date, product_name, total_quantity
           FROM SALES
@@ -527,13 +530,15 @@ async def model_health_check(token: str = Depends(verify_token)):
         with engine.connect() as conn:
             sales_df = pd.read_sql(sales_q, conn, parse_dates=["sale_date"])
         sales_df["sale_date"] = sales_df["sale_date"].dt.date
+        logging.info(f"Fetched {len(sales_df)} sales rows for {sales_df['product_name'].nunique()} products")
 
-        # 5) inner‑join actuals + preds
+        # 5) Merge
         merged = pd.merge(
             sales_df, preds_df,
             on=["sale_date", "product_name"],
             suffixes=("_actual", "_predicted")
         )
+        logging.info(f"Merged dataset: {len(merged)} rows across {merged['product_name'].nunique()} products")
         if merged.empty:
             return {
                 "status": "warning",
@@ -542,39 +547,49 @@ async def model_health_check(token: str = Depends(verify_token)):
                 "issues": ["No overlapping sale_date/product_name between SALES and PREDICT"]
             }
 
-        # 6) compute per‑product RMSE
-        rmse_by_product = (
-            merged
-            .groupby("product_name")
-            .apply(lambda df: np.sqrt(
-                mean_squared_error(df["total_quantity_actual"],
-                                   df["total_quantity_predicted"])
-            ))
-            .to_dict()
-        )
+        # 6) Per-product RMSE & p-value
+        rmse_by_product = {}
+        pval_by_product = {}
+        for prod, grp in merged.groupby("product_name"):
+            y_true = grp["total_quantity_actual"]
+            y_pred = grp["total_quantity_predicted"]
 
-        # 7) average those RMSEs
-        avg_rmse = float(np.mean(list(rmse_by_product.values())))
+            rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+            _, pval = ks_2samp(y_true, y_pred)
 
-        # 8) emit to Cloud Monitoring
-        log_metric("model/avg_rmse", avg_rmse)
+            rmse_by_product[prod] = float(rmse)
+            pval_by_product[prod] = float(pval)
 
-        # 9) determine health
+        logging.info(f"Per-product RMSE: {rmse_by_product}")
+        logging.info(f"Per-product p-values: {pval_by_product}")
+
+        # 7) Averages
+        rmse   = float(np.mean(list(rmse_by_product.values())))
+        p_value = float(np.mean(list(pval_by_product.values())))
+        logging.info(f"Avg RMSE: {rmse:.2f}, Avg p-value: {p_value:.4f}")
+
+        # 8) Emit both metrics to Cloud Monitoring
+        log_metric("model/rmse", rmse)
+        log_metric("model/p_value", p_value)
+
+        # 9) Determine health
         status = "healthy"
         issues = []
-        if avg_rmse > RMSE_THRESHOLD:
+        if rmse > RMSE_THRESHOLD:
             status = "unhealthy"
-            issues.append(f"avg RMSE {avg_rmse:.2f} > {RMSE_THRESHOLD}")
+            issues.append(f"RMSE {rmse:.2f} > {RMSE_THRESHOLD}")
 
-        # 10) final response
+        # 10) Return response
         return {
             "status": status,
-            "timestamp":   now.isoformat(),
+            "timestamp": now.isoformat(),
             "metrics": {
-                "rmse_by_product": rmse_by_product,
-                "avg_rmse":        avg_rmse,
-                "window_start":    window_start.isoformat(),
-                "window_end":      today.isoformat()
+                "rmse_by_product":    rmse_by_product,
+                "p_value_by_product": pval_by_product,
+                "rmse":               rmse,
+                "p_value":            p_value,
+                "window_start":       window_start.isoformat(),
+                "window_end":         today.isoformat()
             },
             "issues": issues
         }
