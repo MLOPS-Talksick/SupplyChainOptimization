@@ -259,10 +259,10 @@ def get_data(n: int = 5, predictions: bool = False):
 def get_data(n: int = 5, predictions: bool = False):
     logging.info("Received /data request: n=%s, predictions=%s", n, predictions)
 
-    # Make sure n is non‑negative
+    # 0) Sanitize input
     n = max(0, n)
 
-    # 1) Build connection pool
+    # 1) Build Cloud‑SQL connection pool
     try:
         def getconn():
             return connector.connect(
@@ -279,32 +279,51 @@ def get_data(n: int = 5, predictions: bool = False):
         logging.error("Database connection failed: %s", e)
         raise HTTPException(status_code=500, detail="Database connection failed.")
 
-    # 2) Choose table and build the date‑range query
+    # 2) Choose table name
     table = "PREDICT" if predictions else "SALES"
-    # We want rows where sale_date >= CURDATE() - INTERVAL n DAY
+
+    # 3) Determine the max date in that table
+    try:
+        with pool.connect() as conn:
+            max_date = conn.execute(
+                text(f"SELECT MAX(sale_date) FROM {table}")
+            ).scalar()
+    except Exception as e:
+        logging.error("Failed to fetch max date from %s: %s", table, e)
+        raise HTTPException(status_code=500, detail="Database error fetching date range.")
+    if not max_date:
+        # No data at all
+        logging.info("Table %s is empty. Returning no records.", table)
+        return {"records": {}, "count": 0}
+
+    # 4) Compute start_date = max_date - n days
+    start_date = max_date - timedelta(days=n)
+    logging.info("Date window on %s: from %s through %s", table, start_date.date(), max_date.date())
+
+    # 5) Query all rows in that window
     sql = f"""
         SELECT
           sale_date,
           product_name,
           total_quantity
         FROM {table}
-        WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL :n DAY)
+        WHERE sale_date >= :start
         ORDER BY sale_date DESC;
     """
-
-    # 3) Execute and read into DataFrame
     try:
-        with pool.connect() as conn:
-            # Use params to safely inject the integer n
-            df = pd.read_sql(text(sql), conn, params={"n": n})
+        df = pd.read_sql(
+            text(sql),
+            pool,
+            params={"start": start_date}
+        )
         logging.info("Query returned %d rows", len(df))
     except Exception as e:
         logging.error("Database query failed: %s", e)
         raise HTTPException(status_code=500, detail="Database query failed.")
 
-    # 4) Return JSON payload
+    # 6) Return JSON
     return {
-        "records": df.to_json(),  # you can adjust date format if you like
+        "records": df.to_json(date_unit="ms"),
         "count": len(df)
     }
 @app.get("/get-stats", dependencies=[Depends(verify_token)])
