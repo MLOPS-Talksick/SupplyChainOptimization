@@ -7,7 +7,8 @@ Supply Sense is a production-ready, cloud-deployable LSTM pipeline for demand fo
   <img src="Media/arch.jpeg" alt="Architecture" width="1000"/>
 </p>
 
-
+#Introduction
+In retail and supply chain management, predicting demand accurately is crucial for balancing supply with customer needs. Businesses face challenges from overstocking (tying up capital in excess inventory) to stockouts (lost sales and customer dissatisfaction) if forecasts are wrong. This project addresses those challenges by leveraging a Long Short-Term Memory (LSTM) model for time-series demand forecasting, wrapped in an automated MLOps pipeline. The system not only produces reliable demand predictions but also automates data validation, model retraining, deployment, and monitoring. By deploying on Google Cloud Platform (GCP) with Vertex AI, the solution ensures scalability, reproducibility, and continuous improvement of the forecasts. In short, SupplyChainOptimization aims to deliver smarter demand prediction and leaner inventory management through deep learning and MLOps automation.
 
 - [Setup Guide](/readme/Setup_Guide.md)
 - [Data Pipeline](/readme/DataPipeline.md)
