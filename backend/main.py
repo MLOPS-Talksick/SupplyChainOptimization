@@ -257,56 +257,56 @@ def get_data(n: int = 5, predictions: bool = False):
 
 @app.get("/data", dependencies=[Depends(verify_token)])
 def get_data(n: int = 5, predictions: bool = False):
-    logging.info("Received /data request.")
-    
+    logging.info("Received /data request: n=%s, predictions=%s", n, predictions)
+
+    # Make sure n is non‑negative
     n = max(0, n)
+
+    # 1) Build connection pool
     try:
         def getconn():
-            conn = connector.connect(
-                conn_name,      # Cloud SQL instance connection name
-                "pymysql",      # Database driver
-                user=user,      # Database user
-                password=password,  # Database password
-                db=database,    # Database name
+            return connector.connect(
+                conn_name,
+                "pymysql",
+                user=user,
+                password=password,
+                db=database,
                 ip_type="PRIVATE"
             )
-            return conn
-
-        pool = sqlalchemy.create_engine(
-            "mysql+pymysql://",
-            creator=getconn,
-        )
+        pool = sqlalchemy.create_engine("mysql+pymysql://", creator=getconn)
         logging.info("Database connection pool created successfully.")
     except Exception as e:
-        logging.error(f"Database connection failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
-    try:
-        if predictions:
-            query = f"""
-                        SELECT 
-                            sale_date, 
-                            product_name, 
-                            total_quantity
-                        FROM PREDICT
-                        WHERE sale_date >= CURDATE() - INTERVAL :n DAY
-                        ORDER BY sale_date DESC;"""
-        else:
-            query = f"""
-                        SELECT 
-                            sale_date, product_name, total_quantity
-                        FROM SALES
-                        ORDER BY sale_date DESC LIMIT {n};"""
-        
-        with pool.connect() as db_conn:
-            result = db_conn.execute(sqlalchemy.text(query))
-            logging.info("Database query executed. First scalar value: " + str(result.scalar()))
-        df = pd.read_sql(query, pool)
-        logging.info(f"Data retrieved successfully. Rows count: {len(df)}")
-    except Exception as e:
-        logging.error(f"Database query failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
-    return {"records": df.to_json(), "count": len(df)}
+        logging.error("Database connection failed: %s", e)
+        raise HTTPException(status_code=500, detail="Database connection failed.")
 
+    # 2) Choose table and build the date‑range query
+    table = "PREDICT" if predictions else "SALES"
+    # We want rows where sale_date >= CURDATE() - INTERVAL n DAY
+    sql = f"""
+        SELECT
+          sale_date,
+          product_name,
+          total_quantity
+        FROM {table}
+        WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL :n DAY)
+        ORDER BY sale_date DESC;
+    """
+
+    # 3) Execute and read into DataFrame
+    try:
+        with pool.connect() as conn:
+            # Use params to safely inject the integer n
+            df = pd.read_sql(text(sql), conn, params={"n": n})
+        logging.info("Query returned %d rows", len(df))
+    except Exception as e:
+        logging.error("Database query failed: %s", e)
+        raise HTTPException(status_code=500, detail="Database query failed.")
+
+    # 4) Return JSON payload
+    return {
+        "records": df.to_json(),  # you can adjust date format if you like
+        "count": len(df)
+    }
 @app.get("/get-stats", dependencies=[Depends(verify_token)])
 def get_stats():
     logging.info("Received /get-stats request.")
