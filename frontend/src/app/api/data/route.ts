@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     }
 
     // Get backend URL from environment variable
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://34.8.2.47';
     
     // Forward the request to the actual backend API
     const response = await fetch(`${backendUrl}/data?n=${n}`, {
