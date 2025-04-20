@@ -31,6 +31,7 @@ jobs:
       - name: Authenticate with Google Cloud (bootstrap)
         uses: google-github-actions/auth@v1
         with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
           credentials_json: ${{ secrets.BOOTSTRAP_GCP_KEY }}
           create_credentials_file: true
           export_environment_variables: true
