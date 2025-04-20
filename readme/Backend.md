@@ -1,5 +1,5 @@
 
-## Backend/
+## Backend
 ```
 backend/
 ├── main.py                        
