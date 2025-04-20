@@ -258,10 +258,7 @@ def get_data(n: int = 5, predictions: bool = False):
 @app.get("/data", dependencies=[Depends(verify_token)])
 def get_data(n: int = 5, predictions: bool = False):
     logging.info("Received /data request.")
-    if predictions:
-        table = "PREDICT"
-    else:
-        table = "SALES"
+    
     n = max(0, n)
     try:
         def getconn():
@@ -284,11 +281,22 @@ def get_data(n: int = 5, predictions: bool = False):
         logging.error(f"Database connection failed: {e}")
         raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     try:
-        query = f"""
-        SELECT 
-            sale_date, product_name, total_quantity
-        FROM {table}
-        ORDER BY sale_date DESC LIMIT {n};"""
+        if predictions:
+            query = f"""
+                        SELECT 
+                            sale_date, 
+                            product_name, 
+                            total_quantity
+                        FROM PREDICT
+                        WHERE sale_date >= CURDATE() - INTERVAL :n DAY
+                        ORDER BY sale_date DESC;"""
+        else:
+            query = f"""
+                        SELECT 
+                            sale_date, product_name, total_quantity
+                        FROM SALES
+                        ORDER BY sale_date DESC LIMIT {n};"""
+        
         with pool.connect() as db_conn:
             result = db_conn.execute(sqlalchemy.text(query))
             logging.info("Database query executed. First scalar value: " + str(result.scalar()))
