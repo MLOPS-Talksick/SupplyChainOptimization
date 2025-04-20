@@ -18,9 +18,8 @@ The repository is organized into a clear directory structure, separating concern
 - [Architecture](/readme/Architecture.md)
 - [Backend](/readme/Backend.md)
 - [Infrastructure](/readme/Infrastructure.md)
-- [Frontend](/readme/Frontend.md)
 
-- [Folder Structure](/readme/Folder_Structure.md)
+- [Folder Structure](/readme/FolderStructure.md)
 
 
 
