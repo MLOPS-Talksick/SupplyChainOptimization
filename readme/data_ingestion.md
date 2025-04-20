@@ -33,7 +33,7 @@ Data_Pipeline/
 - **Utility Libraries:** `python-dotenv` for env management; `pyyaml` for YAML config parsing.  
 - **Email Alerts:** `sendgrid` to send anomaly or pipeline failure notifications.  
 - **Data Versioning:** `dvc`, `dvc-gs` for managing and syncing datasets on GCS.  
-**Installation Command:**  
+**Execution Command:**  
 ```bash
 pip install -r requirements.txt
 ```
