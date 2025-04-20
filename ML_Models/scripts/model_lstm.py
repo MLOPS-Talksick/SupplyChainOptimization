@@ -1547,24 +1547,24 @@ def save_artifacts(scaler_X, scaler_y, label_encoder, log_transformed, output_di
     with open(transform_info_path, 'wb') as f:
         pickle.dump({'log_transformed': log_transformed}, f)
 
-    upload_to_gcs("lstm_model", "trained-model-1")
+    upload_to_gcs("lstm_model.keras", "trained-model-1")
     upload_to_gcs("scaler_y.pkl", "model_training_1")
     upload_to_gcs("model_report.md", "model_training_1")
     upload_to_gcs("label_encoder.pkl", "model_training_1")
     upload_to_gcs("scaler_X.pkl", "model_training_1")
     upload_to_gcs("transform_info.pkl", "model_training_1")
 
-    upload_to_gcs("mape_by_product.png", "trained-model-1")
+    upload_to_gcs("mape_by_product.png", "model_training_1")
     upload_to_gcs("monthly_distribution.png", "model_training_1")
     upload_to_gcs("predicted_vs_actual.png", "model_training_1")
     upload_to_gcs("product_distribution.png", "model_training_1")
 
-    upload_to_gcs("residuals.png", "trained-model-1")
+    upload_to_gcs("residuals.png", "model_training_1")
     upload_to_gcs("residuals.png", "model_training_1")
     upload_to_gcs("rmse_by_product.png", "model_training_1")
     upload_to_gcs("rmse_vs_sample_count.png", "model_training_1")
 
-    upload_to_gcs("shap_feature_importance.csv", "trained-model-1")
+    upload_to_gcs("shap_feature_importance.csv", "model_training_1")
     upload_to_gcs("shap_feature_importance.png", "model_training_1")
     upload_to_gcs("time_coverage.png", "model_training_1")
     upload_to_gcs("time_gaps.png", "model_training_1")
