@@ -1,7 +1,6 @@
 variable "project_id" {
   type        = string
   description = "GCP project ID"
-  default = "primordial-veld-450618-n4"
 }
 
 variable "region" {
@@ -57,7 +56,6 @@ variable "service_account_email" {
 variable "database_name" {
   description = "Name of the database to create"
   type        = string
-  default     = "transaction"
 }
 
 variable "allocated_ip_range_name" {
@@ -153,17 +151,17 @@ variable "docker_gid" {
 }
 
 variable "airflow_image_name" {
-  description = "Docker group ID"
+  description = "Airflow Docker Image Name"
   type        = string
   default     = "apache/airflow:2.7.3-python3.10"
 }
 
 # Environment variables for model_serving
-variable "mysql_host" {
-  description = "MySQL instance host ae"
-  type        = string
-  sensitive   = true
-}
+# variable "mysql_host" {
+#   description = "MySQL instance host"
+#   type        = string
+#   sensitive   = true
+# }
 
 variable "mysql_user" {
   description = "MySQL username"

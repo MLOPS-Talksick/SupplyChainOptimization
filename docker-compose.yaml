@@ -42,7 +42,7 @@ services:
     # build:
     #   context: ./Data_Pipeline
     #   dockerfile: Dockerfile
-    image: us-central1-docker.pkg.dev/primordial-veld-450618-n4/airflow-docker-image/data-pipeline:latest
+    image: us-central1-docker.pkg.dev/${PROJECT_ID}/airflow-docker-image/data-pipeline:latest
     # platform: linux/arm64
     container_name: data-pipeline-container
     volumes:

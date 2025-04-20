@@ -270,3 +270,21 @@ resource "google_secret_manager_secret_version" "docker_gid_version" {
     ignore_changes = [secret_data]
   }
 }
+
+resource "google_secret_manager_secret" "project_id" {
+  secret_id = "project_id"
+  replication {
+    user_managed {
+      replicas { location = "us-central1" }
+    }
+  }
+}
+
+resource "google_secret_manager_secret_version" "project_id_version" {
+  secret      = google_secret_manager_secret.project_id.id
+  secret_data = var.project_id
+
+  lifecycle {
+    ignore_changes = [secret_data]
+  }
+}

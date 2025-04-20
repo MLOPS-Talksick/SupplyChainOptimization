@@ -4,7 +4,7 @@ set -e
 # --------- Configuration -----------
 REGISTRY_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
 LOCATION="${GCP_LOCATION:-us-central1}"
-PROJECT_ID="${GCP_PROJECT_ID:-primordial-veld-450618-n4}"
+PROJECT_ID="${GCP_PROJECT_ID}"
 REPO_FORMAT="${REPO_FORMAT:-DOCKER}"
 
 echo "🔍 Checking if Artifact Registry '$REGISTRY_NAME' exists in '$LOCATION' for project '$PROJECT_ID'..."

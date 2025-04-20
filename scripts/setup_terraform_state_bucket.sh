@@ -7,7 +7,7 @@ if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
 fi
 
 # Use your project ID for uniqueness
-BUCKET_NAME="tf-state-${GCP_PROJECT_ID:-primordial-veld-450618-n4}"  # fallback if env var not set
+BUCKET_NAME="tf-state-${GCP_PROJECT_ID}"  # fallback if env var not set
 REGION="us-central1"
 
 echo "Checking if bucket $BUCKET_NAME exists..."
@@ -20,7 +20,7 @@ fi
 
 
 # Use your project ID for uniqueness
-BUCKET_NAME="tf-state-deploy-${GCP_PROJECT_ID:-primordial-veld-450618-n4}"  # fallback if env var not set
+BUCKET_NAME="tf-state-deploy-${GCP_PROJECT_ID}"  # fallback if env var not set
 REGION="us-central1"
 
 echo "Checking if bucket $BUCKET_NAME exists..."

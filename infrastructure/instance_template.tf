@@ -39,6 +39,7 @@ resource "google_compute_instance_template" "airflow_template" {
       set -ex
 
       # Retrieve secrets from GCP Secret Manager and export them as environment variables
+      export PROJECT_ID=$(gcloud secrets versions access latest --secret="project_id")
       export POSTGRES_USER=$(gcloud secrets versions access latest --secret="postgres_user")
       export POSTGRES_PASSWORD=$(gcloud secrets versions access latest --secret="postgres_password")
       export POSTGRES_DB=$(gcloud secrets versions access latest --secret="postgres_db")
@@ -136,6 +137,7 @@ depends_on = [
     google_secret_manager_secret.airflow_admin_email,
     google_secret_manager_secret.airflow_uid,
     google_secret_manager_secret.docker_gid,
+    google_secret_manager_secret.project_id,
   ]
 
   tags = ["airflow-server"]

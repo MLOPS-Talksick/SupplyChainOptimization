@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
       GCP_LOCATION: us-central1
       TF_VAR_gcp_service_account_key: ${{ secrets.BOOTSTRAP_GCP_KEY }}
 
@@ -39,6 +39,8 @@ jobs:
         uses: hashicorp/setup-terraform@v2
 
       - name: Ensure Terraform backend bucket exists
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           chmod +x ./scripts/setup_terraform_state_bucket.sh
           ./scripts/setup_terraform_state_bucket.sh
@@ -268,7 +270,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
       GCP_LOCATION: us-central1
       # TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.service_account_key }}
       # TF_VAR_service_account_email: ${{ needs.bootstrap.outputs.service_account_email }}
@@ -290,7 +292,7 @@ jobs:
       TF_VAR_airflow_admin_email: ${{ secrets.AIRFLOW_ADMIN_EMAIL }}
       TF_VAR_airflow_uid: ${{ secrets.AIRFLOW_UID }}
       TF_VAR_docker_gid: ${{ secrets.DOCKER_GID }}
-      TF_VAR_mysql_host: ${{ secrets.MYSQL_HOST }}
+      # TF_VAR_mysql_host: ${{ secrets.MYSQL_HOST }}
       TF_VAR_mysql_user: ${{ secrets.MYSQL_USER }}
       TF_VAR_mysql_password: ${{ secrets.MYSQL_PASSWORD }}
       TF_VAR_mysql_database: ${{ secrets.MYSQL_DATABASE }}

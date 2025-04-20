@@ -2,7 +2,7 @@
 set -e
 
 # Use environment variables or fallback defaults.
-PROJECT_ID="${GCP_PROJECT_ID:-primordial-veld-450618-n4}"
+PROJECT_ID="${GCP_PROJECT_ID}"
 REPO_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
 IMAGE_NAME="${DOCKER_IMAGE_NAME:-data-pipeline}"
 # Generate a new image tag based on the current date and time.

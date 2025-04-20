@@ -2,7 +2,7 @@
 set -e
 
 # Configurable variables (fallbacks provided)
-PROJECT_ID="${GCP_PROJECT_ID:-primordial-veld-450618-n4}"
+PROJECT_ID="${GCP_PROJECT_ID}"
 REPO_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
 IMAGE_NAME="${DOCKER_IMAGE_NAME:-cloudrun_model_health_check}"
 IMAGE_TAG=$(date +'%Y%m%d-%H%M%S')

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-PROJECT_ID="${GCP_PROJECT_ID:-primordial-veld-450618-n4}"
+PROJECT_ID="${GCP_PROJECT_ID}"
 REPO_NAME="${ARTIFACT_REGISTRY_NAME:-airflow-docker-image}"
 IMAGE_NAME="${DOCKER_IMAGE_NAME:-model_serving}"
 IMAGE_TAG="${DOCKER_IMAGE_TAG:-latest}"
