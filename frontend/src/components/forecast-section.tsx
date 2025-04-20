@@ -17,6 +17,8 @@ import {
   YAxis,
   CartesianGrid,
   ResponsiveContainer,
+  Tooltip as ChartTooltip,
+  TooltipProps,
 } from "recharts";
 import {
   Card,
@@ -27,13 +29,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-} from "@/components/ui/chart";
+import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Loader2 } from "lucide-react";
-import { TooltipProps } from "recharts";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface ForecastData {
@@ -86,24 +83,30 @@ export default function ForecastSection() {
 
     try {
       // Add cache busting parameter to prevent browser from caching the response
-      const response = await fetch(`/api/forecast?t=${Date.now()}`, {
-        method: "POST",
+      const response = await fetch(`/api/data?n=7&t=${Date.now()}`, {
+        method: "GET",
         headers: {
           "Content-Type": "application/json",
           token: "backendapi1234567890",
+          predictions: "True",
         },
-        body: JSON.stringify({
-          days: 7,
-        }),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
-      if (response.ok) {
-        // Extract unique product names from the predictions
-        const products = Object.values(data.predictions.product_name);
-        const uniqueProducts = Array.from(new Set(products)) as string[];
-        setProductNames(uniqueProducts);
+      if (response.ok && result.records) {
+        try {
+          // The backend returns a JSON string, we need to parse it
+          const parsedData = JSON.parse(result.records);
+
+          // Extract unique product names from the predictions
+          const products = Object.values(parsedData.product_name);
+          const uniqueProducts = Array.from(new Set(products)) as string[];
+          setProductNames(uniqueProducts);
+        } catch (parseError) {
+          console.error("Error parsing data:", parseError);
+          setError("Error parsing data from server");
+        }
       } else {
         setError("Failed to fetch product data");
       }
@@ -140,49 +143,55 @@ export default function ForecastSection() {
 
     try {
       // Add cache busting parameter
-      const response = await fetch(`/api/forecast?t=${Date.now()}`, {
-        method: "POST",
+      const response = await fetch(`/api/data?n=7&t=${Date.now()}`, {
+        method: "GET",
         headers: {
           "Content-Type": "application/json",
           token: "backendapi1234567890",
+          predictions: "True",
         },
-        body: JSON.stringify({
-          days: 7,
-        }),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
-      if (response.ok) {
-        // Process data for the selected product
-        const indices = Object.keys(data.predictions.product_name).filter(
-          (key) => data.predictions.product_name[key] === selectedProduct
-        );
+      if (response.ok && result.records) {
+        try {
+          // The backend returns a JSON string, we need to parse it
+          const parsedData = JSON.parse(result.records);
 
-        // Extract dates for the selected product
-        const dates = indices.map((idx) => data.predictions.sale_date[idx]);
-
-        // Get unique dates (we might have multiple entries per day)
-        const uniqueDates = Array.from(new Set(dates));
-
-        // Calculate total quantity per day
-        const dailyQuantities = uniqueDates.map((date) => {
-          const dateIndices = indices.filter(
-            (idx) => data.predictions.sale_date[idx] === date
+          // Process data for the selected product
+          const indices = Object.keys(parsedData.product_name).filter(
+            (key) => parsedData.product_name[key] === selectedProduct
           );
-          return dateIndices.reduce(
-            (sum, idx) => sum + Number(data.predictions.total_quantity[idx]),
-            0
-          );
-        });
 
-        setForecastData({
-          dates: uniqueDates,
-          quantities: dailyQuantities,
-          product: selectedProduct,
-        });
+          // Extract dates for the selected product
+          const dates = indices.map((idx) => parsedData.sale_date[idx]);
+
+          // Get unique dates (we might have multiple entries per day)
+          const uniqueDates = Array.from(new Set(dates));
+
+          // Calculate total quantity per day
+          const dailyQuantities = uniqueDates.map((date) => {
+            const dateIndices = indices.filter(
+              (idx) => parsedData.sale_date[idx] === date
+            );
+            return dateIndices.reduce(
+              (sum, idx) => sum + Number(parsedData.total_quantity[idx]),
+              0
+            );
+          });
+
+          setForecastData({
+            dates: uniqueDates,
+            quantities: dailyQuantities,
+            product: selectedProduct,
+          });
+        } catch (parseError) {
+          console.error("Error parsing data:", parseError);
+          setError("Error parsing data from server");
+        }
       } else {
-        setError(data.error || "Failed to generate forecast");
+        setError(result.error || "Failed to generate forecast");
       }
     } catch {
       setError("Error connecting to the server. Please try again.");
@@ -194,7 +203,7 @@ export default function ForecastSection() {
   // Transform data for recharts
   const chartData = forecastData
     ? forecastData.dates.map((date, index) => ({
-        date: new Date(date).toLocaleDateString("en-US", {
+        date: new Date(Number(date)).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
         }),
