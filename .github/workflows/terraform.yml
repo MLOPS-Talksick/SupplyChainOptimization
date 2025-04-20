@@ -271,6 +271,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
       GCP_LOCATION: us-central1
       # TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.service_account_key }}
@@ -368,19 +369,24 @@ jobs:
 
       - name: Terraform Init (deploy)
         working-directory: infrastructure
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           terraform init \
-            -backend-config="bucket=tf-state-deploy-${{ secrets.GCP_PROJECT_ID }}" \
+            -backend-config="bucket=tf-state-deploy-${GCP_PROJECT_ID}" \
             -backend-config="prefix=terraform/state"
 
       - name: Terraform Plan
+        env:
+          GCP_PROJECT_ID:    ${{ secrets.GCP_PROJECT_ID }}
+          TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
           export TF_VAR_service_account_email="$(cat $GITHUB_WORKSPACE/email-download/sa_email.txt)"
           cd infrastructure
           terraform plan \
-            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-            -var="region=${{ env.GCP_LOCATION }}" 
+            -var="project_id=${GCP_PROJECT_ID}" \
+            -var="region=${{ env.GCP_LOCATION }}"
 
       # - name: Import existing resources if any
       #   run: |
