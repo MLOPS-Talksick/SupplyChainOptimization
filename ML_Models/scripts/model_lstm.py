@@ -26,6 +26,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 new_product_flag = os.getenv("FLAG")
+email = "talksick530@gmail.com"
+# email = "svarunanusheel@gmail.com"
 
 # Configure logging
 logging.basicConfig(
@@ -1871,6 +1873,11 @@ def analyze_model_with_shap(model, X_test, feature_names, output_dir='.', sample
         logger.error(f"Error calculating SHAP values: {e}")
         # Create dummy SHAP values as fallback
         shap_values = np.zeros((len(last_timestep), last_timestep.shape[1]))
+        send_email(
+            emailid=email,
+            subject="Error calculating SHAP values",
+            body=f"An error calculating SHAP values: {str(e)}",
+        )
     
     # Create summary plot
     logger.info("Creating summary plot")
@@ -1957,7 +1964,12 @@ def main():
             df = get_latest_data_from_cloud_sql(query=query)
         except Exception as e:
             logger.error(f"Could not load from SQL: {e}")
-            return
+            send_email(
+                emailid=email,
+                subject="Error fetching data from Cloud SQL",
+                body=f"An error occurred during fetching data from Cloud SQL: {str(e)}",
+            )
+            raise
         
         # 2. Check data quality
         logger.info("Step 2: Checking data quality")
@@ -2015,7 +2027,7 @@ def main():
         # Run hyperparameter tuning
         tuned_hyperparams = tune_hyperparameters(
             X_train, y_train, X_val, y_val, input_shape, weights_train, weights_val,
-            n_trials=3,  # Adjust based on computational resources
+            n_trials=30,  # Adjust based on computational resources
             timeout=1800,  # 30 minutes timeout
             study_name="debiased_lstm_tuning"
         )
@@ -2071,7 +2083,7 @@ def main():
             log_transformed
         )
         for product, m in product_metrics.items():
-            print(f"{product}: RMSE={m['rmse']:.2f}, MAE={m['mae']:.2f}, MAPE={m['mape']:.1f}% (n={m['n_samples']})")
+            logger.info(f"{product}: RMSE={m['rmse']:.2f}, MAE={m['mae']:.2f}, MAPE={m['mape']:.1f}% (n={m['n_samples']})")
 
         query = """
         SELECT 
@@ -2085,6 +2097,11 @@ def main():
         except Exception as e:
             logger.warning(f"Could not load from SQL: {e}")
             model_metrics_df = pd.DataFrame()
+            send_email(
+                emailid=email,
+                subject="Error fetching data from Cloud SQL",
+                body=f"An error occurred during fetching data from Cloud SQL: {str(e)}",
+            )
 
         # Check if DataFrame is empty or missing 'rmse' column
         if model_metrics_df.empty or 'rmse' not in model_metrics_df.columns:
@@ -2249,7 +2266,7 @@ def main():
             current_date = datetime.now().strftime("%Y-%m-%d")
             # Call the function
             send_email(
-                emailid="talksick530@gmail.com",
+                emailid=email,
                 body="Hi,\n\nPlease find the model bias report attached.\n\nBest,\nTeam Talksick",
                 subject= f"Model bias report '{current_date}'",
                 attachment=report_path
@@ -2263,6 +2280,11 @@ def main():
             logger.info("Skipped saving the model as the current RMSE is higher")
     except Exception as e:
         logger.error(f"Error in debiased model training: {e}")
+        send_email(
+            emailid=email,
+            subject="Error in debiased model training",
+            body=f"An error in debiased model training: {str(e)}",
+        )
         raise
 
 if __name__ == "__main__":
@@ -2273,5 +2295,16 @@ if __name__ == "__main__":
     
     try:
         main()
+        send_email(
+            emailid=email,
+            subject="Completed Model Training",
+            body=f"Successfully completed model training!!",
+        )
     except Exception as e:
-        print(f"Error running debiased model training: {e}")
+        logger.error(f"Error running debiased model training: {e}")
+        send_email(
+            emailid=email,
+            subject="Error running debiased model training",
+            body=f"An error running debiased model training: {str(e)}",
+        )
+        raise
