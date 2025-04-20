@@ -83,14 +83,17 @@ export default function ForecastSection() {
 
     try {
       // Add cache busting parameter to prevent browser from caching the response
-      const response = await fetch(`/api/data?n=7&t=${Date.now()}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          token: "backendapi1234567890",
-          predictions: "True",
-        },
-      });
+      const response = await fetch(
+        `/api/proxy?endpoint=data&n=7&t=${Date.now()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            token: "backendapi1234567890",
+            predictions: "True",
+          },
+        }
+      );
 
       const result = await response.json();
 
@@ -143,14 +146,17 @@ export default function ForecastSection() {
 
     try {
       // Add cache busting parameter
-      const response = await fetch(`/api/data?n=7&t=${Date.now()}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          token: "backendapi1234567890",
-          predictions: "True",
-        },
-      });
+      const response = await fetch(
+        `/api/proxy?endpoint=data&n=7&t=${Date.now()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            token: "backendapi1234567890",
+            predictions: "True",
+          },
+        }
+      );
 
       const result = await response.json();
 

@@ -20,7 +20,7 @@ export default function StatsDisplay() {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        const response = await fetch("/api/get-stats", {
+        const response = await fetch(`/api/proxy?endpoint=get-stats`, {
           method: "GET",
           headers: {
             token: "backendapi1234567890",

@@ -113,7 +113,7 @@ export default function DataTable() {
     const countToUse = customCount || recordsToFetch;
 
     try {
-      const response = await fetch(`/api/data?n=${countToUse}`, {
+      const response = await fetch(`/api/proxy?endpoint=data&n=${countToUse}`, {
         method: "GET",
         headers: {
           token: "backendapi1234567890",

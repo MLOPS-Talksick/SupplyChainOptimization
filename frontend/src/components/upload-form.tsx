@@ -101,7 +101,7 @@ export default function UploadForm() {
     formData.append("file", file);
 
     try {
-      const response = await fetch("/api/validate_excel", {
+      const response = await fetch(`/api/proxy?endpoint=validate_excel`, {
         method: "POST",
         headers: {
           token: "backendapi1234567890",
@@ -219,7 +219,7 @@ export default function UploadForm() {
     }
 
     try {
-      const response = await fetch("/api/upload", {
+      const response = await fetch(`/api/proxy?endpoint=upload`, {
         method: "POST",
         headers: {
           token: "backendapi1234567890",
