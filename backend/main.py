@@ -257,47 +257,79 @@ def get_data(n: int = 5, predictions: bool = False):
 
 @app.get("/data", dependencies=[Depends(verify_token)])
 def get_data(n: int = 5, predictions: bool = False):
-    logging.info("Received /data request.")
-    if predictions:
-        table = "PREDICT"
-    else:
-        table = "SALES"
+    logging.info("Received /data request: n=%s, predictions=%s", n, predictions)
+
+    # Ensure n is non‑negative
     n = max(0, n)
+
+    # 1) Build connection pool
     try:
         def getconn():
-            conn = connector.connect(
-                conn_name,      # Cloud SQL instance connection name
-                "pymysql",      # Database driver
-                user=user,      # Database user
-                password=password,  # Database password
-                db=database,    # Database name
+            return connector.connect(
+                conn_name,
+                "pymysql",
+                user=user,
+                password=password,
+                db=database,
                 ip_type="PRIVATE"
             )
-            return conn
-
-        pool = sqlalchemy.create_engine(
-            "mysql+pymysql://",
-            creator=getconn,
-        )
+        pool = sqlalchemy.create_engine("mysql+pymysql://", creator=getconn)
         logging.info("Database connection pool created successfully.")
     except Exception as e:
-        logging.error(f"Database connection failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+        logging.error("Database connection failed: %s", e)
+        raise HTTPException(status_code=500, detail="Database connection failed.")
+
+    # 2) Pick table and fetch its max sale_date
+    table = "PREDICT" if predictions else "SALES"
     try:
-        query = f"""
-        SELECT 
-            sale_date, product_name, total_quantity
-        FROM {table}
-        ORDER BY sale_date DESC LIMIT {n};"""
-        with pool.connect() as db_conn:
-            result = db_conn.execute(sqlalchemy.text(query))
-            logging.info("Database query executed. First scalar value: " + str(result.scalar()))
-        df = pd.read_sql(query, pool)
-        logging.info(f"Data retrieved successfully. Rows count: {len(df)}")
+        with pool.connect() as conn:
+            max_date = conn.execute(
+                text(f"SELECT MAX(sale_date) FROM {table}")
+            ).scalar()
     except Exception as e:
-        logging.error(f"Database query failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
-    return {"records": df.to_json(), "count": len(df)}
+        logging.error("Failed to fetch max date from %s: %s", table, e)
+        raise HTTPException(status_code=500, detail="Database error fetching date range.")
+
+    if max_date is None:
+        # No rows in the table
+        logging.info("Table %s is empty; returning zero records.", table)
+        return {"records": {}, "count": 0}
+
+    # 3) Compute start_date = max_date - n days
+    start_date = max_date - timedelta(days=n)
+    logging.info(
+        "Date window on %s: from %s through %s",
+        table,
+        start_date,      # no .date()
+        max_date         # no .date()
+    )
+
+    # 4) Query rows in that window
+    sql = f"""
+        SELECT
+          sale_date,
+          product_name,
+          total_quantity
+        FROM {table}
+        WHERE sale_date >= :start
+        ORDER BY sale_date DESC;
+    """
+    try:
+        df = pd.read_sql(
+            text(sql),
+            pool,
+            params={"start": start_date}
+        )
+        logging.info("Query returned %d rows", len(df))
+    except Exception as e:
+        logging.error("Database query failed: %s", e)
+        raise HTTPException(status_code=500, detail="Database query failed.")
+
+    # 5) Return
+    return {
+        "records": df.to_json(date_unit="ms"),
+        "count": len(df)
+    }
 
 @app.get("/get-stats", dependencies=[Depends(verify_token)])
 def get_stats():
