@@ -50,7 +50,7 @@ jobs:
         working-directory: bootstrap
         run: |
           terraform init \
-            -backend-config="bucket=tf-state-${{ env.GCP_PROJECT_ID }}" \
+            -backend-config="bucket=tf-state-${{ secrets.GCP_PROJECT_ID }}" \
             -backend-config="prefix=terraform/state"
 
       # - name: Import existing resources if any
