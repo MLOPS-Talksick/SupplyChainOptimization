@@ -3,24 +3,23 @@
 ```
 Data_Pipeline/
 ├── scripts/
-│   ├── __init__.py                # Python package marker
-│   ├── dvc_versioning.py          # DVC-based data versioning
-│   ├── logger.py                  # Logger config for pipeline modules
-│   ├── post_validation.py         # Post-cleaning validations
-│   ├── pre_validation.py          # Pre-cleaning checks (e.g., schema, nulls)
-│   ├── preprocessing.py           # Feature engineering and transformation
-│   └── utils.py                   # Common utilities
+│   ├── __init__.py                
+│   ├── dvc_versioning.py          
+│   ├── logger.py                  
+│   ├── post_validation.py         
+│   ├── pre_validation.py          
+│   ├── preprocessing.py           
+│   └── utils.py                   
 ├── tests/
 │   ├── __init__.py
-│   ├── requirements-test.txt      # Test dependencies
+│   ├── requirements-test.txt      
 │   ├── testDataPreprocessing.py
 │   ├── testDvcVersioning.py
 │   ├── testPostValidation.py
 │   ├── testPreValidation.py
 │   └── testUtils.py
-├── Dockerfile                     # Container for running pipeline
-├── requirements.txt               # Runtime dependencies
-└── README.md
+├── Dockerfile                     
+├── requirements.txt               
 ```
 
 
