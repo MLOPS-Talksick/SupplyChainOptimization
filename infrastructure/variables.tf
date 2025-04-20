@@ -200,10 +200,10 @@ variable "staging_bucket_uri" {
   type        = string
 }
 
-variable "instance_conn_name" {
-  description = "Cloud SQL instance connection string"
-  type        = string
-}
+# variable "instance_conn_name" {
+#   description = "Cloud SQL instance connection string"
+#   type        = string
+# }
 
 
 # variable "model_serving_image_uri" {
@@ -232,10 +232,10 @@ locals {
   model_health_check_image_uri     = "us-central1-docker.pkg.dev/${var.project_id}/${var.artifact_registry}/cloudrun_model_health_check:latest"
 }
 
-variable "cloudrun_service_name" {
-  description = "The name of the Cloud Run service to be exposed via Load Balancer"
-  type        = string
-}
+# variable "cloudrun_service_name" {
+#   description = "The name of the Cloud Run service to be exposed via Load Balancer"
+#   type        = string
+# }
 
 variable "project_number" {
   type = string
@@ -253,9 +253,9 @@ variable "vertex_region" {
   type = string
 }
 
-variable "vertex_endpoint_id" {
-  type = string
-}
+# variable "vertex_endpoint_id" {
+#   type = string
+# }
 
 variable "gcs_bucket_name" {
   type = string

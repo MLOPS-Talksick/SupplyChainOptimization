@@ -1,9 +1,0 @@
-functions-framework==3.*
-google-cloud-storage
-pandas
-cloud-sql-python-connector
-pymysql
-sqlalchemy
-numpy
-python-dotenv
-requests

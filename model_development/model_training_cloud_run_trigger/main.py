@@ -90,10 +90,13 @@ logging.basicConfig(level=logging.INFO)
 @app.route("/trigger-training", methods=["POST"])
 def trigger_training():
     data = request.get_json()
-    project_id        = data["PROJECT_ID"]
-    region            = data["REGION"]
-    staging_bucket    = data["BUCKET_URI"]
-    image_uri         = data["IMAGE_URI"]
+    
+    flag = "true" if data.get("FLAG") else "false"
+
+    project_id        = os.environ["PROJECT_ID"]
+    region            = os.environ["REGION"]
+    staging_bucket    = os.environ["BUCKET_URI"]
+    image_uri         = os.environ["IMAGE_URI"]
     sa_email          = os.environ["TRAINING_SERVICE_ACCOUNT"]
     vpc_name          = os.environ["VPC_NETWORK"]           # e.g. "airflow_vpc"
     reserved_range    = os.environ["PRIVATE_IP_RANGE_NAME"]  # e.g. "private-ip-range"
@@ -123,6 +126,7 @@ def trigger_training():
             {"name": "MYSQL_PASSWORD",  "value": os.environ["MYSQL_PASSWORD"]},
             {"name": "MYSQL_DATABASE",  "value": os.environ["MYSQL_DATABASE"]},
             {"name": "INSTANCE_CONN_NAME", "value": os.environ["INSTANCE_CONN_NAME"]},
+            {"name": "FLAG",    "value": flag},
           ],
         },
       }

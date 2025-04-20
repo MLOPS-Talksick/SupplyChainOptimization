@@ -1,17 +1,38 @@
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import load_model
+import tensorflow as tf
+import logging
+import pickle
+import os
+import io
+from datetime import datetime, timedelta
 from google.cloud.sql.connector import Connector
 import sqlalchemy
-import os
-import math
-from sklearn.metrics import mean_squared_error
-import io
 import smtplib
 from email.message import EmailMessage
-import polars as pl
-from Data_Pipeline.scripts.logger import logger
-from google.auth import default
-from google.cloud.sql.connector import IPTypes
+from dotenv import load_dotenv
+from google.cloud import storage
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('model_training_utils')
+
+load_dotenv()
+
+
+host = os.getenv("MYSQL_HOST")
+user = os.getenv("MYSQL_USER")
+password = os.getenv("MYSQL_PASSWORD")
+database = os.getenv("MYSQL_DATABASE")
+instance = os.getenv("INSTANCE_CONN_NAME")
+email = "talksick530@gmail.com"
 
 def extracting_time_series_and_lagged_features_pd(
     df: pd.DataFrame,
@@ -77,6 +98,276 @@ def extracting_time_series_and_lagged_features_pd(
     return df
 
 
+
+def get_latest_data_from_cloud_sql(query, port="3306"):
+    """
+    Connects to a Google Cloud SQL instance using TCP (public IP or Cloud SQL Proxy)
+    and returns query results as a DataFrame.
+
+    Args:
+        host (str): The Cloud SQL instance IP address or localhost (if using Cloud SQL Proxy).
+        port (int): The port number (typically 3306 for MySQL).
+        user (str): Database username.
+        password (str): Database password.
+        database (str): Database name.
+        query (str): SQL query to execute.
+
+    Returns:
+        pd.DataFrame: Query results.
+    """
+
+    connector = Connector()
+
+    def getconn():
+        conn = connector.connect(
+            instance,
+            "pymysql",  # Database driver
+            user=user,  # Database user
+            password=password,  # Database password
+            db=database,
+            ip_type = "PRIVATE",
+        )
+        return conn
+
+    pool = sqlalchemy.create_engine(
+        "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
+        creator=getconn,
+    )
+    with pool.connect() as db_conn:
+        result = db_conn.execute(sqlalchemy.text(query))
+        print(result.scalar())
+    df = pd.read_sql(query, pool)
+    print(df.head())
+    connector.close()
+    return df
+
+
+def get_cloud_sql_connection():
+    """
+    Connects to a Google Cloud SQL instance using TCP (public IP or Cloud SQL Proxy)
+    and returns query results as a DataFrame.
+
+    Args:
+        host (str): The Cloud SQL instance IP address or localhost (if using Cloud SQL Proxy).
+        port (int): The port number (typically 3306 for MySQL).
+        user (str): Database username.
+        password (str): Database password.
+        database (str): Database name.
+        query (str): SQL query to execute.
+
+    Returns:
+        pd.DataFrame: Query results.
+    """
+
+    connector = Connector()
+
+    def getconn():
+        conn = connector.connect(
+            instance,
+            "pymysql",  # Database driver
+            user=user,  # Database user
+            password=password,  # Database password
+            db=database,
+            ip_type = "PRIVATE",
+
+        )
+        return conn
+
+    pool = sqlalchemy.create_engine(
+        "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
+        creator=getconn,
+    )
+
+    return pool
+
+
+
+def analyze_data_distribution(df):
+    """
+    Analyze data distribution to check for potential biases
+    """
+    logger.info("Analyzing data distribution for potential biases")
+    
+    # Check for class imbalance in products
+    product_counts = df['Product Name'].value_counts()
+    
+    # Calculate time coverage for each product
+    product_time_coverage = {}
+    for product in df['Product Name'].unique():
+        product_df = df[df['Product Name'] == product]
+        min_date = product_df['Date'].min()
+        max_date = product_df['Date'].max()
+        date_range = (max_date - min_date).days
+        product_time_coverage[product] = {
+            'min_date': min_date,
+            'max_date': max_date,
+            'days_coverage': date_range,
+            'data_points': len(product_df)
+        }
+    
+    # Check for seasonality bias
+    df['month'] = df['Date'].dt.month
+    df['dayofweek'] = df['Date'].dt.dayofweek
+    
+    monthly_distribution = df.groupby(['Product Name', 'month'])['Total Quantity'].mean().unstack()
+    weekly_distribution = df.groupby(['Product Name', 'dayofweek'])['Total Quantity'].mean().unstack()
+
+    # Check for large date gaps
+    time_gaps = []
+    for product in df['Product Name'].unique():
+        product_df = df[df['Product Name'] == product].sort_values('Date')
+        if len(product_df) > 1:
+            date_diffs = product_df['Date'].diff().dt.days.iloc[1:]
+            max_gap = date_diffs.max()
+            if max_gap > 30:  # Flag gaps larger than 30 days
+                time_gaps.append((product, max_gap))
+
+    return {
+        'product_counts': product_counts,
+        'product_time_coverage': product_time_coverage,
+        'monthly_distribution': monthly_distribution,
+        'weekly_distribution': weekly_distribution,
+        'time_gaps': time_gaps
+    }
+
+def plot_distribution_bias(analysis_results, output_dir='.'):
+    """
+    Create visualizations to highlight potential biases
+    """
+    logger.info("Creating bias visualization plots")
+    
+    # Plot product frequency distribution
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x=analysis_results['product_counts'].index, 
+                y=analysis_results['product_counts'].values)
+    plt.title('Product Distribution in Training Data')
+    plt.xlabel('Product')
+    plt.ylabel('Count')
+    plt.xticks(rotation=90)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'product_distribution.png'))
+    plt.close()
+    
+    # Plot time coverage
+    coverage_df = pd.DataFrame.from_dict(analysis_results['product_time_coverage'], 
+                                         orient='index')
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x=coverage_df.index, y=coverage_df['days_coverage'])
+    plt.title('Time Coverage by Product (Days)')
+    plt.xlabel('Product')
+    plt.ylabel('Days')
+    plt.xticks(rotation=90)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'time_coverage.png'))
+    plt.close()
+    
+    # Plot monthly distribution heatmap
+    plt.figure(figsize=(14, 10))
+    sns.heatmap(analysis_results['monthly_distribution'], cmap='viridis', annot=True)
+    plt.title('Monthly Demand Distribution by Product')
+    plt.xlabel('Month')
+    plt.ylabel('Product')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'monthly_distribution.png'))
+    plt.close()
+    
+    # Plot weekly distribution heatmap
+    plt.figure(figsize=(14, 10))
+    sns.heatmap(analysis_results['weekly_distribution'], cmap='viridis', annot=True)
+    plt.title('Weekly Demand Distribution by Product')
+    plt.xlabel('Day of Week')
+    plt.ylabel('Product')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'weekly_distribution.png'))
+    plt.close()
+
+    time_gaps = analysis_results['time_gaps']
+    products, gaps = zip(*time_gaps)
+    # Plotting the bar chart
+    plt.figure(figsize=(10, 6))
+    plt.bar(products, gaps, color='skyblue')
+    plt.xlabel('Product Name')
+    plt.ylabel('Maximum Gap (days)')
+    plt.title('Maximum Time Gaps Between Products (Gaps > 30 Days)')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'time_gaps.png'))
+
+def get_latest_data_from_cloud_sql(query, port="3306"):
+    """
+    Connects to a Google Cloud SQL instance using TCP (public IP or Cloud SQL Proxy)
+    and returns query results as a DataFrame.
+
+    Args:
+        host (str): The Cloud SQL instance IP address or localhost (if using Cloud SQL Proxy).
+        port (int): The port number (typically 3306 for MySQL).
+        user (str): Database username.
+        password (str): Database password.
+        database (str): Database name.
+        query (str): SQL query to execute.
+
+    Returns:
+        pd.DataFrame: Query results.
+    """
+    connector = Connector()
+
+    def getconn():
+        conn = connector.connect(
+            instance,
+            "pymysql",  # Database driver
+            user=user,  # Database user
+            password=password,  # Database password
+            db=database,
+            ip_type = "PRIVATE",
+        )
+        return conn
+
+    pool = sqlalchemy.create_engine(
+        "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
+        creator=getconn,
+    )
+    df = pd.read_sql(query, pool)
+    connector.close()
+    return df
+
+
+
+
+def get_connection():
+    """
+    Connects to a Google Cloud SQL instance using TCP (public IP or Cloud SQL Proxy)
+    and returns query results as a DataFrame.
+
+    Args:
+        host (str): The Cloud SQL instance IP address or localhost (if using Cloud SQL Proxy).
+        port (int): The port number (typically 3306 for MySQL).
+        user (str): Database username.
+        password (str): Database password.
+        database (str): Database name.
+        query (str): SQL query to execute.
+
+    Returns:
+        pd.DataFrame: Query results.
+    """
+    connector = Connector()
+
+    def getconn():
+        conn = connector.connect(
+            instance,
+            "pymysql",  # Database driver
+            user=user,  # Database user
+            password=password,  # Database password
+            db=database,
+            ip_type = "PRIVATE",
+        )
+        return conn
+
+    pool = sqlalchemy.create_engine(
+        "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
+        creator=getconn,
+    )
+    return pool
+
 def send_email(
     emailid,
     body,
@@ -101,7 +392,7 @@ def send_email(
       sender (str): Sender's email address.
       username (str): Username for SMTP login.
       password (str): Password for SMTP login.
-      attachment (pd.DataFrame, optional): If provided, attached as a CSV file.
+      attachment (str or pd.DataFrame, optional): File path or DataFrame to attach.
     """
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -109,16 +400,18 @@ def send_email(
     msg["To"] = emailid
     msg.set_content(body)
 
-    # If an attachment is provided and it's a DataFrame, attach it as a CSV
-    # file.
-    if attachment is not None and isinstance(attachment, pd.DataFrame):
-        csv_buffer = io.StringIO()
-        attachment.to_csv(csv_buffer, index=False)
-        # Encode the CSV content to bytes to avoid calling set_text_content.
-        csv_bytes = csv_buffer.getvalue().encode("utf-8")
-        msg.add_attachment(
-            csv_bytes, maintype="text", subtype="csv", filename="anomalies.csv"
-        )
+    if attachment is not None:
+        if isinstance(attachment, pd.DataFrame):
+            # Attach DataFrame as CSV
+            csv_buffer = io.StringIO()
+            attachment.to_csv(csv_buffer, index=False)
+            csv_bytes = csv_buffer.getvalue().encode("utf-8")
+            msg.add_attachment(csv_bytes, maintype="text", subtype="csv", filename="anomalies.csv")
+        elif isinstance(attachment, str):  # Assume it's a file path
+            with open(attachment, "rb") as f:
+                file_data = f.read()
+                file_name = attachment.split("/")[-1]
+                msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
 
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as server:
@@ -132,56 +425,24 @@ def send_email(
         raise
 
 
-def compute_rmse(y_true, y_pred):
-    """Computes Root Mean Squared Error."""
-    return math.sqrt(mean_squared_error(y_true, y_pred))
 
+def upload_to_gcs(file_name, gcs_bucket_name):
+    # Initialize Google Cloud Storage client
+    storage_client = storage.Client()
 
-def get_latest_data_from_cloud_sql(query, port="3306"):
-    """
-    Connects to a Google Cloud SQL instance using TCP (public IP or Cloud SQL Proxy)
-    and returns query results as a DataFrame.
-
-    Args:
-        host (str): The Cloud SQL instance IP address or localhost (if using Cloud SQL Proxy).
-        port (int): The port number (typically 3306 for MySQL).
-        user (str): Database username.
-        password (str): Database password.
-        database (str): Database name.
-        query (str): SQL query to execute.
-
-    Returns:
-        pd.DataFrame: Query results.
-    """
-
-    host        = os.getenv("MYSQL_HOST")
-    user        = os.getenv("MYSQL_USER")
-    password    = os.getenv("MYSQL_PASSWORD")
-    database    = os.getenv("MYSQL_DATABASE")
-    conn_name    = os.getenv("INSTANCE_CONN_NAME")
-
-    creds, project = default()
-    connector = Connector()
-
-    def getconn():
-        conn = connector.connect(
-                conn_name,      # Cloud SQL instance connection name
-                "pymysql",      # Database driver
-                user=user,      # Database user
-                password=password,  # Database password
-                db=database,    # Database name
-                ip_type="PRIVATE",
-            )
-        return conn
-
-    pool = sqlalchemy.create_engine(
-        "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
-        creator=getconn,
-    )
-    with pool.connect() as db_conn:
-        result = db_conn.execute(sqlalchemy.text(query))
-        print(result.scalar())
-    df = pd.read_sql(query, pool)
-    print(df.head())
-    connector.close()
-    return df
+    # Upload Keras model
+    try:
+        logger.info(f"Uploading {file_name} to GCS")
+        bucket = storage_client.bucket(gcs_bucket_name)
+        blob = bucket.blob(file_name)
+        blob.upload_from_filename(file_name)
+        print(f'Uploaded {file_name} to GCS: gs://{gcs_bucket_name}/{file_name}')
+        return True
+    except Exception as e:
+        print(f'Error uploading {file_name} to GCS: {e}')
+        send_email(
+            emailid=email,
+            subject=f"Error uploading {file_name} to GCS",
+            body=f"An error occurred while uploading {file_name} to GCS: {str(e)}",
+        )
+        return False

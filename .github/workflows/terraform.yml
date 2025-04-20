@@ -3,16 +3,7 @@ name: Deploy Airflow with Terraform
 on:
   push:
     branches: [testing-service-account-terraform]
-  workflow_dispatch:
-    inputs:
-      deployment_target:
-        description: "Where to deploy Airflow"
-        required: true
-        default: "compute_engine"
-        type: choice
-        options:
-          - local
-          - compute_engine
+  workflow_dispatch: {}
 
 jobs:
   # -------------------------------------------------------------
@@ -307,13 +298,13 @@ jobs:
       TF_VAR_model_name: ${{ secrets.MODEL_NAME }}
       TF_VAR_staging_bucket_uri: ${{ secrets.BUCKET_URI }}
       TF_VAR_project_number: ${{ secrets.PROJECT_NUMBER }}
-      TF_VAR_instance_conn_name: ${{ secrets.INSTANCE_CONN_NAME }}
+      # TF_VAR_instance_conn_name: ${{ secrets.INSTANCE_CONN_NAME }}
       TF_VAR_airflow_dag_id: ${{ secrets.AIRFLOW_DAG_ID }}
       TF_VAR_vertex_region: ${{ secrets.VERTEX_REGION }}
-      TF_VAR_vertex_endpoint_id: ${{ secrets.VERTEX_ENDPOINT_ID }}
+      # TF_VAR_vertex_endpoint_id: ${{ secrets.VERTEX_ENDPOINT_ID }}
       TF_VAR_gcs_bucket_name: ${{ secrets.GCS_BUCKET_NAME }}
       TF_VAR_bucket_uri: ${{ secrets.BUCKET_URI }}
-      TF_VAR_cloudrun_service_name: cloudrun-backend
+      # TF_VAR_cloudrun_service_name: cloudrun-backend
 
     steps:
       - name: Checkout Repository
