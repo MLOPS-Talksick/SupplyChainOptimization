@@ -30,7 +30,7 @@ async function handleRequest(request: NextRequest) {
     const endpoint = searchParams.get('endpoint');
     
     if (!endpoint) {
-      return NextResponse.json({ error: 'No endpoint specified' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing endpoint parameter' }, { status: 400 });
     }
 
     // Get backend URL from environment variable
@@ -46,6 +46,8 @@ async function handleRequest(request: NextRequest) {
     
     const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
     const targetUrl = `${backendUrl}/${endpoint}${queryString}`;
+    
+    console.log(`Proxying request to: ${targetUrl}`);
     
     // Forward the request with its headers and body
     const method = request.method;
