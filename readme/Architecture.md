@@ -1,4 +1,4 @@
-## Architecture Modules
+## Architecture 
 
 <p align="center">
   <img src="/Media/arch1.png" alt="Architecture" width="1000"/>
