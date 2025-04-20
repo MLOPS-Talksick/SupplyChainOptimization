@@ -5,7 +5,7 @@
 - Applies schema validation and consistency checks.
 - Stores validated data in cloud storage for downstream use.
 
-### Data Processing
+### Data Validation & Processing
 - Orchestrated using Airflow DAGs.
 - Performs pre-validation, preprocessing (cleaning, feature engineering), and post-validation.
 - Outputs cleaned data to a structured database and versions it using DVC.
