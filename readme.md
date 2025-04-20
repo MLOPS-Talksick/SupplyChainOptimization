@@ -20,7 +20,7 @@ This guide includes steps for creating a GCP account, configuring environment va
 
 - [Understand the API Payloads](./Data_Pipeline/README.md)
 - [Explore ML Pipelines](./ml_pipelines/)
-  - [Stage 1 - Data Pipeline](/readme/data_ingestion.md)
+  - [Stage 1 - Data Pipeline](/readme/Data_Pipeline.md)
   - [Stage 2 - Test Data Ingestion](./ml_pipelines/stage2_test_data.md)
   - [Stage 3 - Model Evaluation](./ml_pipelines/stage3_evaluation.md)
   - [Stage 4 - Bias Detection](./ml_pipelines/stage4_bias_detection.md)
