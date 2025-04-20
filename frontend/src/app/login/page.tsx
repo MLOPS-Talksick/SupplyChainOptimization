@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/context/auth-context";
+import { TextHoverEffect } from "@/components/ui/text-hover-effect";
 
 // Form schema validation
 const loginFormSchema = z.object({
@@ -61,7 +62,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+    <div className="flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center">
+      <div className="h-[20rem] flex items-center justify-center">
+        <TextHoverEffect text="AI-3" />
+      </div>
+
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Login</CardTitle>
