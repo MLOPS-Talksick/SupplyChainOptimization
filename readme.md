@@ -18,17 +18,18 @@ This guide includes steps for creating a GCP account, configuring environment va
 
 
 
-- [Understand the API Payloads](./Data_Pipeline/README.md)
-- [Explore ML Pipelines](./ml_pipelines/)
-  - [Stage 1 - Data Pipeline](/readme/Data_Pipeline.md)
-  - [Stage 2 - Test Data Ingestion](./ml_pipelines/stage2_test_data.md)
-  - [Stage 3 - Model Evaluation](./ml_pipelines/stage3_evaluation.md)
-  - [Stage 4 - Bias Detection](./ml_pipelines/stage4_bias_detection.md)
+- [Setup Guide](/readme/Setup_Guide.md)
+- [Data Pipeline](/readme/Data_Pipeline.md)
+- [ML_Mpdels](/readme/ML_Models.md)
+- [ML Architecture](./readme/Architecture.md)
+- 
+- [Bias Detection](./ml_pipelines/stage4_bias_detection.md)
 - [CI/CD Workflow](./ci_cd/README.md)
 - [Cost Analysis](./cost_analysis/README.md)
 - [Logging and Monitoring Setup](./logging_monitoring/README.md)
 - [Version Rollback](./rollback/README.md)
-- [Understand the Project Folder Structure](./folder_structure/README.md)
+- 
+- [Folder Structure](/readme/Folder_Structure.md)
 
 
 
