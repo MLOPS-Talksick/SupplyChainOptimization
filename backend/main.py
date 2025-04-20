@@ -259,10 +259,10 @@ def get_data(n: int = 5, predictions: bool = False):
 def get_data(n: int = 5, predictions: bool = False):
     logging.info("Received /data request: n=%s, predictions=%s", n, predictions)
 
-    # 0) Sanitize input
+    # Ensure n is non‑negative
     n = max(0, n)
 
-    # 1) Build Cloud‑SQL connection pool
+    # 1) Build connection pool
     try:
         def getconn():
             return connector.connect(
@@ -279,10 +279,8 @@ def get_data(n: int = 5, predictions: bool = False):
         logging.error("Database connection failed: %s", e)
         raise HTTPException(status_code=500, detail="Database connection failed.")
 
-    # 2) Choose table name
+    # 2) Pick table and fetch its max sale_date
     table = "PREDICT" if predictions else "SALES"
-
-    # 3) Determine the max date in that table
     try:
         with pool.connect() as conn:
             max_date = conn.execute(
@@ -291,16 +289,22 @@ def get_data(n: int = 5, predictions: bool = False):
     except Exception as e:
         logging.error("Failed to fetch max date from %s: %s", table, e)
         raise HTTPException(status_code=500, detail="Database error fetching date range.")
-    if not max_date:
-        # No data at all
-        logging.info("Table %s is empty. Returning no records.", table)
+
+    if max_date is None:
+        # No rows in the table
+        logging.info("Table %s is empty; returning zero records.", table)
         return {"records": {}, "count": 0}
 
-    # 4) Compute start_date = max_date - n days
+    # 3) Compute start_date = max_date - n days
     start_date = max_date - timedelta(days=n)
-    logging.info("Date window on %s: from %s through %s", table, start_date.date(), max_date.date())
+    logging.info(
+        "Date window on %s: from %s through %s",
+        table,
+        start_date,      # no .date()
+        max_date         # no .date()
+    )
 
-    # 5) Query all rows in that window
+    # 4) Query rows in that window
     sql = f"""
         SELECT
           sale_date,
@@ -321,11 +325,12 @@ def get_data(n: int = 5, predictions: bool = False):
         logging.error("Database query failed: %s", e)
         raise HTTPException(status_code=500, detail="Database query failed.")
 
-    # 6) Return JSON
+    # 5) Return
     return {
         "records": df.to_json(date_unit="ms"),
         "count": len(df)
     }
+
 @app.get("/get-stats", dependencies=[Depends(verify_token)])
 def get_stats():
     logging.info("Received /get-stats request.")
