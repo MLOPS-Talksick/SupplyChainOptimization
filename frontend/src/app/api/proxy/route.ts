@@ -33,7 +33,7 @@ async function handleRequest(request: NextRequest) {
     }
 
     // Get backend URL from environment variable
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://34.8.2.47';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://api.ai-3.net';
     
     // Reconstruct URL with any other query params
     const queryParams = new URLSearchParams();

@@ -110,7 +110,27 @@ export default function DataTable() {
 
     // Use the current values from the ref
     const { recordsToFetch, customCount } = currentValuesRef.current;
-    const countToUse = customCount || recordsToFetch;
+
+    // Fix the issue with countToUse calculation
+    let countToUse: string;
+    if (customCount) {
+      // If custom count has a value, use it
+      countToUse = customCount;
+    } else if (recordsToFetch === "custom") {
+      // If recordsToFetch is "custom" but customCount is empty, use default
+      countToUse = API_CONFIG.DEFAULT_RECORDS;
+    } else {
+      // Otherwise use recordsToFetch
+      countToUse = recordsToFetch;
+    }
+
+    // Make sure we have a valid numeric string - additional safety check
+    if (!countToUse || isNaN(Number(countToUse)) || Number(countToUse) <= 0) {
+      console.warn(
+        `Invalid count value (${countToUse}), using default instead`
+      );
+      countToUse = API_CONFIG.DEFAULT_RECORDS;
+    }
 
     try {
       const response = await fetch(`/api/proxy?endpoint=data&n=${countToUse}`, {
@@ -237,11 +257,27 @@ export default function DataTable() {
     loadData();
   }, [loadData]);
 
-  const handleRecordCountChange = useCallback((value: string) => {
-    setRecordsToFetch(value);
-    setCustomCount(""); // Clear custom count when selecting from dropdown
-    // Don't save preferences or load data here - wait for explicit refresh
-  }, []);
+  const handleRecordCountChange = useCallback(
+    (value: string) => {
+      setRecordsToFetch(value);
+      setCustomCount(""); // Clear custom count when selecting from dropdown
+
+      // Auto-refresh when user selects an option from dropdown
+      // Don't auto-refresh for "custom" - wait for user to enter a value
+      if (value !== "custom") {
+        // Use setTimeout to give React time to update state
+        setTimeout(() => {
+          currentValuesRef.current = {
+            ...currentValuesRef.current,
+            recordsToFetch: value,
+            customCount: "",
+          };
+          loadData();
+        }, 0);
+      }
+    },
+    [loadData]
+  );
 
   const handleCustomCountChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -253,6 +289,7 @@ export default function DataTable() {
         if (value) {
           setRecordsToFetch("custom");
         } else {
+          // If the custom count is cleared, revert to default records
           setRecordsToFetch(API_CONFIG.DEFAULT_RECORDS);
         }
       }
@@ -265,19 +302,27 @@ export default function DataTable() {
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         e.preventDefault();
+        // Make sure we have a valid count before loading
+        if (recordsToFetch === "custom" && !customCount) {
+          setRecordsToFetch(API_CONFIG.DEFAULT_RECORDS);
+        }
         loadData();
       }
     },
-    [loadData]
+    [loadData, recordsToFetch, customCount]
   );
 
   // Add a form submission handler
   const handleFormSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault(); // Prevent default form submission
+      // Make sure we have a valid count before loading
+      if (recordsToFetch === "custom" && !customCount) {
+        setRecordsToFetch(API_CONFIG.DEFAULT_RECORDS);
+      }
       loadData(); // Refresh data
     },
-    [loadData]
+    [loadData, recordsToFetch, customCount]
   );
 
   // Prepare chart data - memoized to improve performance

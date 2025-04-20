@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import NavigationMenu from "@/components/navigation-menu";
+import { AuthProvider } from "@/context/auth-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,18 +41,20 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex min-h-screen flex-col">
-            <header className="border-b">
-              <div className="flex h-16 items-center justify-between px-8">
-                <Link href="/" className="text-2xl font-bold">
-                  SupplySense
-                </Link>
-                <NavigationMenu />
-                <ThemeToggle />
-              </div>
-            </header>
-            <main className="flex-1 space-y-4 p-8 pt-6">{children}</main>
-          </div>
+          <AuthProvider>
+            <div className="flex min-h-screen flex-col">
+              <header className="border-b">
+                <div className="flex h-16 items-center justify-between px-8">
+                  <Link href="/" className="text-2xl font-bold">
+                    SupplySense
+                  </Link>
+                  <NavigationMenu />
+                  <ThemeToggle />
+                </div>
+              </header>
+              <main className="flex-1 space-y-4 p-8 pt-6">{children}</main>
+            </div>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

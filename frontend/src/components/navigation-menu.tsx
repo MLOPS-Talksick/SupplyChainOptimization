@@ -5,13 +5,16 @@ import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { MenuIcon } from "lucide-react";
+import { MenuIcon, LogOutIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
 
 function NavLink({
   href,
@@ -50,6 +53,7 @@ function NavLink({
 export default function NavigationMenu() {
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
+  const { isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     // Check if screen is mobile size
@@ -84,26 +88,54 @@ export default function NavigationMenu() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            {navItems.map((item) => (
-              <DropdownMenuItem key={item.href} asChild>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "w-full",
-                    pathname === item.href && "bg-primary/10 font-medium"
-                  )}
+            {isAuthenticated &&
+              navItems.map((item) => (
+                <DropdownMenuItem key={item.href} asChild>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "w-full",
+                      pathname === item.href && "bg-primary/10 font-medium"
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+
+            {isAuthenticated && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive cursor-pointer focus:text-destructive"
+                  onClick={logout}
                 >
-                  {item.label}
-                </Link>
-              </DropdownMenuItem>
-            ))}
+                  <LogOutIcon className="mr-2 h-4 w-4" /> Logout
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
         <>
-          <NavLink href="/dashboard">Dashboard</NavLink>
-          <NavLink href="/upload">Upload Data</NavLink>
-          <NavLink href="/forecast">Forecast</NavLink>
+          {isAuthenticated ? (
+            <>
+              <NavLink href="/dashboard">Dashboard</NavLink>
+              <NavLink href="/upload">Upload Data</NavLink>
+              <NavLink href="/forecast">Forecast</NavLink>
+              <div className="ml-auto">
+                <Button
+                  variant="ghost"
+                  onClick={logout}
+                  className="flex items-center gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <LogOutIcon className="h-4 w-4" /> Logout
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1" />
+          )}
         </>
       )}
     </nav>
