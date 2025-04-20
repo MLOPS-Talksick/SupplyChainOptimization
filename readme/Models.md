@@ -1,4 +1,4 @@
-##  ML_Models
+##  Models
 ```
 ML_Models/
 ├── experiments/
