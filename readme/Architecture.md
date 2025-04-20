@@ -1,5 +1,10 @@
 ## Architecture Modules
 
+<p align="center">
+  <img src="Media/vis.png" alt="Architecture" width="1000"/>
+</p>
+
+
 ### Data Ingestion
 - Collects raw sales data via upload or system integration.
 - Applies schema validation and consistency checks.
