@@ -1549,6 +1549,7 @@ def save_artifacts(scaler_X, scaler_y, label_encoder, log_transformed, output_di
 
     upload_to_gcs("lstm_model", "trained-model-1")
     upload_to_gcs("scaler_y.pkl", "model_training_1")
+    upload_to_gcs("model_report.md", "model_training_1")
     upload_to_gcs("label_encoder.pkl", "model_training_1")
     upload_to_gcs("scaler_X.pkl", "model_training_1")
     upload_to_gcs("transform_info.pkl", "model_training_1")
@@ -2077,16 +2078,6 @@ def main():
             model_name, rmse, mae, mape
         FROM MODEL_METRICS;
         """
-        
-        try:
-            model_metrics_df = get_latest_data_from_cloud_sql(query=query)
-        except Exception as e:
-            logger.warning(f"Could not load from SQL: {e}")
-
-        existing_model_rmse_value = model_metrics_df['rmse'].iloc[0]
-
-        overall_metrics = fairness_metrics['overall_metrics']
-        current_model_rmse = overall_metrics['rmse']
 
 
         try:
@@ -2105,7 +2096,7 @@ def main():
         overall_metrics = fairness_metrics['overall_metrics']
         current_model_rmse = overall_metrics['rmse']
 
-        if existing_model_rmse_value is not None and new_product_flag and existing_model_rmse_value > current_model_rmse:
+        if existing_model_rmse_value is None or new_product_flag or existing_model_rmse_value > current_model_rmse:
 
             engine = get_connection()
             metrics_df = pd.DataFrame([overall_metrics])
@@ -2118,7 +2109,6 @@ def main():
                 best_model, X_val, y_val, scaler_y, log_transformed
             )
             
-            # TODO: make this to GCP & save model to gcp bucket
             # 13. Save preprocessing objects
             logger.info("Step 14: Saving preprocessing objects")
             save_artifacts(

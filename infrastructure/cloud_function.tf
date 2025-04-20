@@ -165,7 +165,7 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
 
       env {
         name  = "IMAGE_URI"
-        value = local.model_training_trigger_image_uri
+        value = local.model_training_image_uri
       }
 
       env {
