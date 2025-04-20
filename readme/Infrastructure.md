@@ -1,7 +1,7 @@
 
 ## Infrastructure 
 
-**`cloud_function.tf`**  
+**File:** `cloud_function.tf`
   Defines Google Cloud Functions with specified runtime environments and triggers.  
   Associates functions with source code locations and necessary IAM roles.
 
