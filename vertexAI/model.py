@@ -16,7 +16,16 @@ from datetime import datetime, timedelta
 import pickle
 import random
 from scipy import stats
-from bias_report import get_latest_data_from_cloud_sql
+from utils import analyze_data_distribution, plot_distribution_bias, get_latest_data_from_cloud_sql, send_email, get_connection, upload_to_gcs
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+import shap
+import optuna
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+new_product_flag = os.getenv("FLAG")
 
 # Configure logging
 logging.basicConfig(
@@ -601,19 +610,6 @@ class FairnessAwareCallback(tf.keras.callbacks.Callback):
                 max_val = -float('inf')
                 min_val = float('inf')
                 
-                for product, metrics in product_metrics.items():
-                    if not np.isnan(metrics['rmse']):
-                        if metrics['rmse'] > max_val:
-                            max_val = metrics['rmse']
-                            worst_product = product
-                        if metrics['rmse'] < min_val:
-                            min_val = metrics['rmse']
-                            best_product = product
-                
-                if worst_product and best_product:
-                    logger.info(f"Epoch {epoch+1}: Best product: {best_product} (RMSE: {min_val:.2f}), "
-                                f"Worst product: {worst_product} (RMSE: {max_val:.2f})")
-                
                 if disparity < self.best_disparities:
                     self.best_disparities = disparity
                     self.wait = 0
@@ -832,9 +828,169 @@ def build_model(input_shape, hyperparams=None):
     
     return model
 
+
+
+def objective(trial, X_train, y_train, X_val, y_val, input_shape, weights_train, weights_val):
+    """
+    Objective function for Optuna hyperparameter tuning
+    
+    Parameters:
+    -----------
+    trial : optuna.trial.Trial
+        Current trial object
+    X_train, y_train : np.array
+        Training data
+    X_val, y_val : np.array
+        Validation data
+    input_shape : tuple
+        Shape of input data (time_steps, features)
+    weights_train, weights_val : np.array
+        Sample weights
+        
+    Returns:
+    --------
+    Validation loss value
+    """
+    # Define hyperparameters to tune
+    hyperparams = {
+        'units_1': trial.suggest_int('units_1', 32, 128, step=16),
+        'dropout_1': trial.suggest_float('dropout_1', 0.1, 0.5, step=0.1),
+        'activation_1': trial.suggest_categorical('activation_1', ['tanh', 'relu']),
+        'units_2': trial.suggest_int('units_2', 16, 64, step=8),
+        'dropout_2': trial.suggest_float('dropout_2', 0.1, 0.5, step=0.1),
+        'activation_2': trial.suggest_categorical('activation_2', ['tanh', 'relu']),
+        'dense_units': trial.suggest_int('dense_units', 8, 32, step=8),
+        'dense_activation': trial.suggest_categorical('dense_activation', ['relu', 'tanh']),
+        'learning_rate': trial.suggest_float('learning_rate', 1e-4, 1e-2, log=True),
+        'optimizer': trial.suggest_categorical('optimizer', ['adam', 'rmsprop'])
+    }
+    
+    # Create model with trial hyperparameters
+    model = Sequential()
+    
+    # First LSTM layer
+    model.add(LSTM(units=hyperparams['units_1'],
+                  activation=hyperparams['activation_1'],
+                  return_sequences=True,
+                  input_shape=input_shape))
+    model.add(Dropout(hyperparams['dropout_1']))
+    
+    # Second LSTM layer
+    model.add(LSTM(units=hyperparams['units_2'],
+                  activation=hyperparams['activation_2']))
+    model.add(Dropout(hyperparams['dropout_2']))
+    
+    # Dense hidden layer
+    model.add(Dense(units=hyperparams['dense_units'],
+                   activation=hyperparams['dense_activation']))
+    
+    # Output layer
+    model.add(Dense(1))
+    
+    # Configure optimizer
+    if hyperparams['optimizer'] == 'adam':
+        optimizer = Adam(learning_rate=hyperparams['learning_rate'])
+    else:
+        optimizer = RMSprop(learning_rate=hyperparams['learning_rate'])
+    
+    # Compile model
+    model.compile(optimizer=optimizer, loss='mse')
+    
+    # Define early stopping callback
+    early_stop = EarlyStopping(
+        monitor='val_loss',
+        patience=5,
+        restore_best_weights=True,
+        verbose=0
+    )
+    
+    # Train model for limited epochs to save time during tuning
+    history = model.fit(
+        X_train, y_train,
+        epochs=20,  # Reduced epochs for hyperparameter search
+        batch_size=32,
+        validation_data=(X_val, y_val),
+        sample_weight=weights_train,
+        callbacks=[early_stop],
+        verbose=0
+    )
+    
+    # Return best validation loss
+    return min(history.history['val_loss'])
+
+def tune_hyperparameters(X_train, y_train, X_val, y_val, input_shape, weights_train, weights_val, 
+                         n_trials=50, timeout=3600, study_name="debiased_lstm_tuning"):
+    """
+    Perform hyperparameter tuning using Optuna
+    
+    Parameters:
+    -----------
+    X_train, y_train : np.array
+        Training data
+    X_val, y_val : np.array
+        Validation data
+    input_shape : tuple
+        Shape of input data (time_steps, features)
+    weights_train, weights_val : np.array
+        Sample weights
+    n_trials : int
+        Number of trials to run
+    timeout : int
+        Timeout in seconds
+    study_name : str
+        Name of the study
+        
+    Returns:
+    --------
+    Dictionary of best hyperparameters
+    """
+    logger.info(f"Starting hyperparameter tuning with Optuna ({n_trials} trials, {timeout}s timeout)")
+    
+    # Create Optuna study
+    study = optuna.create_study(
+        direction="minimize",  # Minimize validation loss
+        study_name=study_name,
+        sampler=optuna.samplers.TPESampler(seed=42)  # Use TPE algorithm with seed for reproducibility
+    )
+    
+    # Define objective function with fixed parameters
+    objective_func = lambda trial: objective(
+        trial, X_train, y_train, X_val, y_val, input_shape, weights_train, weights_val
+    )
+    
+    # Run optimization
+    try:
+        study.optimize(objective_func, n_trials=n_trials, timeout=timeout)
+        
+        # Get best hyperparameters
+        best_params = study.best_params
+        best_value = study.best_value
+        
+        logger.info(f"Best validation loss: {best_value}")
+        logger.info(f"Best hyperparameters: {best_params}")
+        
+        return best_params
+    
+    except Exception as e:
+        logger.error(f"Error during hyperparameter tuning: {e}")
+        # Return default hyperparameters if optimization fails
+        return {
+            'units_1': 64,
+            'dropout_1': 0.2,
+            'activation_1': 'tanh',
+            'units_2': 32,
+            'dropout_2': 0.2,
+            'activation_2': 'tanh',
+            'dense_units': 16,
+            'dense_activation': 'relu',
+            'learning_rate': 0.001,
+            'optimizer': 'adam'
+        }
+
+
 def train_model(model, X_train, y_train, X_val, y_val, weights_train, weights_val,
                product_indices, product_names, scaler_y, log_transformed=False,
-               epochs=50, batch_size=32, patience=10, model_path='debiased_model.keras'):
+               epochs=50, batch_size=32, patience=10, model_path='lstm_model.keras'):
     """
     Train model with fairness-aware callbacks
     
@@ -911,7 +1067,110 @@ def train_model(model, X_train, y_train, X_val, y_val, weights_train, weights_va
     
     return history, best_model
 
-def evaluate_model_fairness(model, X_test, y_test, product_indices, product_names, scaler_y, 
+
+
+def check_prediction_bias(model, X_test, y_test, scaler_y):
+    """
+    Check for systematic bias in predictions
+    """
+    logger.info("Checking for systematic prediction bias")
+    
+    # Make predictions
+    y_pred = model.predict(X_test)
+    
+    # Inverse transform
+    y_pred_real = scaler_y.inverse_transform(y_pred)
+    y_test_real = scaler_y.inverse_transform(y_test)
+    
+    # Calculate errors
+    errors = y_pred_real - y_test_real
+    
+    # Check for systematic over/under prediction
+    mean_error = np.mean(errors)
+    median_error = np.median(errors)
+    
+    # Check if errors correlate with prediction magnitude
+    error_vs_actual = np.corrcoef(y_test_real.flatten(), errors.flatten())[0, 1]
+    
+    # Check for heteroscedasticity (error variance changes with prediction magnitude)
+    from scipy.stats import pearsonr
+    abs_errors = np.abs(errors)
+    hetero_corr, hetero_p = pearsonr(y_test_real.flatten(), abs_errors.flatten())
+    
+    # checking if bigger predictions lead to bigger errors — a smart way to test your model’s consistency. If hetero_corr is high and hetero_p is low, your model might need some tweaking (e.g., transforming the target, weighted loss, etc.).
+
+
+    return {
+        'mean_error': mean_error,
+        'median_error': median_error,
+        'error_vs_actual_corr': error_vs_actual,
+        'heteroscedasticity_corr': hetero_corr,
+        'heteroscedasticity_p_value': hetero_p
+    }
+
+
+def generate_metrics_per_product(model,
+                                 X_test,
+                                 y_test,
+                                 features,
+                                 product_indices,
+                                 product_names,
+                                 scaler_y,
+                                 log_transformed=False):
+    """
+    Compute RMSE, MAE, and MAPE for each product in X_test/y_test.
+
+    Args:
+        model: Trained Keras model.
+        X_test: np.array of shape (n_samples, timesteps, n_features).
+        y_test: np.array of shape (n_samples, 1) (scaled).
+        features: List of feature names used (must include 'product_encoded').
+        product_indices: List of encoded product IDs (as in label_encoder).
+        product_names: List of corresponding product names.
+        scaler_y: Fitted RobustScaler for the target.
+        log_transformed: Whether the target was log‑transformed.
+
+    Returns:
+        Dict mapping product_name → {'rmse', 'mae', 'mape', 'n_samples'}.
+    """
+    # 1. Predict and invert scaling
+    y_pred_scaled = model.predict(X_test, verbose=0)
+    y_pred = scaler_y.inverse_transform(y_pred_scaled)
+    y_true = scaler_y.inverse_transform(y_test)
+    if log_transformed:
+        y_pred = np.expm1(y_pred)
+        y_true = np.expm1(y_true)
+
+    # 2. Locate the product_encoded feature index
+    prod_idx = features.index('product_encoded')
+
+    # 3. Compute metrics per product
+    metrics = {}
+    for pid, pname in zip(product_indices, product_names):
+        mask = X_test[:, 0, prod_idx] == pid
+        if not mask.any():
+            continue
+        y_p = y_pred[mask].ravel()
+        y_t = y_true[mask].ravel()
+
+        rmse = np.sqrt(mean_squared_error(y_t, y_p))
+        mae  = mean_absolute_error(y_t, y_p)
+
+        nonzero = y_t != 0
+        mape = (np.mean(np.abs((y_t[nonzero] - y_p[nonzero]) / y_t[nonzero])) * 100
+                if nonzero.any() else np.nan)
+
+        metrics[pname] = {
+            'rmse': rmse,
+            'mae': mae,
+            'mape': mape,
+            'n_samples': int(mask.sum())
+        }
+
+    return metrics
+
+
+def evaluate_model_metrics(model, X_test, y_test, product_indices, product_names, scaler_y, 
                            log_transformed=False, output_dir='.'):
     """
     Evaluate model fairness across different products and visualize
@@ -967,70 +1226,92 @@ def evaluate_model_fairness(model, X_test, y_test, product_indices, product_name
     
     # Calculate metrics by product
     product_metrics = {}
-    product_idx_to_name = dict(zip(product_indices, product_names))
+    idx2name = dict(zip(product_indices, product_names))
     
-    for product_idx in product_indices:
-        product_name = product_idx_to_name.get(product_idx, f"Product_{product_idx}")
+    # Check the product ID column in X_test
+    # For 3D tensors [samples, timesteps, features]
+    product_id_values = set()
+    if X_test.ndim == 3:
+        # Try to extract unique product ID values
+        product_id_values = set(X_test[:, 0, 0])
+        logger.info(f"Found product IDs in X_test: {product_id_values}")
+    
+    # Process each product index
+    for pid in product_indices:
+        pname = idx2name.get(pid)
+        logger.info(f"Processing {pname} (ID: {pid})")
         
-        # Get indices for this product in the test set
-        product_mask = X_test[:, 0, 6] == product_idx  # Assuming product_encoded is at index 6
+        # Try different approaches to match the product ID
+        if X_test.ndim == 3:
+            # APPROACH 1: Check if product ID matches directly
+            prod_mask = X_test[:, 0, 0] == pid
+            prod_count = np.sum(prod_mask)
+            
+            # APPROACH 2: If no matches, try the product indices positions
+            if prod_count == 0:
+                pid_position = product_indices.index(pid)
+                # Try using the position as the encoded value (-1, 0, etc.)
+                if pid_position < len(product_id_values):
+                    # This maps product_indices positions to the actual values in X_test
+                    # For example, if product_indices[0] = 41, we try X_test[:, 0, 0] == -1
+                    possible_encoded_value = sorted(list(product_id_values))[pid_position]
+                    prod_mask = X_test[:, 0, 0] == possible_encoded_value
+                    prod_count = np.sum(prod_mask)
+                    logger.info(f"  Using position-based mapping for {pname}: {pid_position} -> {possible_encoded_value}, found {prod_count} samples")
+        else:
+            # For 2D tensors [samples, features]
+            prod_mask = X_test[:, 0] == pid
+            prod_count = np.sum(prod_mask)
         
-        if np.sum(product_mask) > 0:
-            # Calculate metrics for this product
-            product_y_pred = y_pred_real[product_mask]
-            product_y_test = y_test_real[product_mask]
+        # Log results of matching
+        logger.info(f"  Found {prod_count} samples for {pname}")
+        
+        if not prod_mask.any():
+            logger.warning(f"  Skipped {pname} - no samples found")
+            continue
             
-            product_mse = np.mean((product_y_pred - product_y_test) ** 2)
-            product_rmse = np.sqrt(product_mse)
-            product_mae = np.mean(np.abs(product_y_pred - product_y_test))
-            
-            # Calculate MAPE for non-zero values
-            non_zero_mask = product_y_test > 0
-            if np.sum(non_zero_mask) > 0:
-                product_mape = np.mean(np.abs((product_y_test[non_zero_mask] - product_y_pred[non_zero_mask]) / 
-                                            product_y_test[non_zero_mask])) * 100
-            else:
-                product_mape = np.nan
-            
-            product_metrics[product_name] = {
-                'rmse': product_rmse,
-                'mae': product_mae,
-                'mape': product_mape,
-                'sample_count': np.sum(product_mask)
-            }
+        y_p = y_pred_real[prod_mask]
+        y_t = y_test_real[prod_mask]
+        mse = np.mean((y_p - y_t) ** 2)
+        rmse = np.sqrt(mse)
+        mae = np.mean(np.abs(y_p - y_t))
+        nzp = y_t > 0
+        mape = np.mean(np.abs((y_t[nzp] - y_p[nzp]) / y_t[nzp])) * 100 if nzp.any() else np.nan
+        
+        product_metrics[pname] = {
+            'rmse': rmse,
+            'mae': mae,
+            'mape': mape,
+            'sample_count': int(prod_mask.sum())
+        }
+    
+    logger.info(f"Collected metrics for {len(product_metrics)} products")
     
     # Create DataFrame from product metrics
     metrics_df = pd.DataFrame.from_dict(product_metrics, orient='index')
     
-    # Calculate fairness disparities
-    rmse_values = [m['rmse'] for m in product_metrics.values() if not np.isnan(m['rmse'])]
-    mape_values = [m['mape'] for m in product_metrics.values() if not np.isnan(m['mape'])]
-    
-    if rmse_values:
-        max_rmse = max(rmse_values)
-        min_rmse = min(rmse_values)
-        rmse_disparity = max_rmse / min_rmse
-        
-        # Find worst and best products for RMSE
-        worst_rmse_product = metrics_df['rmse'].idxmax()
-        best_rmse_product = metrics_df['rmse'].idxmin()
+    if len(metrics_df) < 2:
+        # not enough products to compare
+        rmse_disparity = mape_disparity = np.nan
+        best_rmse_product = worst_rmse_product = None
+        best_mape_product = worst_mape_product = None
+        best_product_rmse = worst_product_rmse = None
     else:
-        rmse_disparity = np.nan
-        worst_rmse_product = None
-        best_rmse_product = None
-    
-    if mape_values:
-        max_mape = max(mape_values)
-        min_mape = min(mape_values)
-        mape_disparity = max_mape / min_mape
-        
-        # Find worst and best products for MAPE
-        worst_mape_product = metrics_df['mape'].idxmax()
-        best_mape_product = metrics_df['mape'].idxmin()
-    else:
-        mape_disparity = np.nan
-        worst_mape_product = None
-        best_mape_product = None
+        # RMSE
+        rmse_s = metrics_df['rmse'].dropna().sort_values()
+        best_rmse_product = rmse_s.index[0]
+        best_product_rmse = float(rmse_s.iloc[0])
+        worst_rmse_product = rmse_s.index[-1]
+        worst_product_rmse = float(rmse_s.iloc[-1])
+        rmse_disparity = (worst_product_rmse / best_product_rmse
+                          if best_product_rmse != 0 else np.nan)
+
+        # MAPE
+        mape_s = metrics_df['mape'].dropna().sort_values()
+        best_mape_product = mape_s.index[0]
+        worst_mape_product = mape_s.index[-1]
+        mape_disparity = (float(mape_s.iloc[-1]) / float(mape_s.iloc[0])
+                          if mape_s.iloc[0] != 0 else np.nan)
     
     # Create visualizations
     
@@ -1123,17 +1404,14 @@ def evaluate_model_fairness(model, X_test, y_test, product_indices, product_name
     # Log results
     logger.info(f"Overall RMSE: {overall_rmse:.2f}")
     logger.info(f"Overall MAPE: {overall_mape:.2f}%")
-    
-    if not np.isnan(rmse_disparity):
-        logger.info(f"RMSE disparity ratio: {rmse_disparity:.2f}")
-        logger.info(f"Best RMSE product: {best_rmse_product}, Worst RMSE product: {worst_rmse_product}")
-    
-    if not np.isnan(mape_disparity):
-        logger.info(f"MAPE disparity ratio: {mape_disparity:.2f}")
-        logger.info(f"Best MAPE product: {best_mape_product}, Worst MAPE product: {worst_mape_product}")
-    
-    # Return fairness metrics
-    fairness_metrics = {
+    if best_product_rmse is not None:
+        logger.info(f"Best RMSE product: {best_rmse_product} ({best_product_rmse:.2f})")
+        logger.info(f"Worst RMSE product: {worst_rmse_product} ({worst_product_rmse:.2f})")
+    if best_mape_product is not None:
+        logger.info(f"Best MAPE product: {best_mape_product}")
+        logger.info(f"Worst MAPE product: {worst_mape_product}")
+
+    return {
         'overall_metrics': {
             'rmse': overall_rmse,
             'mae': overall_mae,
@@ -1148,11 +1426,11 @@ def evaluate_model_fairness(model, X_test, y_test, product_indices, product_name
             'best_rmse_product': best_rmse_product,
             'worst_rmse_product': worst_rmse_product,
             'best_mape_product': best_mape_product,
-            'worst_mape_product': worst_mape_product
+            'worst_mape_product': worst_mape_product,
+            'best_product_rmse': best_product_rmse,
+            'worst_product_rmse': worst_product_rmse
         }
     }
-    
-    return fairness_metrics
 
 def correct_prediction_bias(model, X_val, y_val, scaler_y, log_transformed=False):
     """
@@ -1226,7 +1504,7 @@ def correct_prediction_bias(model, X_val, y_val, scaler_y, log_transformed=False
     
     return correct_predictions
 
-def save_preprocessing_objects(scaler_X, scaler_y, label_encoder, log_transformed, output_dir='.'):
+def save_artifacts(scaler_X, scaler_y, label_encoder, log_transformed, output_dir='.'):
     """
     Save preprocessing objects for later use
     
@@ -1268,6 +1546,31 @@ def save_preprocessing_objects(scaler_X, scaler_y, label_encoder, log_transforme
     transform_info_path = os.path.join(output_dir, 'transform_info.pkl')
     with open(transform_info_path, 'wb') as f:
         pickle.dump({'log_transformed': log_transformed}, f)
+
+    print("++++++++++++++++++++++++++++++++++++++")
+
+    upload_to_gcs("lstm_model.keras", "trained-model-1")
+    upload_to_gcs("scaler_y.pkl", "model_training_1")
+    upload_to_gcs("model_report.md", "model_training_1")
+    upload_to_gcs("label_encoder.pkl", "model_training_1")
+    upload_to_gcs("scaler_X.pkl", "model_training_1")
+    upload_to_gcs("transform_info.pkl", "model_training_1")
+
+    upload_to_gcs("mape_by_product.png", "model_training_1")
+    upload_to_gcs("monthly_distribution.png", "model_training_1")
+    upload_to_gcs("predicted_vs_actual.png", "model_training_1")
+    upload_to_gcs("product_distribution.png", "model_training_1")
+
+    upload_to_gcs("residuals.png", "model_training_1")
+    upload_to_gcs("residuals.png", "model_training_1")
+    upload_to_gcs("rmse_by_product.png", "model_training_1")
+    upload_to_gcs("rmse_vs_sample_count.png", "model_training_1")
+
+    upload_to_gcs("shap_feature_importance.csv", "model_training_1")
+    upload_to_gcs("shap_feature_importance.png", "model_training_1")
+    upload_to_gcs("time_coverage.png", "model_training_1")
+    upload_to_gcs("time_gaps.png", "model_training_1")
+    upload_to_gcs("weekly_distribution.png", "model_training_1")
     
     logger.info(f"Preprocessing objects saved to {output_dir}")
     
@@ -1496,12 +1799,147 @@ def predict_future_demand(model, future_df, features, scaler_X, scaler_y,
     
     return predictions_df
 
+def analyze_model_with_shap(model, X_test, feature_names, output_dir='.', sample_size=100):
+    """
+    Analyze model predictions using SHAP values to explain feature importance
+    
+    Parameters:
+    -----------
+    model : Keras model
+        Trained model to analyze
+    X_test : np.array
+        Test data to use for SHAP analysis
+    feature_names : list
+        Names of features corresponding to X_test columns
+    output_dir : str
+        Directory to save visualizations
+    sample_size : int
+        Number of samples to use for SHAP analysis (smaller for faster computation)
+        
+    Returns:
+    --------
+    Dictionary with SHAP results
+    """
+    logger.info("Starting SHAP analysis")
+    
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # If X_test is too large, take a random sample
+    if len(X_test) > sample_size:
+        # Use numpy's random choice without setting global seed
+        indices = np.random.choice(len(X_test), sample_size, replace=False)
+        X_sample = X_test[indices]
+    else:
+        X_sample = X_test
+    
+    # Extract the last time step for each sample
+    last_timestep = X_sample[:, -1, :]
+    
+    # Create a function that takes 2D data and makes predictions with the model
+    def model_predict(x):
+        # Reshape the 2D input back to 3D for the LSTM model
+        batch_size = x.shape[0]
+        time_steps = X_sample.shape[1]
+        features = x.shape[1]
+        
+        # Create sequences with the same values repeated for all timesteps
+        x_reshaped = np.zeros((batch_size, time_steps, features))
+        for i in range(batch_size):
+            for t in range(time_steps):
+                x_reshaped[i, t, :] = x[i, :]
+        
+        return model.predict(x_reshaped, verbose=0)
+    
+    # Create the SHAP explainer
+    logger.info("Creating SHAP explainer")
+    try:
+        background = shap.kmeans(last_timestep, 10)  # Use K-means for more efficient background
+        explainer = shap.KernelExplainer(model_predict, background)
+    except Exception as e:
+        logger.error(f"Error creating KernelExplainer with kmeans: {e}")
+        # Fallback to simpler approach
+        explainer = shap.KernelExplainer(model_predict, last_timestep[:10])
+    
+    # Calculate SHAP values
+    logger.info("Calculating SHAP values (this may take a few minutes)...")
+    try:
+        shap_values = explainer.shap_values(last_timestep)
+        
+        # Convert to more convenient format if needed
+        if isinstance(shap_values, list):
+            shap_values = shap_values[0]  # Take first output for regression
+    except Exception as e:
+        logger.error(f"Error calculating SHAP values: {e}")
+        # Create dummy SHAP values as fallback
+        shap_values = np.zeros((len(last_timestep), last_timestep.shape[1]))
+    
+    # Create summary plot
+    logger.info("Creating summary plot")
+    try:
+        plt.figure(figsize=(12, 8))
+        # Without random_state parameter
+        shap.summary_plot(shap_values, last_timestep, feature_names=feature_names, show=False)
+        plt.title('SHAP Feature Importance (Impact on Model Output Magnitude)')
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, 'shap_summary_plot.png'), dpi=300, bbox_inches='tight')
+        plt.close()
+    except Exception as e:
+        logger.error(f"Error creating summary plot: {e}")
+    
+    # Create bar plot of feature importance
+    logger.info("Creating bar plot")
+    try:
+        plt.figure(figsize=(12, 8))
+        # Without random_state parameter
+        shap.summary_plot(shap_values, last_timestep, feature_names=feature_names, plot_type='bar', show=False)
+        plt.title('SHAP Feature Importance (Mean Absolute Impact)')
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, 'shap_feature_importance.png'), dpi=300, bbox_inches='tight')
+        plt.close()
+    except Exception as e:
+        logger.error(f"Error creating bar plot: {e}")
+    
+    # Calculate feature importance
+    logger.info("Calculating feature importance")
+    try:
+        # Calculate mean absolute SHAP values for each feature
+        mean_abs_shap = np.mean(np.abs(shap_values), axis=0)
+        
+        # Create a list of dictionaries for the DataFrame
+        importance_data = []
+        for i, feature in enumerate(feature_names):
+            importance_data.append({
+                'Feature': feature,
+                'Importance': mean_abs_shap[i]
+            })
+        
+        # Create DataFrame from list of dictionaries
+        feature_importance = pd.DataFrame(importance_data)
+        feature_importance = feature_importance.sort_values('Importance', ascending=False)
+        
+        # Save feature importance to CSV
+        feature_importance.to_csv(os.path.join(output_dir, 'shap_feature_importance.csv'), index=False)
+    except Exception as e:
+        logger.error(f"Error calculating feature importance: {e}")
+        feature_importance = pd.DataFrame(columns=['Feature', 'Importance'])
+    
+    logger.info("SHAP analysis complete")
+    
+    # Return summary of top features
+    return {
+        'top_features': feature_importance.head(10).to_dict(orient='records'),
+        'shap_values': shap_values,
+        'expected_value': explainer.expected_value
+    }
+
+
 def main():
     """
     Main function to run the debiased model training workflow
     """
     # Set output directory
-    output_dir = 'debiased_model_results'
+    output_dir = '.'
     os.makedirs(output_dir, exist_ok=True)
     
     try:
@@ -1513,37 +1951,37 @@ def main():
             product_name AS 'Product Name', 
             total_quantity AS 'Total Quantity'
         FROM SALES
+        WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL 4 YEAR)
         ORDER BY sale_date;
         """
         
         try:
             df = get_latest_data_from_cloud_sql(query=query)
         except Exception as e:
-            logger.warning(f"Could not load from SQL: {e}")
-            logger.info("Trying to load from local CSV file")
+            logger.error(f"Could not load from SQL: {e}")
+            return
         
         # 2. Check data quality
         logger.info("Step 2: Checking data quality")
-        issues = detect_data_quality_issues(df)
-
-        print("@@@@@@@@@@@@@@@@@@@@@")
-        print(issues)
+        df['Date'] = pd.to_datetime(df['Date'])
+        data_analysis = analyze_data_distribution(df)
+        plot_distribution_bias(data_analysis, output_dir)
 
         df['Date'] = pd.to_datetime(df['Date'])
         
-        # 5. Handle class imbalance
+        # 3. Handle class imbalance
         logger.info("Step 5: Handling class imbalance")
         balanced_df = handle_data_imbalance(df, min_samples=30)
         
-        # 6. Create features
+        # 4. Create features
         logger.info("Step 6: Creating features")
         feature_df, label_encoder = create_features(balanced_df)
         
-        # 7. Apply log transform if needed
+        # 5. Apply log transform if needed
         logger.info("Step 7: Applying log transform")
         transformed_df, log_transformed = apply_log_transform(feature_df)
         
-        # 8. Define features for the model
+        # 6. Define features for the model
         logger.info("Step 8: Defining model features")
         features = [
             'year', 'month', 'day', 'dayofweek', 'dayofyear', 'quarter',
@@ -1564,7 +2002,7 @@ def main():
         
         logger.info(f"Using {len(available_features)} features: {available_features}")
         
-        # 9. Create weighted sequences
+        # 7. Create weighted sequences
         logger.info("Step 9: Creating weighted sequences")
         target_col = 'Total Quantity_log' if log_transformed else 'Total Quantity'
         
@@ -1573,29 +2011,29 @@ def main():
          scaler_X, scaler_y, product_indices, product_names) = create_weighted_sequences(
              transformed_df, available_features, target_col, log_transformed, time_steps=5)
         
-        # 10. Build model
+        logger.info("Step 10: Performing hyperparameter tuning")
+        input_shape = (X_train.shape[1], X_train.shape[2])
+
+        # Run hyperparameter tuning
+        tuned_hyperparams = tune_hyperparameters(
+            X_train, y_train, X_val, y_val, input_shape, weights_train, weights_val,
+            n_trials=3,  # Adjust based on computational resources
+            timeout=1800,  # 30 minutes timeout
+            study_name="debiased_lstm_tuning"
+        )
+        
+        # 8. Build model
         logger.info("Step 10: Building model")
         input_shape = (X_train.shape[1], X_train.shape[2])
         
         # Default hyperparameters (can be tuned)
-        hyperparams = {
-            'units_1': 64,
-            'dropout_1': 0.2,
-            'activation_1': 'tanh',
-            'units_2': 32,
-            'dropout_2': 0.2,
-            'activation_2': 'tanh',
-            'dense_units': 16,
-            'dense_activation': 'relu',
-            'learning_rate': 0.001,
-            'optimizer': 'adam'
-        }
+        # 9. Build model with tuned hyperparameters
+        logger.info("Step 11: Building model with tuned hyperparameters")
+        model = build_model(input_shape, tuned_hyperparams)
         
-        model = build_model(input_shape, hyperparams)
-        
-        # 11. Train model
+        # 9. Train model
         logger.info("Step 11: Training model")
-        model_path = os.path.join(output_dir, 'debiased_lstm_model.keras')
+        model_path = os.path.join(output_dir, 'lstm_model.keras')
         
         history, best_model = train_model(
             model, X_train, y_train, X_val, y_val, weights_train, weights_val,
@@ -1603,202 +2041,230 @@ def main():
             epochs=50, batch_size=32, patience=10, model_path=model_path
         )
         
-        # 12. Evaluate model fairness
+
+        # 10. Check for prediction bias
+        prediction_bias = check_prediction_bias(model, X_test, y_test, scaler_y)
+
+        # 11. Evaluate model fairness
         logger.info("Step 12: Evaluating model fairness")
-        fairness_metrics = evaluate_model_fairness(
+        fairness_metrics = evaluate_model_metrics(
             best_model, X_test, y_test, product_indices, product_names, 
             scaler_y, log_transformed, output_dir
         )
-        
-        # 13. Apply bias correction
-        logger.info("Step 13: Creating bias correction function")
-        bias_correction_func = correct_prediction_bias(
-            best_model, X_val, y_val, scaler_y, log_transformed
+
+
+        # After evaluating model metrics
+        logger.info("Step 15: Analyzing model with SHAP")
+        shap_results = analyze_model_with_shap(
+            best_model,
+            X_test,
+            available_features,
+            output_dir,
+            sample_size=100  # Adjust based on your dataset size
         )
-        
-        # 14. Save preprocessing objects
-        logger.info("Step 14: Saving preprocessing objects")
-        save_preprocessing_objects(
-            scaler_X, scaler_y, label_encoder, log_transformed, output_dir
+
+        product_metrics = generate_metrics_per_product(
+            best_model,
+            X_test, y_test,
+            features,            # same list you used when building sequences
+            product_indices,     # from create_weighted_sequences
+            product_names,       # from create_weighted_sequences
+            scaler_y,
+            log_transformed
         )
-        
-        # 15. Generate future predictions
-        logger.info("Step 15: Generating future predictions")
-        
-        # Define number of days to forecast
-        forecast_days = 7
-        
-        # Generate future features
-        future_df = generate_future_features(transformed_df, days_to_predict=forecast_days, features=available_features)
-        
-        # Make predictions
-        predictions_df = predict_future_demand(
-            best_model, future_df, available_features, scaler_X, scaler_y,
-            time_steps=5, bias_correction_func=bias_correction_func, log_transformed=log_transformed
-        )
-        
-        # Save predictions
-        predictions_path = os.path.join(output_dir, 'future_predictions.csv')
-        predictions_df.to_csv(predictions_path, index=False)
-        
-        logger.info(f"Predictions saved to {predictions_path}")
-        
-        # 16. Generate summary report
-        logger.info("Step 16: Generating summary report")
-        
-        report = []
-        report.append("# Debiased Demand Forecasting Model Report")
-        report.append(f"## Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        # Data statistics
-        report.append("\n## 1. Data Summary")
-        report.append(f"- Original dataset: {len(df)} samples")
-        report.append(f"- Cleaned dataset: {len(cleaned_df)} samples")
-        report.append(f"- Balanced dataset: {len(balanced_df)} samples")
-        report.append(f"- Number of products: {len(product_names)}")
-        report.append(f"- Date range: {df['Date'].min().strftime('%Y-%m-%d')} to {df['Date'].max().strftime('%Y-%m-%d')}")
-        
-        # Bias mitigation techniques
-        report.append("\n## 2. Bias Mitigation Techniques Applied")
-        report.append("- **Outlier Handling**: Used winsorization to handle extreme values")
-        report.append("- **Data Balancing**: Generated synthetic samples for underrepresented products")
-        report.append("- **Robust Scaling**: Used RobustScaler instead of standard scaling")
-        
-        if log_transformed:
-            report.append("- **Log Transformation**: Applied to target variable to handle heteroscedasticity")
-        
-        report.append("- **Weighted Training**: Used inverse frequency weighting during model training")
-        report.append("- **Fairness-Aware Training**: Used custom callback to monitor performance across products")
-        report.append("- **Bias Correction**: Applied post-processing correction to remove systematic bias")
-        
-        # Model architecture
-        report.append("\n## 3. Model Architecture")
-        report.append(f"- LSTM layers: 2 (units: {hyperparams['units_1']}, {hyperparams['units_2']})")
-        report.append(f"- Activation functions: {hyperparams['activation_1']}, {hyperparams['activation_2']}")
-        report.append(f"- Dropout rates: {hyperparams['dropout_1']}, {hyperparams['dropout_2']}")
-        report.append(f"- Dense layer units: {hyperparams['dense_units']}")
-        report.append(f"- Optimizer: {hyperparams['optimizer']} (learning rate: {hyperparams['learning_rate']})")
-        
-        # Model performance
-        report.append("\n## 4. Model Performance")
-        
+        for product, m in product_metrics.items():
+            print(f"{product}: RMSE={m['rmse']:.2f}, MAE={m['mae']:.2f}, MAPE={m['mape']:.1f}% (n={m['n_samples']})")
+
+        query = """
+        SELECT 
+            model_name, rmse, mae, mape
+        FROM MODEL_METRICS;
+        """
+
+
+        try:
+            model_metrics_df = get_latest_data_from_cloud_sql(query=query)
+        except Exception as e:
+            logger.warning(f"Could not load from SQL: {e}")
+            model_metrics_df = pd.DataFrame()
+
+        # Check if DataFrame is empty or missing 'rmse' column
+        if model_metrics_df.empty or 'rmse' not in model_metrics_df.columns:
+            logger.warning("Model metrics DataFrame is empty or missing 'rmse' column.")
+            existing_model_rmse_value = None
+        else:
+            existing_model_rmse_value = model_metrics_df['rmse'].iloc[0]
+
         overall_metrics = fairness_metrics['overall_metrics']
-        report.append("### Overall Performance")
-        report.append(f"- RMSE: {overall_metrics['rmse']:.2f}")
-        report.append(f"- MAE: {overall_metrics['mae']:.2f}")
-        report.append(f"- MAPE: {overall_metrics['mape']:.2f}%")
-        
-        # Fairness metrics
-        report.append("\n### Fairness Metrics")
-        
-        disparities = fairness_metrics['disparities']
-        best_worst = fairness_metrics['best_worst']
-        
-        report.append(f"- RMSE disparity ratio: {disparities['rmse_disparity']:.2f}")
-        report.append(f"- MAPE disparity ratio: {disparities['mape_disparity']:.2f}")
-        report.append(f"- Best performing product (RMSE): {best_worst['best_rmse_product']}")
-        report.append(f"- Worst performing product (RMSE): {best_worst['worst_rmse_product']}")
-        
-        # Future predictions
-        report.append("\n## 5. Future Predictions")
-        report.append(f"- Forecast horizon: {forecast_days} days")
-        report.append(f"- Number of products forecast: {predictions_df['Product Name'].nunique()}")
-        report.append(f"- Total predicted quantity: {predictions_df['Predicted Quantity'].sum():.0f} units")
-        
-        # Top 5 products by predicted quantity
-        top_products = predictions_df.groupby('Product Name')['Predicted Quantity'].sum().sort_values(ascending=False).head(5)
-        report.append("\n### Top 5 Products by Predicted Quantity")
-        
-        for product, quantity in top_products.items():
-            report.append(f"- {product}: {quantity:.0f} units")
-        
-        # Save report
-        report_path = os.path.join(output_dir, 'model_report.md')
-        with open(report_path, 'w') as f:
-            f.write('\n'.join(report))
-        
-        logger.info(f"Report saved to {report_path}")
-        
-        logger.info("Debiased model training complete")
-        
-        return {
-            'model_path': model_path,
-            'predictions_path': predictions_path,
-            'report_path': report_path,
-            'output_dir': output_dir
-        }
-        
+        current_model_rmse = overall_metrics['rmse']
+
+        if existing_model_rmse_value is None or new_product_flag or existing_model_rmse_value > current_model_rmse:
+
+            engine = get_connection()
+            metrics_df = pd.DataFrame([overall_metrics])
+            metrics_df['model_name'] = "LSTM_model"
+            metrics_df.to_sql("MODEL_METRICS", engine, if_exists="replace", index=False)
+
+            # 12. Apply bias correction
+            logger.info("Step 13: Creating bias correction function")
+            bias_correction_func = correct_prediction_bias(
+                best_model, X_val, y_val, scaler_y, log_transformed
+            )
+            
+            # 13. Save preprocessing objects
+            logger.info("Step 14: Saving preprocessing objects")
+            save_artifacts(
+                scaler_X, scaler_y, label_encoder, log_transformed, output_dir
+            )
+            
+            # 14. Generate summary report
+            logger.info("Step 14: Generating summary report")
+            
+            report = []
+            report.append("# Debiased Demand Forecasting Model Report")
+            report.append(f"## Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            report.append("\n## 1. Data Distribution Analysis")
+            
+            # Product distribution
+            report.append("\n### 1.1 Product Distribution in Training Data")
+            product_counts = data_analysis['product_counts']
+            report.append(f"- Total number of products: {len(product_counts)}")
+            report.append(f"- Most frequent product: {product_counts.index[0]} ({product_counts.values[0]} samples)")
+            report.append(f"- Least frequent product: {product_counts.index[-1]} ({product_counts.values[-1]} samples)")
+            report.append(f"- Imbalance ratio (max/min): {product_counts.values[0]/product_counts.values[-1]:.2f}")
+            
+            if product_counts.values[0]/product_counts.values[-1] > 5:
+                report.append("\n⚠️ **Warning**: Significant class imbalance detected. Generated synthetic samples for underrepresented products.")
+            
+            # Time coverage
+            report.append("\n### 1.2 Time Gap Analysis")
+            time_gaps = data_analysis['time_gaps']
+
+            if time_gaps:
+
+                gaps = [gap[1] for gap in time_gaps]  # List of time gaps
+                products = [gap[0] for gap in time_gaps]  # List of product names
+
+                # Get the max and min time gaps
+                max_gap = max(gaps) if gaps else None
+                min_gap = min(gaps) if gaps else None
+
+                # Get the corresponding product names for the max and min gaps
+                max_gap_product = products[gaps.index(max_gap)] if max_gap is not None else None
+                min_gap_product = products[gaps.index(min_gap)] if min_gap is not None else None
+
+                report.append(f"\n⚠️ **Warning**: Found large time gaps (>30 days) in {len(time_gaps)} products")
+                
+                report.append(f"- Minimum time gap of {max_gap} days for {max_gap_product}")
+                report.append(f"- Maximum time gap of {min_gap} days for {min_gap_product}")
+
+            # Time coverage
+            report.append("\n### 1.2 Time Coverage Analysis")
+            time_coverage = data_analysis['product_time_coverage']
+            min_coverage = min([v['days_coverage'] for v in time_coverage.values()])
+            max_coverage = max([v['days_coverage'] for v in time_coverage.values()])
+            
+            report.append(f"- Minimum time coverage: {min_coverage} days")
+            report.append(f"- Maximum time coverage: {max_coverage} days")
+            report.append(f"- Coverage ratio (max/min): {max_coverage/max(1, min_coverage):.2f}")
+            
+            if max_coverage/max(1, min_coverage) > 3:
+                report.append("\n⚠️ **Warning**: Significant variation in time coverage between products. Some products may lack sufficient historical data.")
+            
+            
+            # Bias mitigation techniques
+            report.append("\n## 2. Bias Mitigation Techniques Applied")
+            report.append("- **Data Balancing**: Generated synthetic samples for underrepresented products")
+            report.append("- **Robust Scaling**: Used RobustScaler instead of standard scaling")
+            
+            if log_transformed:
+                report.append("- **Log Transformation**: Applied to target variable to handle heteroscedasticity")
+            
+            report.append("- **Weighted Training**: Used inverse frequency weighting during model training")
+            report.append("- **Fairness-Aware Training**: Used custom callback to monitor performance across products")
+            report.append("- **Bias Correction**: Applied post-processing correction to remove systematic bias")
+            
+            # Model architecture
+
+            # Add this to the report generation section
+            report.append("\n## 2. Hyperparameter Tuning")
+            report.append(f"- Number of trials: 30")
+            report.append(f"- Best hyperparameters: {tuned_hyperparams}")
+
+            report.append("\n## 3. Model Architecture")
+            report.append(f"- LSTM layers: 2 (units: {tuned_hyperparams['units_1']}, {tuned_hyperparams['units_2']})")
+            report.append(f"- Activation functions: {tuned_hyperparams['activation_1']}, {tuned_hyperparams['activation_2']}")
+            report.append(f"- Dropout rates: {tuned_hyperparams['dropout_1']}, {tuned_hyperparams['dropout_2']}")
+            report.append(f"- Dense layer units: {tuned_hyperparams['dense_units']}")
+            report.append(f"- Optimizer: {tuned_hyperparams['optimizer']} (learning rate: {tuned_hyperparams['learning_rate']})")
+            
+            
+
+            # Prediction bias
+            report.append("\n## 4. Prediction Bias Analysis")
+            
+            report.append(f"- Mean prediction error: {prediction_bias['mean_error']:.2f}")
+            report.append(f"- Median prediction error: {prediction_bias['median_error']:.2f}")
+            report.append(f"- Correlation between error and actual value: {prediction_bias['error_vs_actual_corr']:.2f}")
+            report.append(f"- Heteroscedasticity correlation: {prediction_bias['heteroscedasticity_corr']:.2f} (p-value: {prediction_bias['heteroscedasticity_p_value']:.4f})")
+            
+            if abs(prediction_bias['mean_error']) > 5:
+                report.append("\n⚠️ **Warning**: Systematic bias detected in predictions. Model tends to " + 
+                            ("overpredict" if prediction_bias['mean_error'] > 0 else "underpredict") + 
+                            " by an average of " + f"{abs(prediction_bias['mean_error']):.2f} units.")
+            
+            if abs(prediction_bias['error_vs_actual_corr']) > 0.3:
+                report.append("\n⚠️ **Warning**: Correlation between error and actual value detected. Model performance varies with demand magnitude. Applied log transformation to the target variable")
+            
+            if abs(prediction_bias['heteroscedasticity_corr']) > 0.3 and prediction_bias['heteroscedasticity_p_value'] < 0.05:
+                report.append("\n⚠️ **Warning**: Heteroscedasticity detected. Error variance increases with demand magnitude. Applied log transformation to the target variable")
+            
+            # Model performance
+            report.append("\n## 5. Model Performance")
+            
+            overall_metrics = fairness_metrics['overall_metrics']
+            report.append("### Overall Performance")
+            report.append(f"- RMSE: {overall_metrics['rmse']:.2f}")
+            report.append(f"- MAE: {overall_metrics['mae']:.2f}")
+            report.append(f"- MAPE: {overall_metrics['mape']:.2f}%")
+            
+            # Fairness metrics
+            report.append("\n### Fairness Metrics")
+            
+            disparities = fairness_metrics['disparities']
+            best_worst = fairness_metrics['best_worst']
+            
+            report.append(f"- RMSE disparity ratio: {disparities['rmse_disparity']:.2f}")
+            report.append(f"- MAPE disparity ratio: {disparities['mape_disparity']:.2f}")
+            report.append(f"- Best performing product (RMSE): {best_worst['best_rmse_product']} with {best_worst['best_product_rmse']}")
+            report.append(f"- Worst performing product (RMSE): {best_worst['worst_rmse_product']}  with {best_worst['worst_product_rmse']}")
+
+            report_path = os.path.join(output_dir, 'model_report.md')
+            with open(report_path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(report))
+            
+            logger.info(f"Report saved to {report_path}")
+            
+            logger.info("Debiased model training complete")
+
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            # Call the function
+            send_email(
+                emailid="talksick530@gmail.com",
+                body="Hi,\n\nPlease find the model bias report attached.\n\nBest,\nTeam Talksick",
+                subject= f"Model bias report '{current_date}'",
+                attachment=report_path
+            )
+
+            logger.info("Bias repot sent to developer")
+
+            model
+
+        else:
+            logger.info("Skipped saving the model as the current RMSE is higher")
     except Exception as e:
         logger.error(f"Error in debiased model training: {e}")
-        raise
-
-def predict_with_saved_model(model_path, future_data_path, output_dir=None, days_to_predict=7):
-    """
-    Make predictions using a saved model
-    
-    Parameters:
-    -----------
-    model_path : str
-        Path to saved model
-    future_data_path : str
-        Path to CSV with future data
-    output_dir : str, optional
-        Directory for preprocessing files and output
-    days_to_predict : int
-        Number of days to predict
-        
-    Returns:
-    --------
-    DataFrame with predictions
-    """
-    if output_dir is None:
-        output_dir = os.path.dirname(model_path)
-    
-    try:
-        # Load model
-        model = load_model(model_path)
-        
-        # Load preprocessing objects
-        scaler_X, scaler_y, label_encoder, log_transformed = load_preprocessing_objects(output_dir)
-        
-        # Load future data
-        future_data = pd.read_csv(future_data_path)
-        future_data['Date'] = pd.to_datetime(future_data['Date'])
-        
-        # Define features (same as used in training)
-        features = [
-            'year', 'month', 'day', 'dayofweek', 'dayofyear', 'quarter',
-            'product_encoded', 'is_weekend', 'is_month_start', 'is_month_end', 'is_holiday',
-            'rolling_mean_7d', 'rolling_std_7d', 'rolling_median_7d', 'rolling_min_7d', 'rolling_max_7d',
-            'lag_1d', 'lag_2d', 'lag_3d', 'lag_7d', 'lag_14d',
-            'diff_1d', 'diff_7d', 'ewm_alpha_0.3', 'ewm_alpha_0.7',
-            'product_mean', 'product_median', 'product_std', 'product_min', 'product_max'
-        ]
-        
-        # Check which features are available
-        available_features = [f for f in features if f in future_data.columns]
-        
-        # Create bias correction function
-        bias_correction_func = correct_prediction_bias(
-            model, None, None, scaler_y, log_transformed
-        )
-        
-        # Make predictions
-        predictions_df = predict_future_demand(
-            model, future_data, available_features, scaler_X, scaler_y,
-            time_steps=5, bias_correction_func=bias_correction_func, log_transformed=log_transformed
-        )
-        
-        # Save predictions
-        predictions_path = os.path.join(output_dir, 'new_predictions.csv')
-        predictions_df.to_csv(predictions_path, index=False)
-        
-        logger.info(f"New predictions saved to {predictions_path}")
-        
-        return predictions_df
-        
-    except Exception as e:
-        logger.error(f"Error in prediction with saved model: {e}")
         raise
 
 if __name__ == "__main__":
@@ -1808,11 +2274,6 @@ if __name__ == "__main__":
     random.seed(42)
     
     try:
-        # Run the main training workflow
-        results = main()
-        
-        print(f"Model saved to: {results['model_path']}")
-        print(f"Predictions saved to: {results['predictions_path']}")
-        print(f"Report saved to: {results['report_path']}")
+        main()
     except Exception as e:
         print(f"Error running debiased model training: {e}")

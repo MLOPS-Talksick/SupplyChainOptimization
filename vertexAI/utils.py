@@ -26,163 +26,16 @@ logger = logging.getLogger('model_training_utils')
 
 load_dotenv()
 
+# email = "talksick530@gmail.com"
+email = "svarunanusheel@gmail.com"
 
-host = os.getenv("MYSQL_HOST")
-user = os.getenv("MYSQL_USER")
-password = os.getenv("MYSQL_PASSWORD")
-database = os.getenv("MYSQL_DATABASE")
-email = "talksick530@gmail.com"
+host = os.getenv("MYSQL_HOST", "35.192.172.104")
+user = os.getenv("MYSQL_USER", "shrey")
+password = os.getenv("MYSQL_PASSWORD", "shrey")
+database = os.getenv("MYSQL_DATABASE", "combined_transaction_data")
+instance = os.getenv("INSTANCE_CONN_NAME", "primordial-veld-450618-n4:us-central1:mlops-sql")
 
-def extracting_time_series_and_lagged_features_pd(
-    df: pd.DataFrame,
-) -> pd.DataFrame:
-    """
-    For each row, compute additional time-series features:
-      - day_of_week, is_weekend, day_of_month, day_of_year, month, week_of_year
-      - lag_1, lag_7, and rolling_mean_7 of 'Total Quantity'
-    """
-    # If the DataFrame is empty, return an empty DataFrame with the expected columns.
-    if df.empty:
-        return pd.DataFrame(
-            columns=[
-                "Date",
-                "Product Name",
-                "Total Quantity",
-                "day_of_week",
-                "is_weekend",
-                "day_of_month",
-                "day_of_year",
-                "month",
-                "week_of_year",
-                "lag_1",
-                "lag_7",
-                "rolling_mean_7",
-            ]
-        )
-
-    # Ensure the 'Date' column is in datetime format
-    if "Date" in df.columns:
-        df["Date"] = pd.to_datetime(df["Date"])
-
-        # Create date-based features
-        df["day_of_week"] = df["Date"].dt.dayofweek  # Monday=0, Sunday=6
-        df["is_weekend"] = df["day_of_week"].isin([5, 6]).astype(int)
-        df["day_of_month"] = df["Date"].dt.day
-        df["day_of_year"] = df["Date"].dt.dayofyear
-        df["month"] = df["Date"].dt.month
-        # Using isocalendar to get week of year (as integer)
-        df["week_of_year"] = df["Date"].dt.isocalendar().week.astype(int)
-    else:
-        return df
-
-    # Check if 'Total Quantity' exists and then compute lag and rolling features
-    if "Total Quantity" in df.columns:
-        # Sort by product and date
-        df = df.sort_values(by=["Product Name", "Date"]).reset_index(drop=True)
-
-        # Compute lag features by grouping by 'Product Name'
-        df["lag_1"] = df.groupby("Product Name")["Total Quantity"].shift(1)
-        df["lag_7"] = df.groupby("Product Name")["Total Quantity"].shift(7)
-
-        # Compute a rolling mean of the previous 7 days.
-        # Note: We shift by 1 to ensure that the rolling window uses data strictly before the current row.
-        df["rolling_mean_7"] = df.groupby("Product Name")[
-            "Total Quantity"
-        ].transform(
-            lambda x: x.shift(1).rolling(window=7, min_periods=1).mean()
-        )
-    else:
-        raise KeyError("Column 'Total Quantity' not found in DataFrame.")
-
-    return df
-
-def compute_rmse(y_true, y_pred):
-    """Computes Root Mean Squared Error."""
-    return math.sqrt(mean_squared_error(y_true, y_pred))
-
-
-def get_latest_data_from_cloud_sql(query, port="3306"):
-    """
-    Connects to a Google Cloud SQL instance using TCP (public IP or Cloud SQL Proxy)
-    and returns query results as a DataFrame.
-
-    Args:
-        host (str): The Cloud SQL instance IP address or localhost (if using Cloud SQL Proxy).
-        port (int): The port number (typically 3306 for MySQL).
-        user (str): Database username.
-        password (str): Database password.
-        database (str): Database name.
-        query (str): SQL query to execute.
-
-    Returns:
-        pd.DataFrame: Query results.
-    """
-
-    connector = Connector()
-
-    def getconn():
-        conn = connector.connect(
-            "primordial-veld-450618-n4:us-central1:mlops-sql",  # Cloud SQL instance connection name
-            "pymysql",  # Database driver
-            user=user,  # Database user
-            password=password,  # Database password
-            db=database,
-            ip_type = "PRIVATE",
-        )
-        return conn
-
-    pool = sqlalchemy.create_engine(
-        "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
-        creator=getconn,
-    )
-    with pool.connect() as db_conn:
-        result = db_conn.execute(sqlalchemy.text(query))
-        print(result.scalar())
-    df = pd.read_sql(query, pool)
-    print(df.head())
-    connector.close()
-    return df
-
-
-def get_cloud_sql_connection():
-    """
-    Connects to a Google Cloud SQL instance using TCP (public IP or Cloud SQL Proxy)
-    and returns query results as a DataFrame.
-
-    Args:
-        host (str): The Cloud SQL instance IP address or localhost (if using Cloud SQL Proxy).
-        port (int): The port number (typically 3306 for MySQL).
-        user (str): Database username.
-        password (str): Database password.
-        database (str): Database name.
-        query (str): SQL query to execute.
-
-    Returns:
-        pd.DataFrame: Query results.
-    """
-
-    connector = Connector()
-
-    def getconn():
-        conn = connector.connect(
-            "primordial-veld-450618-n4:us-central1:mlops-sql",  # Cloud SQL instance connection name
-            "pymysql",  # Database driver
-            user=user,  # Database user
-            password=password,  # Database password
-            db=database,
-            ip_type = "PRIVATE",
-
-        )
-        return conn
-
-    pool = sqlalchemy.create_engine(
-        "mysql+pymysql://",  # or "postgresql+pg8000://" for PostgreSQL, "mssql+pytds://" for SQL Server
-        creator=getconn,
-    )
-
-    return pool
-
-
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "C:/Users/svaru/Downloads/cloud_run.json"
 
 def analyze_data_distribution(df):
     """
@@ -320,7 +173,6 @@ def get_latest_data_from_cloud_sql(query, port="3306"):
             user=user,  # Database user
             password=password,  # Database password
             db=database,
-            ip_type = "PRIVATE",
         )
         return conn
 
@@ -360,7 +212,6 @@ def get_connection():
             user=user,  # Database user
             password=password,  # Database password
             db=database,
-            ip_type = "PRIVATE",
         )
         return conn
 
@@ -369,6 +220,9 @@ def get_connection():
         creator=getconn,
     )
     return pool
+
+
+
 
 def send_email(
     emailid,
