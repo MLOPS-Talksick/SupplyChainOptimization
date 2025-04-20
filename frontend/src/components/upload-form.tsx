@@ -47,6 +47,7 @@ export default function UploadForm() {
   const [isValidating, setIsValidating] = useState(false);
   const [validationComplete, setValidationComplete] = useState(false);
   const [newProducts, setNewProducts] = useState<NewProduct[]>([]);
+  const [originalProducts, setOriginalProducts] = useState<NewProduct[]>([]);
   const [uploadStatus, setUploadStatus] = useState<{
     success: boolean;
     message: string;
@@ -97,21 +98,58 @@ export default function UploadForm() {
     setIsValidating(true);
     setUploadStatus(null);
 
+    // Create form data for the request
     const formData = new FormData();
-    formData.append("file", file);
+
+    // Explicitly create a new File object from the selected file
+    // This ensures the file is properly serialized for FormData
+    const fileBlob = new Blob([await file.arrayBuffer()], { type: file.type });
+    const newFile = new File([fileBlob], file.name, { type: file.type });
+
+    // Add the file to the form data
+    formData.append("file", newFile);
+
+    console.log(
+      `Validating Excel file: ${file.name} (${file.size} bytes, type: ${file.type})`
+    );
+
+    // Debug logging
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(
+          `FormData contains file: ${key} = ${value.name} (${value.size} bytes)`
+        );
+      } else {
+        console.log(`FormData contains: ${key} = ${value}`);
+      }
+    }
 
     try {
-      const response = await fetch(`/api/proxy?endpoint=validate_excel`, {
-        method: "POST",
-        headers: {
-          token: "backendapi1234567890",
-        },
-        body: formData,
-      });
+      // Use the proxy endpoint with a cache-busting parameter
+      const response = await fetch(
+        `/api/proxy?endpoint=validate_excel&t=${Date.now()}`,
+        {
+          method: "POST",
+          headers: {
+            token: "backendapi1234567890",
+            // Note: Do NOT set Content-Type for FormData - browser will set it with boundary
+          },
+          body: formData,
+        }
+      );
+
+      // Handle the response
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Validation error (${response.status}): ${errorText}`);
+        throw new Error(
+          `Server error (${response.status}): ${response.statusText}`
+        );
+      }
 
       const result = await response.json();
 
-      if (response.ok && result.new_products) {
+      if (result.new_products) {
         // Transform new products into our internal format
         const productList: NewProduct[] = result.new_products.map(
           (name: string) => ({
@@ -121,6 +159,8 @@ export default function UploadForm() {
         );
 
         setNewProducts(productList);
+        // Save the original products for reset functionality
+        setOriginalProducts([...productList]);
         setValidationComplete(true);
 
         if (productList.length === 0) {
@@ -130,14 +170,23 @@ export default function UploadForm() {
       } else {
         setUploadStatus({
           success: false,
-          message: result.error || "Failed to validate file",
+          message:
+            result.error ||
+            "Failed to validate file. No new products returned.",
         });
       }
     } catch (error) {
       console.error("Validation error:", error);
+
+      let errorMessage = "Error validating file. Please try again.";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
       setUploadStatus({
         success: false,
-        message: "Error validating file. Please try again.",
+        message: errorMessage,
       });
     } finally {
       setIsValidating(false);
@@ -189,7 +238,14 @@ export default function UploadForm() {
 
     // Prepare data for upload
     const formData = new FormData();
-    formData.append("file", file);
+
+    // Explicitly create a new File object from the selected file
+    // This ensures the file is properly serialized for FormData
+    const fileBlob = new Blob([await file.arrayBuffer()], { type: file.type });
+    const newFile = new File([fileBlob], file.name, { type: file.type });
+
+    // Add the file to the form data
+    formData.append("file", newFile);
 
     // Create deny list (comma-separated)
     const denyList = newProducts
@@ -212,42 +268,81 @@ export default function UploadForm() {
 
     if (denyList) {
       formData.append("deny_list", denyList);
+      console.log(`Deny list: ${denyList}`);
     }
 
     if (renameDict && renameDict !== "{}") {
       formData.append("rename_dict", renameDict);
+      console.log(`Rename dict: ${renameDict}`);
+    }
+
+    console.log(
+      `Uploading Excel file: ${file.name} (${file.size} bytes, type: ${file.type})`
+    );
+
+    // Debug logging
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(
+          `FormData contains file: ${key} = ${value.name} (${value.size} bytes)`
+        );
+      } else {
+        console.log(`FormData contains: ${key} = ${value}`);
+      }
     }
 
     try {
-      const response = await fetch(`/api/proxy?endpoint=upload`, {
-        method: "POST",
-        headers: {
-          token: "backendapi1234567890",
-        },
-        body: formData,
-      });
+      // Use the proxy endpoint with a cache-busting parameter
+      const response = await fetch(
+        `/api/proxy?endpoint=upload&t=${Date.now()}`,
+        {
+          method: "POST",
+          headers: {
+            token: "backendapi1234567890",
+            // Note: Do NOT set Content-Type for FormData - browser will set it with boundary
+          },
+          body: formData,
+        }
+      );
+
+      // Handle the response
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Upload error (${response.status}): ${errorText}`);
+        throw new Error(
+          `Server error (${response.status}): ${response.statusText}`
+        );
+      }
 
       const result = await response.json();
 
-      if (response.ok) {
-        setUploadStatus({
-          success: true,
-          message: "File uploaded successfully",
-        });
-        setFile(null);
-        setValidationComplete(false);
-        setNewProducts([]);
-      } else {
+      if (result.error) {
         setUploadStatus({
           success: false,
-          message: result.error || "Failed to upload file",
+          message: result.error,
         });
+        return;
       }
+
+      setUploadStatus({
+        success: true,
+        message: "File uploaded successfully",
+      });
+      setFile(null);
+      setValidationComplete(false);
+      setNewProducts([]);
     } catch (error) {
       console.error("Upload error:", error);
+
+      let errorMessage = "Error uploading file. Please try again.";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
       setUploadStatus({
         success: false,
-        message: "Error uploading file. Please try again.",
+        message: errorMessage,
       });
     } finally {
       setIsUploading(false);
@@ -269,6 +364,16 @@ export default function UploadForm() {
     setUploadStatus(null);
     setValidationComplete(false);
     setNewProducts([]);
+    setOriginalProducts([]);
+  };
+
+  const resetValidation = () => {
+    // Reset product actions to their original state (all "keep")
+    const resetProducts = originalProducts.map((product) => ({
+      name: product.name,
+      action: "keep" as const,
+    }));
+    setNewProducts(resetProducts);
   };
 
   const getProductCounts = () => {
@@ -301,6 +406,31 @@ export default function UploadForm() {
               <Button size="sm" variant="outline" onClick={resetForm}>
                 <X className="h-4 w-4" />
               </Button>
+            </div>
+          ) : file ? (
+            <div className="mt-2">
+              <div className="flex items-center justify-between p-3 border border-primary/20 bg-primary/5 rounded-md">
+                <div className="flex items-center">
+                  <UploadCloud className="h-5 w-5 text-primary mr-2" />
+                  <div>
+                    <span className="font-medium">{file.name}</span>
+                    <p className="text-xs text-muted-foreground">
+                      {(file.size / (1024 * 1024)).toFixed(2)} MB · Click
+                      Validate to proceed
+                    </p>
+                  </div>
+                </div>
+                <Button size="sm" variant="ghost" onClick={resetForm}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div
+                {...getRootProps()}
+                className="mt-2 text-center text-sm text-primary cursor-pointer hover:underline"
+              >
+                <input {...getInputProps()} />
+                Select a different file
+              </div>
             </div>
           ) : (
             <div
@@ -340,7 +470,40 @@ export default function UploadForm() {
               <AlertTitle>
                 {uploadStatus.success ? "Success" : "Error"}
               </AlertTitle>
-              <AlertDescription>{uploadStatus.message}</AlertDescription>
+              <AlertDescription className="flex flex-col gap-2">
+                <p>{uploadStatus.message}</p>
+
+                {!uploadStatus.success && (
+                  <div className="mt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-fit"
+                      onClick={validateFile}
+                    >
+                      Try Again
+                    </Button>
+
+                    {uploadStatus.message.includes("500") ||
+                    uploadStatus.message.includes("Server error") ? (
+                      <div className="text-xs mt-2 space-y-1">
+                        <p>Troubleshooting suggestions:</p>
+                        <ul className="list-disc pl-4">
+                          <li>Check that your Excel file is not corrupted</li>
+                          <li>Try with a smaller file if possible</li>
+                          <li>
+                            Make sure the Excel file follows the expected format
+                          </li>
+                          <li>
+                            The server might be temporarily unavailable, try
+                            again later
+                          </li>
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -386,18 +549,27 @@ export default function UploadForm() {
 
             <div className="flex items-center justify-between">
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="bg-green-50 text-green-700">
+                <Badge
+                  variant="outline"
+                  className="dark:bg-green-950 bg-green-50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"
+                >
                   Keep: {getProductCounts().keep}
                 </Badge>
-                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                <Badge
+                  variant="outline"
+                  className="dark:bg-blue-950 bg-blue-50 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                >
                   Rename: {getProductCounts().rename}
                 </Badge>
-                <Badge variant="outline" className="bg-red-50 text-red-700">
+                <Badge
+                  variant="outline"
+                  className="dark:bg-red-950 bg-red-50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
+                >
                   Exclude: {getProductCounts().deny}
                 </Badge>
               </div>
 
-              <Button variant="outline" size="sm" onClick={resetForm}>
+              <Button variant="outline" size="sm" onClick={resetValidation}>
                 <X className="mr-2 h-4 w-4" />
                 Reset
               </Button>
@@ -448,13 +620,28 @@ export default function UploadForm() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleProductAction(index, "keep")}
-                            className={
-                              product.action === "keep" ? "bg-green-100" : ""
+                            onClick={() =>
+                              handleProductAction(
+                                index,
+                                product.action === "deny" ? "keep" : "deny"
+                              )
                             }
+                            className={cn(
+                              product.action === "keep"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-900/60"
+                                : product.action === "deny"
+                                ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 dark:border-red-800 hover:bg-red-200 dark:hover:bg-red-900/60"
+                                : "hover:bg-red-100 hover:text-red-700 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                            )}
                           >
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span className="sr-only">Keep</span>
+                            {product.action === "deny" ? (
+                              <Trash2 className="h-4 w-4" />
+                            ) : (
+                              <CheckCircle2 className="h-4 w-4" />
+                            )}
+                            <span className="sr-only">
+                              {product.action === "deny" ? "Exclude" : "Keep"}
+                            </span>
                           </Button>
                           <Button
                             variant="ghost"
@@ -466,23 +653,15 @@ export default function UploadForm() {
                                 openRenameDialog(product.name, product.newName);
                               }
                             }}
-                            className={
-                              product.action === "rename" ? "bg-blue-100" : ""
-                            }
+                            className={cn(
+                              "hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-400",
+                              product.action === "rename"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800"
+                                : ""
+                            )}
                           >
                             <Edit className="h-4 w-4" />
                             <span className="sr-only">Rename</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleProductAction(index, "deny")}
-                            className={
-                              product.action === "deny" ? "bg-red-100" : ""
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Exclude</span>
                           </Button>
                         </div>
                       </TableCell>
