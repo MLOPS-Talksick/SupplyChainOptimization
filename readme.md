@@ -1,12 +1,7 @@
 # SupplySense 
 ## Intelligent Demand Forecasting built for Smarter Supply Chains
 
-Broken forecasts are costing businesses billions.
-SupplySense is our response — a full-stack, MLOps-powered demand forecasting platform built to solve the chronic mismatch between supply and actual demand across retail, FMCG, and e-commerce. Traditional ERP systems and manual forecasting methods struggle with real-world volatility like seasonal changes, market shocks, or sudden price wars, leading to over 30% inventory misallocation and $1.8T in annual losses.
-
-Our vision is to enable smarter, real-time forecasting through predictive analytics and intelligent inventory planning. With 80%+ forecast accuracy, we help reduce stockouts by 40% and overstock by 25%. Seamlessly integrating into existing data systems, SupplySense empowers businesses to optimize supply chains at scale — with automation, accuracy, and speed at the core.
-Getting Started - Guide
-To start working with the project, please follow the setup instructions outlined in the Project Setup Guide.
+Supply Sense is a production-ready, cloud-deployable LSTM pipeline for demand forecasting, supported by a full MLOps architecture on Google Cloud Platform (Vertex AI). The goal is to enable smarter demand prediction and a leaner supply chain through automated deep learning forecasts and end-to-end MLOps integration. Accurate demand forecasting can mean the difference between costly stockouts or overstocks and maximized profitability, and LSTM neural networks excel at capturing sequential patterns in data for more precise forecasts. This project combines that forecasting power with robust automation to streamline supply chain decisions.
 
 <p align="center">
   <img src="Media/arch.jpeg" alt="Architecture" width="1000"/>
