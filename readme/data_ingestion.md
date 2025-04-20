@@ -1,4 +1,7 @@
-![Data Pipeline Architecture](/Media/data_pipeline.png)
+<p align="center">
+  <img src="/Media/data_pipeline.png" alt="Data Pipeline Architecture" width="600"/>
+</p>
+
 **File:** `requirements.txt`  
 
 **Purpose:**  
