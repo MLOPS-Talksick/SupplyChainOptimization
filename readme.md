@@ -1,5 +1,6 @@
 # SupplySense 
-## Intelligent Demand Forecasting built for     Smarter Supply Chains
+## Intelligent Demand Forecasting built for Smarter Supply Chains
+
 Broken forecasts are costing businesses billions.
 SupplySense is our response — a full-stack, MLOps-powered demand forecasting platform built to solve the chronic mismatch between supply and actual demand across industries like retail, FMCG, and e-commerce. Traditional ERP systems and manual forecasting methods struggle with real-world volatility like seasonal changes, market shocks, or sudden price wars, leading to over 30% inventory misallocation and $1.8T in annual losses.
 
