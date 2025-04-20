@@ -1,7 +1,7 @@
 ## Architecture Modules
 
 <p align="center">
-  <img src="/Media/arch1.png" alt="Architecture" width="600"/>
+  <img src="/Media/arch1.png" alt="Architecture" width="1000"/>
 </p>
 
 
