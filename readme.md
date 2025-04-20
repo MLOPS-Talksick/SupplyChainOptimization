@@ -9,7 +9,7 @@ Getting Started - Guide
 To start working with the project, please follow the setup instructions outlined in the Project Setup Guide.
 
 <p align="center">
-  <img src="./Media/arch.pdf" alt="Architecture" width="600"/>
+  <img src="Media/arch.pdf" alt="Architecture" width="600"/>
 </p>
 
 
