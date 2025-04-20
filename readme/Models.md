@@ -1,4 +1,21 @@
+##  ML_Models/
+```
+ML_Models/
+├── experiments/
+│   ├── deepar.py                  
+│   ├── lstm.py                    
+│   ├── sarima.py                  
+│   └── sarima_adf.py             
+├── scripts/
+│   ├── health_check.py        
+│   ├── model_lstm.py             
+│   └── utils.py                   
+├── Dockerfile
+├── docker-compose.yml             
+├── requirements.txt
+├── database.env                  
 
+```
 ### 1. Model Health
 **File:** `model_health.py`  
 **Purpose:** Performs automatic health checks for the ML model by comparing predictions vs. actuals using statistical metrics, and pushes results to Cloud Monitoring.
@@ -40,4 +57,20 @@ python debiased_lstm_pipeline.py
 
 ---
 
-Let me know if you want even more concise, or if you want a section breakdown for each major function/module!
+7. Model Training Utilities  
+**File:** `model_training_utils.py`  
+**Purpose:** Supports demand forecasting pipeline with data access, feature engineering, bias analysis, notifications, and artifact uploads.
+
+**Key Features:**  
+- **Cloud SQL Access:** Connects securely to MySQL using SQLAlchemy + Cloud SQL Connector.  
+- **Feature Engineering:** Adds time-based, lag, and rolling features (`lag_1`, `rolling_mean_7`, etc.).  
+- **Bias Detection & Visualization:** Analyzes class imbalance, time gaps, seasonality; saves plots.  
+- **Email Alerts:** Sends notifications with optional file/DataFrame attachments via Gmail.  
+- **GCS Uploads:** Pushes models and plots to Google Cloud Storage with error handling.
+
+```bash
+# Utility import example
+from model_training_utils import get_latest_data_from_cloud_sql, send_email
+```
+
+--- 
