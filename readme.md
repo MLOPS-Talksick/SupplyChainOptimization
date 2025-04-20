@@ -7,9 +7,9 @@ This guide includes steps for creating a GCP account, configuring environment va
 
 
 - [Setup Guide](/readme/Setup_Guide.md)
-- [Data Pipeline](/readme/Data_Pipeline.md)
-- [ML_Mpdels](/readme/ML_Models.md)
-- [ML_Architecture](./readme/ML_Architecture.md)
+- [Data Pipeline](/readme/DataPipeline.md)
+- [Models](/readme/Models.md)
+- [Architecture](./readme/Architecture.md)
 - 
 - [Bias Detection](./ml_pipelines/stage4_bias_detection.md)
 - [CI/CD Workflow](./ci_cd/README.md)
