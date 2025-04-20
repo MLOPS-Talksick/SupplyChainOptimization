@@ -47,14 +47,27 @@ export default function StatsDisplay() {
   const formatDateRange = () => {
     if (!stats) return "--";
 
+    // Check if both dates are null (no data yet)
+    if (stats.start_date === null && stats.end_date === null) {
+      return "No data available";
+    }
+
     // Format dates for display
-    const formatDate = (dateStr: string) => {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
+    const formatDate = (dateStr: string | null) => {
+      if (!dateStr) return "N/A";
+
+      try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return "Invalid date";
+
+        return date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } catch {
+        return "Invalid date";
+      }
     };
 
     return `${formatDate(stats.start_date)} - ${formatDate(stats.end_date)}`;
@@ -101,10 +114,12 @@ export default function StatsDisplay() {
         description={
           <>
             <span className="text-xl font-bold">
-              {stats?.total_products || "--"}
+              {stats?.total_products || "0"}
             </span>
             <p className="text-xs text-muted-foreground">
-              Unique products in database
+              {stats?.total_products === 0
+                ? "No products in database yet"
+                : "Unique products in database"}
             </p>
           </>
         }
@@ -119,10 +134,12 @@ export default function StatsDisplay() {
         description={
           <>
             <span className="text-xl font-bold">
-              {stats?.total_entries?.toLocaleString() || "--"}
+              {stats?.total_entries?.toLocaleString() || "0"}
             </span>
             <p className="text-xs text-muted-foreground">
-              Sales records in database
+              {stats?.total_entries === 0
+                ? "No sales records yet"
+                : "Sales records in database"}
             </p>
           </>
         }
@@ -136,7 +153,9 @@ export default function StatsDisplay() {
           <>
             <span className="text-xl font-bold">{formatDateRange()}</span>
             <p className="text-xs text-muted-foreground">
-              Covered by available data
+              {stats?.start_date === null && stats?.end_date === null
+                ? "No time period data available"
+                : "Covered by available data"}
             </p>
           </>
         }

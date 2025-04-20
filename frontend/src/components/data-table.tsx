@@ -123,28 +123,48 @@ export default function DataTable() {
 
       if (result && result.records) {
         try {
-          // The backend returns a JSON string, we need to parse it
-          const parsedData = JSON.parse(result.records);
+          // Check if result.records is already an object or an empty object
+          let parsedData;
+          if (typeof result.records === "string") {
+            // Parse it if it's a string
+            parsedData = JSON.parse(result.records);
+          } else {
+            // Use it directly if it's already an object
+            parsedData = result.records;
+          }
+
           const totalCount = result.count || 0;
 
-          // Convert the parsed data to an array of records
-          const records = Object.keys(parsedData.sale_date).map((index) => ({
-            sale_date: new Date(parseInt(parsedData.sale_date[index])), // Convert timestamp to Date
-            product_name: parsedData.product_name[index],
-            total_quantity: parsedData.total_quantity[index],
-          }));
+          // Check if we have any data in the parsed result
+          if (
+            parsedData &&
+            parsedData.sale_date &&
+            Object.keys(parsedData.sale_date).length > 0
+          ) {
+            // Convert the parsed data to an array of records
+            const records = Object.keys(parsedData.sale_date).map((index) => ({
+              sale_date: new Date(parseInt(parsedData.sale_date[index])), // Convert timestamp to Date
+              product_name: parsedData.product_name[index],
+              total_quantity: parsedData.total_quantity[index],
+            }));
 
-          console.log(
-            `Received ${records.length} records (total available: ${totalCount})`
-          );
-          setData(records);
+            console.log(
+              `Received ${records.length} records (total available: ${totalCount})`
+            );
+            setData(records);
 
-          // Extract unique product names for the dropdown
-          const uniqueProducts = Array.from(
-            new Set(records.map((record) => record.product_name))
-          ).sort();
+            // Extract unique product names for the dropdown
+            const uniqueProducts = Array.from(
+              new Set(records.map((record) => record.product_name))
+            ).sort();
 
-          setProductOptions(uniqueProducts);
+            setProductOptions(uniqueProducts);
+          } else {
+            // Handle empty response with valid structure
+            console.log("Received empty data set");
+            setData([]);
+            setProductOptions([]);
+          }
 
           // Save preferences after successful data load
           savePreferences(recordsToFetch, customCount);
@@ -374,7 +394,22 @@ export default function DataTable() {
       </div>
 
       {filteredData.length === 0 && !loading ? (
-        <div className="text-center py-8">No data available</div>
+        <div className="text-center py-8">
+          <div className="text-muted-foreground mb-2">No data available</div>
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            className="mt-4"
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Refresh Data
+          </Button>
+        </div>
       ) : (
         <>
           <div className="flex items-center justify-between w-full">

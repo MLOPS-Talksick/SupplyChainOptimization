@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { TrendingUp } from "lucide-react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -32,6 +32,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Loader2 } from "lucide-react";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { Button } from "@/components/ui/button";
 
 interface ForecastData {
   dates: string[];
@@ -99,13 +100,30 @@ export default function ForecastSection() {
 
       if (response.ok && result.records) {
         try {
-          // The backend returns a JSON string, we need to parse it
-          const parsedData = JSON.parse(result.records);
+          // Check if result.records is already an object or an empty object
+          let parsedData;
+          if (typeof result.records === "string") {
+            // Parse it if it's a string
+            parsedData = JSON.parse(result.records);
+          } else {
+            // Use it directly if it's already an object
+            parsedData = result.records;
+          }
 
-          // Extract unique product names from the predictions
-          const products = Object.values(parsedData.product_name);
-          const uniqueProducts = Array.from(new Set(products)) as string[];
-          setProductNames(uniqueProducts);
+          // Check if we have any data
+          if (
+            parsedData &&
+            parsedData.product_name &&
+            Object.keys(parsedData.product_name).length > 0
+          ) {
+            // Extract unique product names from the predictions
+            const products = Object.values(parsedData.product_name);
+            const uniqueProducts = Array.from(new Set(products)) as string[];
+            setProductNames(uniqueProducts);
+          } else {
+            // Handle empty data scenario - this is a valid state, not an error
+            setProductNames([]);
+          }
         } catch (parseError) {
           console.error("Error parsing data:", parseError);
           setError("Error parsing data from server");
@@ -162,36 +180,59 @@ export default function ForecastSection() {
 
       if (response.ok && result.records) {
         try {
-          // The backend returns a JSON string, we need to parse it
-          const parsedData = JSON.parse(result.records);
+          // Check if result.records is already an object or an empty object
+          let parsedData;
+          if (typeof result.records === "string") {
+            // Parse it if it's a string
+            parsedData = JSON.parse(result.records);
+          } else {
+            // Use it directly if it's already an object
+            parsedData = result.records;
+          }
 
-          // Process data for the selected product
-          const indices = Object.keys(parsedData.product_name).filter(
-            (key) => parsedData.product_name[key] === selectedProduct
-          );
-
-          // Extract dates for the selected product
-          const dates = indices.map((idx) => parsedData.sale_date[idx]);
-
-          // Get unique dates (we might have multiple entries per day)
-          const uniqueDates = Array.from(new Set(dates));
-
-          // Calculate total quantity per day
-          const dailyQuantities = uniqueDates.map((date) => {
-            const dateIndices = indices.filter(
-              (idx) => parsedData.sale_date[idx] === date
+          // Check if we have any data for the selected product
+          if (
+            parsedData &&
+            parsedData.product_name &&
+            Object.keys(parsedData.product_name).length > 0
+          ) {
+            // Process data for the selected product
+            const indices = Object.keys(parsedData.product_name).filter(
+              (key) => parsedData.product_name[key] === selectedProduct
             );
-            return dateIndices.reduce(
-              (sum, idx) => sum + Number(parsedData.total_quantity[idx]),
-              0
-            );
-          });
 
-          setForecastData({
-            dates: uniqueDates,
-            quantities: dailyQuantities,
-            product: selectedProduct,
-          });
+            if (indices.length > 0) {
+              // Extract dates for the selected product
+              const dates = indices.map((idx) => parsedData.sale_date[idx]);
+
+              // Get unique dates (we might have multiple entries per day)
+              const uniqueDates = Array.from(new Set(dates));
+
+              // Calculate total quantity per day
+              const dailyQuantities = uniqueDates.map((date) => {
+                const dateIndices = indices.filter(
+                  (idx) => parsedData.sale_date[idx] === date
+                );
+                return dateIndices.reduce(
+                  (sum, idx) => sum + Number(parsedData.total_quantity[idx]),
+                  0
+                );
+              });
+
+              setForecastData({
+                dates: uniqueDates,
+                quantities: dailyQuantities,
+                product: selectedProduct,
+              });
+            } else {
+              setError(`No data available for ${selectedProduct}`);
+              setForecastData(null);
+            }
+          } else {
+            // Handle empty data scenario
+            setError("No forecast data available");
+            setForecastData(null);
+          }
         } catch (parseError) {
           console.error("Error parsing data:", parseError);
           setError("Error parsing data from server");
@@ -286,6 +327,33 @@ export default function ForecastSection() {
               </Alert>
             )}
 
+            {!loading && !error && productNames.length === 0 && (
+              <div className="py-4 text-center">
+                <p className="text-muted-foreground mb-2">
+                  No products available
+                </p>
+                <Button
+                  onClick={fetchProductNames}
+                  variant="outline"
+                  className="mt-2"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Refresh Data
+                </Button>
+              </div>
+            )}
+
+            {!loading && !error && productNames.length > 0 && !forecastData && (
+              <div className="flex items-center justify-center h-[300px] text-center text-muted-foreground">
+                Select a product and generate a forecast to see predictions
+              </div>
+            )}
+
             {forecastData ? (
               <div className="mt-6">
                 <ChartContainer
@@ -344,11 +412,7 @@ export default function ForecastSection() {
                   </ResponsiveContainer>
                 </ChartContainer>
               </div>
-            ) : (
-              <div className="flex items-center justify-center h-[300px] text-center text-muted-foreground">
-                Select a product and generate a forecast to see predictions
-              </div>
-            )}
+            ) : null}
           </div>
         </CardContent>
 
