@@ -20,9 +20,11 @@ Data_Pipeline/
 │   └── testUtils.py
 ├── Dockerfile                     
 ├── requirements.txt               
-```
+```Absolutely! Here's your updated doc with **numbered subheadings** using the **file names without extensions**, like `1. requirements`, `2. init`, etc., while keeping everything else clean and tight:
+
 ---
 
+### 1. Requirements  
 **File:** `requirements.txt`  
 **Purpose:** Specifies all Python dependencies required for running the Airflow-based data pipeline, including data processing, cloud operations, email alerts, and data versioning.  
 **Key Features:**  
@@ -40,6 +42,7 @@ pip install -r requirements.txt
 
 ---
 
+### 2. Init  
 **File:** `__init__.py`  
 **Purpose:** Initializes the `Data_Pipeline.scripts` module and re-exports key components for streamlined access.  
 **Key Features:**  
@@ -49,6 +52,7 @@ pip install -r requirements.txt
 
 ---
 
+### 3. Dvc Versioning 
 **File:** `dvc_versioning.py`  
 **Purpose:** Handles dataset versioning using DVC and GCS for reproducible pipelines.  
 **Key Features:**  
@@ -65,6 +69,7 @@ python scripts/dvc_versioning.py \
 
 ---
 
+### 4. Logger  
 **File:** `logger.py`  
 **Purpose:** Creates a consistent logger compatible with both Airflow and standard Python environments.  
 **Key Features:**  
@@ -74,6 +79,7 @@ python scripts/dvc_versioning.py \
 
 ---
 
+### 5. Pre Validation  
 **File:** `pre_validation.py`  
 **Purpose:** Validates raw input files from GCS and removes/flags those with schema issues.  
 **Key Features:**  
@@ -87,6 +93,7 @@ python scripts/pre_validation.py --bucket full-raw-data --keep_invalid
 
 ---
 
+### 6. Preprocessing  
 **File:** `preprocessing.py`  
 **Purpose:** Cleans, transforms, and prepares raw data for modeling.  
 **Key Features:**  
@@ -104,6 +111,7 @@ python scripts/preprocessing.py \
 
 ---
 
+### 7. Post Validation  
 **File:** `post_validation.py`  
 **Purpose:** Validates cleaned datasets and computes statistical summaries.  
 **Key Features:**  
@@ -114,6 +122,7 @@ python scripts/preprocessing.py \
 
 ---
 
+### 8. Utils  
 **File:** `utils.py`  
 **Purpose:** Provides shared utilities for GCS operations, validation, and alerting.  
 **Key Features:**  
@@ -124,6 +133,7 @@ python scripts/preprocessing.py \
 
 ---
 
+### 9. Dockerfile  
 **File:** `Dockerfile`  
 **Purpose:** Defines a lightweight and efficient container environment for running the Python-based data pipeline application.  
 **Key Features:**  
