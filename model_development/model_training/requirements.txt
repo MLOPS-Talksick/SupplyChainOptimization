@@ -19,5 +19,5 @@ keras-tuner==1.4.7
 matplotlib==3.9.2
 tensorflow==2.18.0
 
-scipy
+scipy 
 seaborn
