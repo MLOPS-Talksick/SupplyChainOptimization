@@ -7,21 +7,21 @@
 
 ### Data Validation & Processing
 - Orchestrated using Airflow DAGs.
-- Performs pre-validation, preprocessing (cleaning, feature engineering), and post-validation.
+- Performs pre-validation, preprocessing (cleaning, feature engineering).
 - Outputs cleaned data to a structured database and versions it using DVC.
 
 ### Model Development
 - Trains an LSTM forecasting model on preprocessed data using Vertex AI.
 - Saves model artifacts and evaluation metrics.
-- Deploys the trained model to an API or Vertex AI Endpoint.
+- Deploys the trained model to an API.
 - Includes automated health checks to validate model quality before production use.
 
 ### CI/CD Deployment
-- Uses GitHub Actions to automate testing, Dockerization, and deployment.
+- Uses GitHub Actions for CI/CD.
 - Manages infrastructure via Terraform for consistent cloud resource provisioning.
 
 ### Monitoring & Logging
-- Continuously monitors model performance (e.g., RMSE, MAPE) and data drift.
+- Continuously monitors model performance (e.g., RMSE, MAPE) and data drift using K-S test.
 - Sends alerts on anomalies or performance degradation.
 - Captures detailed logs for auditing and troubleshooting.
 
