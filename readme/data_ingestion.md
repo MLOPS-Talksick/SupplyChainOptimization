@@ -47,7 +47,6 @@ pip install -r requirements.txt
 **Key Features:**  
 - Re-exports main functions from `pre_validation.py`, `preprocessing.py`, `post_validation.py`.  
 - Exposes utility methods and logging for use across the pipeline.  
-**Execution Command:** Not directly executed; supports module initialization.
 
 ---
 
@@ -58,7 +57,6 @@ pip install -r requirements.txt
 - Sets up GCS-backed DVC remotes and pushes tracked files.  
 - Maintains metadata for versioned datasets.  
 - Includes utilities for bucket checks, file listing, and command execution.  
-**Execution Command:**  
 ```bash
 python scripts/dvc_versioning.py \
   --cache_bucket your-input-bucket \
@@ -74,7 +72,6 @@ python scripts/dvc_versioning.py \
 **Key Features:**  
 - Automatically uses Airflow logging if available.  
 - Supports standard log levels and dynamic verbosity.  
-**Execution Command:** Not meant to be executed directly.
 
 ---
 
@@ -85,7 +82,6 @@ python scripts/dvc_versioning.py \
 - Validates schema against predefined columns.  
 - Optionally deletes invalid files.  
 - Sends validation summary emails.  
-**Execution Command:**  
 ```bash
 python scripts/pre_validation.py --bucket full-raw-data --keep_invalid
 ```
@@ -99,7 +95,6 @@ python scripts/pre_validation.py --bucket full-raw-data --keep_invalid
 - Standardizes formats, fills missing values, removes invalid records.  
 - Detects anomalies and performs feature engineering.  
 - Uploads processed data to GCS and triggers post-validation.  
-**Execution Command:**  
 ```bash
 python scripts/preprocessing.py \
   --source_bucket full-raw-data \
@@ -117,7 +112,6 @@ python scripts/preprocessing.py \
 - Checks data types and missing fields.  
 - Sends anomaly alerts via email.  
 - Generates product-level metrics and uploads to GCS.  
-**Execution Command:** Not meant to be executed directly.
 
 ---
 
@@ -128,7 +122,6 @@ python scripts/preprocessing.py \
 - Loads, uploads, and manages GCS files.  
 - Sends emails and anomaly alerts.  
 - Supports validation error tracking.  
-**Execution Command:** Not meant to be executed directly.
 
 ---
 
@@ -142,7 +135,6 @@ python scripts/preprocessing.py \
 - Installs dependencies without pip cache.  
 - Copies application code and sets `/app/scripts` as working dir.  
 - Default command runs `main.py`.  
-**Build Command:**  
 ```bash
 docker build -t your-image-name .
 ```
