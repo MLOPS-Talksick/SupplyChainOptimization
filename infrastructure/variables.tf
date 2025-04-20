@@ -53,10 +53,10 @@ variable "service_account_email" {
 }
 
 
-variable "database_name" {
-  description = "Name of the database to create"
-  type        = string
-}
+# variable "database_name" {
+#   description = "Name of the database to create"
+#   type        = string
+# }
 
 variable "allocated_ip_range_name" {
   description = "Name for the reserved IP range for Cloud SQL private connectivity"
