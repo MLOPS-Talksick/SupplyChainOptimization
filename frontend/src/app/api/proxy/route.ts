@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Change from Edge Runtime to Node.js for better file handling
-export const runtime = 'nodejs';
+export const runtime = 'edge';
 
 // Handle OPTIONS preflight requests
 export async function OPTIONS() {
