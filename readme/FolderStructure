@@ -1,6 +1,5 @@
 SupplyChainOptimization/
-├── .github/
-│   └── workflows/
+├── .github/workflows/
 ├── Cloudrun_Function/
 ├── Data_Generation/
 │   ├── dataGenerator.py
@@ -59,9 +58,16 @@ SupplyChainOptimization/
 │   ├── sql_database.tf
 │   └── variables.tf
 ├── mlruns/
+├── model_development/
+├── scripts/
+├── vertexAI/
 ├── .DS_Store
 ├── .flake8
 ├── .gitignore
+├── IMPORT_README.md
 ├── LICENSE
 ├── README.md
 ├── docker-compose.yaml
+├── hyperparameter_results.txt
+├── lstm_model.keras
+└── pyproject.toml
