@@ -375,6 +375,7 @@ jobs:
           terraform init \
             -backend-config="bucket=tf-state-deploy-${GCP_PROJECT_ID}" \
             -backend-config="prefix=terraform/state"
+            -backend-config="project=${GCP_PROJECT_ID}"
 
       - name: Terraform Plan
         env:
