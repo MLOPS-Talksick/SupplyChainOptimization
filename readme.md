@@ -14,14 +14,11 @@ To start working with the project, please follow the setup instructions outlined
 - [Setup Guide](/readme/Setup_Guide.md)
 - [Data Pipeline](/readme/DataPipeline.md)
 - [Models](/readme/Models.md)
-- [Architecture](./readme/Architecture.md)
-- 
-- [Bias Detection](./ml_pipelines/stage4_bias_detection.md)
-- [CI/CD Workflow](./ci_cd/README.md)
-- [Cost Analysis](./cost_analysis/README.md)
-- [Logging and Monitoring Setup](./logging_monitoring/README.md)
-- [Version Rollback](./rollback/README.md)
-- 
+- [Architecture](/readme/Architecture.md)
+- [Backend](/readme/Backend.md)
+- [Infrastructure](/readme/Infrastructure.md)
+- [Frontend](/readme/Frontend.md)
+
 - [Folder Structure](/readme/Folder_Structure.md)
 
 
