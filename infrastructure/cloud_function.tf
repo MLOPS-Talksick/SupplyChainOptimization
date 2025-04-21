@@ -216,8 +216,8 @@ resource "google_cloud_run_v2_service" "model_training_trigger" {
 
       resources {
         limits = {
-          cpu    = "1"    # you can keep this at 1 vCPU
-          memory = "4Gi"  # up from the (256 Mi / 512 Mi) default
+          cpu    = "2"    # you can keep this at 1 vCPU
+          memory = "8Gi"  # up from the (256 Mi / 512 Mi) default
         }
       }
 
