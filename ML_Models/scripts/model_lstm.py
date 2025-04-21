@@ -1993,13 +1993,9 @@ def main():
         
         # 6. Define features for the model
         logger.info("Step 8: Defining model features")
-        features = [
-            'year', 'month', 'day', 'dayofyear',
-            'product_encoded', 'is_weekend',
-            'rolling_mean_7d', 'rolling_std_7d', 'rolling_min_7d',
-            'lag_1d', 'lag_2d', 'lag_3d', 'lag_7d', 'lag_14d',
-            'product_mean', 'product_median', 'product_std',
-        ]
+        features = ['year', 'month', 'day', 'dayofweek', 'dayofyear', 'quarter', 
+                            'product_encoded', 'rolling_mean_7d', 'rolling_std_7d',
+                            'lag_1d', 'lag_2d', 'lag_3d', 'lag_7d']
         
         # Check that all features exist
         available_features = []
