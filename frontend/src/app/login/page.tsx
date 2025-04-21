@@ -63,7 +63,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center">
-      <div className="h-[20rem] flex items-center justify-center">
+      <div className="h-[20rem] w-[60rem] flex items-center justify-center">
         <TextHoverEffect text="AI-3" />
       </div>
 

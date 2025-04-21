@@ -71,6 +71,11 @@ export default function NavigationMenu() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Hide navigation on login page
+  if (pathname === "/login") {
+    return null;
+  }
+
   const navItems = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/upload", label: "Upload Data" },
