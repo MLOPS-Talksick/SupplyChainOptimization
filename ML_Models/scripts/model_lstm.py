@@ -26,7 +26,7 @@ np.random.seed(42)
 tf.random.set_seed(42)
 
 email = "talksick530@gmail.com"
-# email = "svarunanusheel@gmail.com"
+# email = "svarunanusheel@gmail.com" 
 
 query = """
         SELECT 
