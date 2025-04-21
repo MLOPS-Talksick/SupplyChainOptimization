@@ -263,7 +263,7 @@ try:
     tuner = kt.BayesianOptimization(
         hypermodel,
         objective='val_loss',
-        max_trials=20,
+        max_trials=2,
         directory='keras_tuner_dir',
         project_name='lstm_demand_forecasting'
     )
@@ -287,7 +287,7 @@ try:
     logger.info("Starting hyperparameter search")
     tuner.search(
         X_train, y_train,
-        epochs=30,  # Maximum number of epochs for each trial
+        epochs=3,  # Maximum number of epochs for each trial
         batch_size=32,
         validation_data=(X_val, y_val),  # Use separate validation set
         callbacks=[early_stopping],
