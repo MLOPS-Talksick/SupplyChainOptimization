@@ -21,4 +21,4 @@ RUN pip install --upgrade pip && \
 ENV PORT=8080 
 
 # Start the app with gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "main:app"]
+CMD ["gunicorn","--workers=1","--threads=2","--timeout=900","-b","0.0.0.0:8080","main:app"]
