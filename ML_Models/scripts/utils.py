@@ -281,17 +281,20 @@ def plot_distribution_bias(analysis_results, output_dir='.'):
     plt.savefig(os.path.join(output_dir, 'weekly_distribution.png'))
     plt.close()
 
-    time_gaps = analysis_results['time_gaps']
-    products, gaps = zip(*time_gaps)
-    # Plotting the bar chart
-    plt.figure(figsize=(10, 6))
-    plt.bar(products, gaps, color='skyblue')
-    plt.xlabel('Product Name')
-    plt.ylabel('Maximum Gap (days)')
-    plt.title('Maximum Time Gaps Between Products (Gaps > 30 Days)')
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'time_gaps.png'))
+    time_gaps = analysis_results.get('time_gaps', [])
+    if time_gaps:
+        products, gaps = zip(*time_gaps)
+        # Plotting the bar chart
+        plt.figure(figsize=(10, 6))
+        plt.bar(products, gaps, color='skyblue')
+        plt.xlabel('Product Name')
+        plt.ylabel('Maximum Gap (days)')
+        plt.title('Maximum Time Gaps Between Products (Gaps > 30 Days)')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, 'time_gaps.png'))
+    else:
+        logger.info("No time gaps found! Skip plots!")
 
 def get_latest_data_from_cloud_sql(query, port="3306"):
     """

@@ -110,7 +110,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
 
       resources {
         limits = {
-          memory = "8Gi"
+          memory = "4Gi"
           cpu    = "1"
         }
       }
