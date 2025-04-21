@@ -562,7 +562,7 @@ def apply_log_transform(df, target_col='Total Quantity'):
     else:
         logger.info(f"Log transform not needed (skewness: {skewness:.2f})")
         df['log_transformed'] = False
-        return df, False
+        return df, False 
 
 
 def apply_rounding_strategy(df,
