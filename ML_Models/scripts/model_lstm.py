@@ -2026,7 +2026,7 @@ def main():
         # Run hyperparameter tuning
         tuned_hyperparams = tune_hyperparameters(
             X_train, y_train, X_val, y_val, input_shape, weights_train, weights_val,
-            n_trials=30,  # Adjust based on computational resources
+            n_trials=5,  # Adjust based on computational resources
             timeout=1800,  # 30 minutes timeout
             study_name="debiased_lstm_tuning"
         )
