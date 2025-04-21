@@ -86,7 +86,7 @@ def upsert_df(df: pd.DataFrame, table_name: str):
             user=user,  # Database user
             password=password,  # Database password
             db=database,
-            # ip_type="PRIVATE",
+            ip_type="PRIVATE",
         )
         return conn
 
