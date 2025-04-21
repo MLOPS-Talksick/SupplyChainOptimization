@@ -120,10 +120,10 @@ def predict():
         latest_date = df['Date'].max()
         # Get the current date
         # ++++++++++++++++++++++++++++++++++++++++++++++++++
-        # current_date = datetime.now().date()
-        # days_difference = (current_date - latest_date.date()).days
+        current_date = datetime.now().date()
+        days_difference = (current_date - latest_date.date()).days
 
-        # days = days + days_difference
+        days = days + days_difference
         # ++++++++++++++++++++++++++++++++++++++++++++++++++
 
         df = df[
