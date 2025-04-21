@@ -2069,7 +2069,7 @@ def main():
             X_test,
             available_features,
             output_dir,
-            sample_size=100  # Adjust based on your dataset size
+            sample_size=10  # Adjust based on your dataset size
         )
 
         product_metrics = generate_metrics_per_product(

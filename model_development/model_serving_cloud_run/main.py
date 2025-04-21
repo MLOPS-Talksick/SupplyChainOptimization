@@ -108,6 +108,8 @@ def predict():
         df = get_latest_data_from_cloud_sql(query=query)
         print(df.head())
 
+        # df = pd.read_csv("C:/Users/svaru/Downloads/processed_data.csv")
+
         # Get unique product names
         unique_products = df['Product Name'].unique()
         print(f"Found {len(unique_products)} unique products")
@@ -175,7 +177,7 @@ def predict():
             log_transformed=log_transformed
         )
 
-        predictions_df = apply_rounding_strategy(predictions_df, safety_stock=1)
+        predictions_df = apply_rounding_strategy(predictions_df, safety_stock=0)
         
         # Make prediction using the loaded model
         # Return error if no predictions were made

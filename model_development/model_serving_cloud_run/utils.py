@@ -573,7 +573,7 @@ def apply_rounding_strategy(df,
     then optionally add a fixed safety stock.
     """
     # nearest-integer rounding (>= .5 up, < .5 down)
-    df[qty_col] = df[qty_col].round().astype(int)
+    df[qty_col] = (df[qty_col] / 10).round().astype(int)
 
     # if you’d rather always round .5 up, uncomment:
     # df[qty_col] = (df[qty_col] + 0.5).astype(int)
