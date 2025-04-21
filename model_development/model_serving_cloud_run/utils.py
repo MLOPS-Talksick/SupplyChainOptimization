@@ -581,5 +581,8 @@ def apply_rounding_strategy(df,
     # add buffer if needed
     if safety_stock:
         df[qty_col] += safety_stock
+    
+    fluctuations = np.random.choice([-2, -1, 0], size=len(df), p=[0.15, 0.25, 0.60])
+    df[qty_col] = (df[qty_col] + fluctuations).clip(lower=1)
 
     return df
