@@ -110,8 +110,8 @@ resource "google_cloud_run_v2_service" "model_serving" {
 
       resources {
         limits = {
-          memory = "4Gi"
-          cpu    = "1"
+          memory = "32Gi"
+          cpu    = "8"
         }
       }
     }
@@ -124,7 +124,7 @@ resource "google_cloud_run_v2_service" "model_serving" {
     service_account = var.service_account_email
 
     max_instance_request_concurrency = 80  # optional: adjust if needed
-    timeout                           = "900s"
+    timeout                           = "1800s"
   }
 
   ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
