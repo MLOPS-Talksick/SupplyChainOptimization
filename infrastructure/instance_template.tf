@@ -4,11 +4,9 @@ resource "google_compute_instance_template" "airflow_template" {
   machine_type = var.machine_type
 
   disk {
-    # Use a custom image that already has Docker and Docker Compose installed,
-    # or if you want to install them at boot, use a base image (e.g., Ubuntu)
-    source_image = var.custom_image_name != "" ? var.custom_image_name : "projects/ubuntu-os-cloud/global/images/family/${var.image_family}"
-    auto_delete  = true
     boot         = true
+    auto_delete  = true
+    source_image = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
   }
 
   network_interface {
@@ -21,16 +19,41 @@ resource "google_compute_instance_template" "airflow_template" {
 
 
   service_account {
-    email  = google_service_account.airflow_sa.email
+    email  = var.service_account_email
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
+
+  lifecycle {
+    create_before_destroy = true
+    ignore_changes = [
+      # Option A: ignore the entire metadata object
+      metadata,
+    ]
+  }
 
   metadata = {
   startup-script = <<-EOF
       #!/bin/bash
       exec > /var/log/startup-script.log 2>&1
       set -ex
+
+      # Retrieve secrets from GCP Secret Manager and export them as environment variables
+      export PROJECT_ID=$(gcloud secrets versions access latest --secret="project_id")
+      export POSTGRES_USER=$(gcloud secrets versions access latest --secret="postgres_user")
+      export POSTGRES_PASSWORD=$(gcloud secrets versions access latest --secret="postgres_password")
+      export POSTGRES_DB=$(gcloud secrets versions access latest --secret="postgres_db")
+      export AIRFLOW_DATABASE_PASSWORD=$(gcloud secrets versions access latest --secret="airflow_database_password")
+      export REDIS_PASSWORD=$(gcloud secrets versions access latest --secret="redis_password")
+      export AIRFLOW_FERNET_KEY=$(gcloud secrets versions access latest --secret="airflow_fernet_key")
+      export AIRFLOW_ADMIN_USERNAME=$(gcloud secrets versions access latest --secret="airflow_admin_username")
+      export AIRFLOW_ADMIN_PASSWORD=$(gcloud secrets versions access latest --secret="airflow_admin_password")
+      export AIRFLOW_ADMIN_FIRSTNAME=$(gcloud secrets versions access latest --secret="airflow_admin_firstname")
+      export AIRFLOW_ADMIN_LASTNAME=$(gcloud secrets versions access latest --secret="airflow_admin_lastname")
+      export AIRFLOW_ADMIN_EMAIL=$(gcloud secrets versions access latest --secret="airflow_admin_email")
+      export AIRFLOW_UID=$(gcloud secrets versions access latest --secret="airflow_uid")
+      export DOCKER_GID=$(gcloud secrets versions access latest --secret="docker_gid")
+
 
       # Update package lists and install Docker, Docker Compose, and Git using apt-get
       sudo apt-get update -y
@@ -48,7 +71,7 @@ resource "google_compute_instance_template" "airflow_template" {
       git clone https://github.com/MLOPS-Talksick/SupplyChainOptimization.git .
 
       # Optionally, check out a specific branch or tag:
-      git checkout terraform-infra-meet-2
+      git checkout testing-service-account-terraform
 
       # Add the ubuntu user to the docker group and adjust permissions
       sudo usermod -aG docker ubuntu
@@ -63,9 +86,11 @@ resource "google_compute_instance_template" "airflow_template" {
           sudo rm -f /opt/airflow/gcp-key.json
       fi
       echo "Creating GCP Key File..."
-            cat > /opt/airflow/gcp-key.json <<EOKEY
-      ${jsonencode(var.gcp_service_account_key)}
+      echo "Creating GCP Key File..."
+      cat > /opt/airflow/gcp-key.json <<EOKEY
+      ${var.gcp_service_account_key}
       EOKEY
+
       
       chmod 644 /opt/airflow/gcp-key.json
       sudo chown ubuntu:docker /opt/airflow/gcp-key.json
@@ -97,6 +122,23 @@ resource "google_compute_instance_template" "airflow_template" {
       echo "Airflow successfully started!"
   EOF
 }
+
+depends_on = [
+    google_secret_manager_secret.postgres_user,
+    google_secret_manager_secret.postgres_password,
+    google_secret_manager_secret.postgres_db,
+    google_secret_manager_secret.airflow_database_password,
+    google_secret_manager_secret.redis_password,
+    google_secret_manager_secret.airflow_fernet_key,
+    google_secret_manager_secret.airflow_admin_username,
+    google_secret_manager_secret.airflow_admin_password,
+    google_secret_manager_secret.airflow_admin_firstname,
+    google_secret_manager_secret.airflow_admin_lastname,
+    google_secret_manager_secret.airflow_admin_email,
+    google_secret_manager_secret.airflow_uid,
+    google_secret_manager_secret.docker_gid,
+    google_secret_manager_secret.project_id,
+  ]
 
   tags = ["airflow-server"]
 }

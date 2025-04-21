@@ -2,31 +2,25 @@ name: Deploy Airflow with Terraform
 
 on:
   push:
-    branches: "main"
-  workflow_dispatch:
-    inputs:
-      deployment_target:
-        description: "Where to deploy Airflow"
-        required: true
-        default: "compute_engine"
-        type: choice
-        options:
-          - local
-          - compute_engine
+    branches: [main]
+  workflow_dispatch: {}
 
 jobs:
-  deploy:
+  # -------------------------------------------------------------
+  # 🟦 Job 1: BOOTSTRAP - creates SA and key
+  # -------------------------------------------------------------
+  bootstrap:
+    name: Bootstrap Terraform Setup
     runs-on: ubuntu-latest
+
     env:
-      GCP_PROJECT_ID: primordial-veld-450618-n4
+      TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
       GCP_LOCATION: us-central1
-      ARTIFACT_REGISTRY_NAME: airflow-docker-image
-      REPO_FORMAT: docker
-      DOCKER_IMAGE_NAME: data-pipeline
-      DOCKER_IMAGE_TAG: latest
-      MACHINE_TYPE: e2-standard-4
-      GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-      TF_VAR_gcp_service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      TF_VAR_gcp_service_account_key: ${{ secrets.BOOTSTRAP_GCP_KEY }}
+
+    outputs:
+      service_account_key: ${{ steps.export-key.outputs.key }}
+      service_account_email: ${{ steps.export-email.outputs.service_account_email }}
 
     steps:
       - name: Checkout Repository
@@ -34,26 +28,335 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Authenticate with Google Cloud (bootstrap)
+        uses: google-github-actions/auth@v1
         with:
-          python-version: "3.10"
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          credentials_json: ${{ secrets.BOOTSTRAP_GCP_KEY }}
+          create_credentials_file: true
+          export_environment_variables: true
 
-      - name: Install Python Dependencies
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Ensure Terraform backend bucket exists
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
-          python -m pip install --upgrade pip
-          pip install -r Data_Pipeline/tests/requirements-test.txt
-      - name: Set PYTHONPATH
+          chmod +x ./scripts/setup_terraform_state_bucket.sh
+          ./scripts/setup_terraform_state_bucket.sh
+
+      - name: Terraform Init
+        working-directory: bootstrap
         run: |
-          echo "PYTHONPATH=$(pwd)/Data_Pipeline:$(pwd)" >> $GITHUB_ENV
-          echo "PYTHONPATH set to $(pwd)/Data_Pipeline:$(pwd)"
-      - name: Run Unit Tests
-        run: python -m unittest discover -s Data_Pipeline/tests -p "test*.py"
+          terraform init \
+            -backend-config="bucket=tf-state-${{ secrets.GCP_PROJECT_ID }}" \
+            -backend-config="prefix=terraform/state"
+
+      # - name: Import existing resources if any
+      #   run: |
+      #     chmod +x scripts/tf_import_bootstrap.sh
+      #     ./scripts/tf_import_bootstrap.sh
+
+      - name: Terraform Apply (bootstrap)
+        working-directory: bootstrap
+        run: terraform apply -auto-approve
+
+      - name: Copy service account key from local_file
+        working-directory: bootstrap
+        run: |
+          if [ ! -f ./sa_key.json ]; then
+            echo "ERROR: bootstrap/sa_key.json not found!"
+            ls -la .
+            exit 1
+          fi
+          cp ./sa_key.json ../key.json
+
+
+      - name: Copy service account email from local_file
+        working-directory: bootstrap
+        run: |
+          if [ ! -f ./sa_email.txt ]; then
+            echo "ERROR: bootstrap/sa_email.txt not found!"
+            ls -la .
+            exit 1
+          fi
+          cp ./sa_email.txt ../sa_email.txt
+
+      # - name: Export service account key to output
+      #   id: export-key
+      #   run: |
+      #     echo "key<<EOF" >> $GITHUB_OUTPUT
+      #     cat $GITHUB_WORKSPACE/key.json >> $GITHUB_OUTPUT
+      #     echo "EOF" >> $GITHUB_OUTPUT
+
+
+      - name: Upload service account key artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sa-key
+          path: key.json 
+          retention-days: 1
+
+      - name: Upload service account email artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sa-email
+          path: sa_email.txt
+          retention-days: 1
+
+  # Job - 2: build and push
+  build_and_push:
+    name: Build and Push Docker Image
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+    outputs:
+      model_serving_image_uri: ${{ steps.build-model-serving.outputs.model_serving_image_uri }}
+      model_training_image_uri: ${{ steps.build-model-training.outputs.model_training_image_uri }}
+      model_training_trigger_image_uri: ${{ steps.build-model-trigger.outputs.model_training_trigger_image_uri }}
+      backend_image_uri: ${{ steps.build-backend.outputs.backend_image_uri }}
+
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Download service account key
+        uses: actions/download-artifact@v4
+        with:
+          name: sa-key
+          path: key-download
+
+      - name: Export service account key for TF and Auth
+        run: |
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key-download/key.json" >> $GITHUB_ENV
+          echo "TF_VAR_gcp_service_account_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
+        
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.TF_VAR_gcp_service_account_key }}
+          create_credentials_file: true
+          export_environment_variables: true
+          cleanup_credentials: true
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Check if Docker Build is Needed for airflow.
+        id: detect-changes-airflow-image
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          chmod +x scripts/check_docker_build.sh
+          ./scripts/check_docker_build.sh
+
+      - name: Build & Push Docker Image for airflow.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        if: steps.detect-changes-airflow-image.outputs.build_required == 'true'
+        run: |
+          chmod +x scripts/build_and_push.sh
+          ./scripts/build_and_push.sh
+
+      - name: Check if Docker Build is Needed for Cloud Run Model Training.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        id: detect-changes-model_training-image
+        run: |
+          chmod +x scripts/check_cloudrun_model_training_docker_build.sh
+          ./scripts/check_cloudrun_model_training_docker_build.sh
+
+      - name: Build & Push Docker Image for Model Training
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        if: steps.detect-changes-model_training-image.outputs.build_required == 'true'
+        id: build-model-training
+        run: |
+          chmod +x scripts/build_and_push_model_training_docker_image.sh
+          ./scripts/build_and_push_model_training_docker_image.sh
+
+      
+      - name: Check if Docker Build is Needed for Cloud Run Model Serving.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        id: detect-changes-model_serving-image
+        run: |
+          chmod +x scripts/check_cloudrun_model_serving_docker_build.sh
+          ./scripts/check_cloudrun_model_serving_docker_build.sh
+
+      - name: Build & Push Docker Image for Cloud Run Model Serving.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        if: steps.detect-changes-model_serving-image.outputs.build_required == 'true'
+        id: build-model-serving
+        run: |
+          chmod +x scripts/build_and_push_model_serving_docker_image.sh
+          ./scripts/build_and_push_model_serving_docker_image.sh
+
+
+      - name: Check if Docker Build is Needed for Cloud Run Training Trigger.
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        id: detect-changes-model_training_trigger-image
+        run: |
+          chmod +x scripts/check_cloudrun_model_training_trigger_docker_build.sh
+          ./scripts/check_cloudrun_model_training_trigger_docker_build.sh
+
+      - name: Build & Push Docker Image for Training Trigger
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        if: steps.detect-changes-model_training_trigger-image.outputs.build_required == 'true'
+        id: build-model-trigger
+        run: |
+          chmod +x scripts/build_and_push_model_training_cloud_run_trigger_image.sh
+          ./scripts/build_and_push_model_training_cloud_run_trigger_image.sh
+
+
+      - name: Check if Docker Build is Needed for Cloud Run Backend
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        id: detect-changes-backend-image
+        run: |
+          chmod +x scripts/check_cloudrun_backend_docker_build.sh
+          ./scripts/check_cloudrun_backend_docker_build.sh
+
+      - name: Build & Push Docker Image for Cloud Run Backend
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        if: steps.detect-changes-backend-image.outputs.build_required == 'true'
+        id: build-backend
+        run: |
+          chmod +x scripts/build_and_push_backend_docker_image.sh
+          ./scripts/build_and_push_backend_docker_image.sh
+
+
+      - name: Check if Docker Build is Needed for Cloud Run Model Health Check
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        id: detect-changes-model-health-check-image
+        run: |
+          chmod +x scripts/check_cloudrun_model_health_check_docker_build.sh
+          ./scripts/check_cloudrun_model_health_check_docker_build.sh
+
+      - name: Build & Push Docker Image for Cloud Run Model Health Check
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        if: steps.detect-changes-model-health-check-image.outputs.build_required == 'true'
+        id: build-model-health-check
+        run: |
+          chmod +x scripts/build_and_push_model_health_check_docker_image.sh
+          ./scripts/build_and_push_model_health_check_docker_image.sh
+
+
+      - name: Debug Docker Image URIs (Before Output)
+        run: |
+          echo "Model Serving Image URI: ${{ steps.build-model-serving.outputs.model_serving_image_uri }}"
+          echo "Model Training Image URI: ${{ steps.build-model-training.outputs.model_training_image_uri }}"
+          echo "Model Training Trigger Image URI: ${{ steps.build-model-trigger.outputs.model_training_trigger_image_uri }}"
+          echo "Backend Image URI: ${{ steps.build-backend.outputs.backend_image_uri }}"
+          echo "Model Health Check Image URI: ${{ steps.build-model-health-check.outputs.model_health_check_image_uri }}"
+
+
+  # -------------------------------------------------------------
+  # 🟩 Job 3: DEPLOY - uses key from bootstrap
+  # -------------------------------------------------------------
+  deploy:
+    name: Deploy Infrastructure
+    needs: [bootstrap, build_and_push]
+    runs-on: ubuntu-latest
+
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_LOCATION: us-central1
+      # TF_VAR_gcp_service_account_key: ${{ needs.bootstrap.outputs.service_account_key }}
+      # TF_VAR_service_account_email: ${{ needs.bootstrap.outputs.service_account_email }}
+      TF_VAR_model_serving_image_uri: ${{ needs.build_and_push.outputs.model_serving_image_uri }}
+      TF_VAR_model_training_image_uri: ${{ needs.build_and_push.outputs.model_training_image_uri }}
+      TF_VAR_model_training_trigger_image_uri: ${{ needs.build_and_push.outputs.model_training_trigger_image_uri }}
+      TF_VAR_backend_image_uri: ${{ needs.build_and_push.outputs.backend_image_uri }}
+      TF_VAR_model_health_check_image_uri: ${{ needs.build_and_push.outputs.model_health_check_image_uri }}
+      TF_VAR_postgres_user: ${{ secrets.POSTGRES_USER }}
+      TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+      TF_VAR_postgres_db: ${{ secrets.POSTGRES_DB }}
+      TF_VAR_airflow_database_password: ${{ secrets.AIRFLOW_DATABASE_PASSWORD }}
+      TF_VAR_redis_password: ${{ secrets.REDIS_PASSWORD }}
+      TF_VAR_airflow_fernet_key: ${{ secrets.AIRFLOW_FERNET_KEY }}
+      TF_VAR_airflow_admin_username: ${{ secrets.AIRFLOW_ADMIN_USERNAME }}
+      TF_VAR_airflow_admin_password: ${{ secrets.AIRFLOW_ADMIN_PASSWORD }}
+      TF_VAR_airflow_admin_firstname: ${{ secrets.AIRFLOW_ADMIN_FIRSTNAME }}
+      TF_VAR_airflow_admin_lastname: ${{ secrets.AIRFLOW_ADMIN_LASTNAME }}
+      TF_VAR_airflow_admin_email: ${{ secrets.AIRFLOW_ADMIN_EMAIL }}
+      TF_VAR_airflow_uid: ${{ secrets.AIRFLOW_UID }}
+      TF_VAR_docker_gid: ${{ secrets.DOCKER_GID }}
+      # TF_VAR_mysql_host: ${{ secrets.MYSQL_HOST }}
+      TF_VAR_mysql_user: ${{ secrets.MYSQL_USER }}
+      TF_VAR_mysql_password: ${{ secrets.MYSQL_PASSWORD }}
+      TF_VAR_mysql_database: ${{ secrets.MYSQL_DATABASE }}
+      TF_VAR_api_token: ${{ secrets.API_TOKEN }}
+      TF_VAR_model_name: ${{ secrets.MODEL_NAME }}
+      TF_VAR_staging_bucket_uri: ${{ secrets.BUCKET_URI }}
+      TF_VAR_project_number: ${{ secrets.PROJECT_NUMBER }}
+      # TF_VAR_instance_conn_name: ${{ secrets.INSTANCE_CONN_NAME }}
+      TF_VAR_airflow_dag_id: ${{ secrets.AIRFLOW_DAG_ID }}
+      TF_VAR_vertex_region: ${{ secrets.VERTEX_REGION }}
+      # TF_VAR_vertex_endpoint_id: ${{ secrets.VERTEX_ENDPOINT_ID }}
+      TF_VAR_gcs_bucket_name: ${{ secrets.GCS_BUCKET_NAME }}
+      TF_VAR_bucket_uri: ${{ secrets.BUCKET_URI }}
+      # TF_VAR_cloudrun_service_name: cloudrun-backend
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Download service account key
+        uses: actions/download-artifact@v4
+        with:
+          name: sa-key
+          path: key-download
+
+      - name: Download SA email
+        uses: actions/download-artifact@v4
+        with:
+          name: sa-email
+          path: email-download
+
+      - name: Debug SA Email Content
+        run: |
+          echo "Contents of sa_email.txt:"
+          cat $GITHUB_WORKSPACE/email-download/sa_email.txt
+
+
+      - name: Export service account key for TF and Auth
+        run: |
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/key-download/key.json" >> $GITHUB_ENV
+          echo "TF_VAR_gcp_service_account_key=$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)" >> $GITHUB_ENV
+          EMAIL=$(cat $GITHUB_WORKSPACE/email-download/sa_email.txt)
+          echo "TF_VAR_service_account_email=$EMAIL" >> $GITHUB_ENV
+
+      - name: Debug Terraform Image Variables
+        run: |
+          echo "TF_VAR_model_serving_image_uri=${TF_VAR_model_serving_image_uri}"
+          echo "TF_VAR_model_training_image_uri=${TF_VAR_model_training_image_uri}"
+          echo "TF_VAR_model_training_trigger_image_uri=${TF_VAR_model_training_trigger_image_uri}"
+          echo "TF_VAR_backend_image_uri=${TF_VAR_backend_image_uri}"
+          echo "TF_VAR_api_token=${TF_VAR_api_token}"
+
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          credentials_json: ${{ env.TF_VAR_gcp_service_account_key }}
+          create_credentials_file: true
+          export_environment_variables: true
+          cleanup_credentials: true
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
@@ -61,46 +364,44 @@ jobs:
       - name: Update gcloud components
         run: gcloud components update --quiet
 
-      - name: Ensure Artifact Registry
-        run: |
-          chmod +x scripts/create_or_ensure_artifact_registry.sh
-          ./scripts/create_or_ensure_artifact_registry.sh
-      - name: Check if Docker Build is Needed
-        id: detect-changes
-        run: |
-          chmod +x scripts/check_docker_build.sh
-          ./scripts/check_docker_build.sh
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-
-      - name: Build & Push Docker Image
-        if: steps.detect-changes.outputs.build_required == 'true'
-        run: |
-          chmod +x scripts/build_and_push.sh
-          ./scripts/build_and_push.sh
-      # --------- TERRAFORM STEPS ---------
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
 
-      - name: Terraform Init
+      - name: Terraform Init (deploy)
         working-directory: infrastructure
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=tf-state-deploy-${{ env.GCP_PROJECT_ID }}" \
+            -backend-config="prefix=terraform/state"
+
 
       - name: Terraform Plan
-        run: terraform -chdir=infrastructure plan -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}"
-
-      - name: Import existing resources if any
-        env:
-          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
         run: |
-          chmod +x scripts/tf_import_all.sh
-          ./scripts/tf_import_all.sh
+          export TF_VAR_gcp_service_account_key="$(cat key-download/key.json | jq -c .)"
+          export TF_VAR_service_account_email="$(cat $GITHUB_WORKSPACE/email-download/sa_email.txt)"
+          cd infrastructure
+          terraform plan \
+            -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+            -var="region=${{ env.GCP_LOCATION }}"
 
-      - name: Terraform Apply
-        run: terraform -chdir=infrastructure apply -auto-approve -var="project_id=${{ env.GCP_PROJECT_ID }}" -var="region=${{ env.GCP_LOCATION }}"
+
+      # - name: Import existing resources if any
+      #   run: |
+      #     chmod +x scripts/tf_import_all.sh
+      #     ./scripts/tf_import_all.sh
+
+
+      - name: Terraform Apply (deploy)
+        run: |
+          export TF_VAR_gcp_service_account_key="$(cat $GITHUB_WORKSPACE/key-download/key.json | jq -c .)"
+          export TF_VAR_service_account_email="$(cat $GITHUB_WORKSPACE/email-download/sa_email.txt)"
+          cd infrastructure
+          terraform apply -auto-approve \
+            -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+            -var="region=${{ env.GCP_LOCATION }}"
 
 
       - name: Get Load Balancer IP
         run: |
-          LB_IP=$(gcloud compute forwarding-rules list --filter="name:airflow-global-forwarding-rule" --format="value(IPAddress)")
+          LB_IP=$(gcloud compute forwarding-rules list --filter="name:airflow-http-forwarding-rule" --format="value(IPAddress)")
           echo "Airflow UI is available at: http://$LB_IP"

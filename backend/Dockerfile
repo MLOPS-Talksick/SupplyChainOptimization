@@ -1,7 +1,14 @@
 # Use the official lightweight Python 3.11 image
 FROM python:3.11-slim
 
-# Set working directory inside the container
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DEFAULT_TIMEOUT=100 \
+    PYTHONPATH=/app
+
+# Create app directory
 WORKDIR /app
 
 # Copy requirements and install them

@@ -15,6 +15,33 @@ ML_Models/experiments/experiments/mlruns/
 *.pkl
 SCO_LOG
 ML_Models/.env
+ML_Models/experiments/scripts/mlruns/
+*.h5
+.qodo
+
+ML_Models/SCO_LOG/*
+./mlruns
+./data
+
+.env
+
+# Ignore all files in the 'secret' directory - GCP Key and environment files
+secret/*
+
+# Ignore environment files
+# .env
+
+__pycache__/
+.coverage
+.vscode
+/data
+/logs
+temp_env/
+
+ML_Models/experiments/experiments/mlruns/
+*.pkl
+SCO_LOG
+ML_Models/.env
 
 /Data.csv
 

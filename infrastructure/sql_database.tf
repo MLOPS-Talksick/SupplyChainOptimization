@@ -1,48 +1,44 @@
-# Create a MySQL Cloud SQL instance with private IP (or adjust for authorized networks)
-resource "google_sql_database_instance" "mysql_instance" {
-  name             = "transaction-database"
-  database_version = "MYSQL_8_0"
+# Create the Cloud SQL instance
+resource "google_sql_database_instance" "instance" {
+  name             = "mlops-sql"
   region           = var.region
+  database_version = "MYSQL_8_0"
+
+  deletion_protection = false
 
   settings {
     tier = "db-f1-micro"
 
-    # Option 1: Using Private IP (if your VM is in the same VPC)
     ip_configuration {
-      ipv4_enabled   = false
+      ipv4_enabled    = false
       private_network = google_compute_network.airflow_vpc.self_link
     }
   }
-}
 
-# Create a database within the instance
-resource "google_sql_database" "database" {
-  name     = "transactions"
-  instance = google_sql_database_instance.mysql_instance.name
-}
-
-# Create a dedicated SQL user for your application
-resource "google_sql_user" "app_user" {
-  name     = var.db_username
-  instance = google_sql_database_instance.mysql_instance.name
-  password = var.db_password
-}
-
-# Use a null_resource to run a SQL command and create your table
-resource "null_resource" "create_sales_table_mysql" {
   depends_on = [
-    google_sql_database_instance.mysql_instance,
-    google_sql_database.database,
-    google_sql_user.app_user
+    google_service_networking_connection.private_vpc_connection,
+    google_compute_global_address.private_ip_range,
+    google_compute_subnetwork.airflow_subnet,
   ]
+}
 
-  provisioner "local-exec" {
-    command = <<-EOF
-      mysql --host=${google_sql_database_instance.mysql_instance.ip_address[0].ip_address} \
-            --user=${var.db_username} \
-            --password=${var.db_password} \
-            ${google_sql_database.database.name} \
-            -e "CREATE TABLE IF NOT EXISTS sales (\`Date\` DATE, \`Product Name\` VARCHAR(255), \`Total Quantity\` INT);"
-    EOF
-  }
+# Create the database in the instance
+resource "google_sql_database" "database" {
+  name     = var.mysql_database
+  instance = google_sql_database_instance.instance.name
+
+  depends_on = [
+    google_sql_database_instance.instance
+  ]
+}
+
+# Create the SQL user
+resource "google_sql_user" "user" {
+  name     = var.mysql_user
+  instance = google_sql_database_instance.instance.name
+  password = var.mysql_password
+  host     = "%"
+  depends_on = [
+    google_sql_database.database
+  ]
 }

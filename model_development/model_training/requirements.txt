@@ -1,0 +1,23 @@
+mlflow==2.21.0  # For model tracking and management
+optuna==4.2.1  # For hyperparameter optimization
+
+shap==0.47.0 # For model interpretability
+ipython==8.28.0  # For interactive computing and visualization
+google-cloud-storage==2.19.0 # For cloud storage integration
+cloud-sql-python-connector==1.17.0  # For Cloud SQL connection
+pymysql==1.1.0  # For MySQL database connection
+sqlalchemy==2.0.25  # For SQL query execution
+xgboost==3.0.0
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.5.2
+polars==1.25.2  # For data manipulation and analysis
+python-dotenv==1.0.1  # For loading environment variables
+google-cloud-aiplatform==1.85.0
+statsmodels==0.14.4  # For statistical modeling
+keras-tuner==1.4.7
+matplotlib==3.9.2
+tensorflow==2.18.0
+
+scipy 
+seaborn

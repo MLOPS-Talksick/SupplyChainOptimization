@@ -1,0 +1,15 @@
+Best hyperparameters:
+units_1: 128
+dropout_1: 0.0
+activation_1: relu
+units_2: 16
+dropout_2: 0.1
+activation_2: tanh
+dense_units: 32
+dense_activation: linear
+learning_rate: 0.0009806077993409813
+optimizer: adam
+
+Train Loss: 0.0067
+Test Loss: 0.0081
+RMSE: 3.8615

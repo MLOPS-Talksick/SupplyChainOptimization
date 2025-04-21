@@ -257,47 +257,79 @@ def get_data(n: int = 5, predictions: bool = False):
 
 @app.get("/data", dependencies=[Depends(verify_token)])
 def get_data(n: int = 5, predictions: bool = False):
-    logging.info("Received /data request.")
-    if predictions:
-        table = "PREDICT"
-    else:
-        table = "SALES"
+    logging.info("Received /data request: n=%s, predictions=%s", n, predictions)
+
+    # Ensure n is non‑negative
     n = max(0, n)
+
+    # 1) Build connection pool
     try:
         def getconn():
-            conn = connector.connect(
-                conn_name,      # Cloud SQL instance connection name
-                "pymysql",      # Database driver
-                user=user,      # Database user
-                password=password,  # Database password
-                db=database,    # Database name
+            return connector.connect(
+                conn_name,
+                "pymysql",
+                user=user,
+                password=password,
+                db=database,
                 ip_type="PRIVATE"
             )
-            return conn
-
-        pool = sqlalchemy.create_engine(
-            "mysql+pymysql://",
-            creator=getconn,
-        )
+        pool = sqlalchemy.create_engine("mysql+pymysql://", creator=getconn)
         logging.info("Database connection pool created successfully.")
     except Exception as e:
-        logging.error(f"Database connection failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+        logging.error("Database connection failed: %s", e)
+        raise HTTPException(status_code=500, detail="Database connection failed.")
+
+    # 2) Pick table and fetch its max sale_date
+    table = "PREDICT" if predictions else "SALES"
     try:
-        query = f"""
-        SELECT 
-            sale_date, product_name, total_quantity
-        FROM {table}
-        ORDER BY sale_date DESC LIMIT {n};"""
-        with pool.connect() as db_conn:
-            result = db_conn.execute(sqlalchemy.text(query))
-            logging.info("Database query executed. First scalar value: " + str(result.scalar()))
-        df = pd.read_sql(query, pool)
-        logging.info(f"Data retrieved successfully. Rows count: {len(df)}")
+        with pool.connect() as conn:
+            max_date = conn.execute(
+                text(f"SELECT MAX(sale_date) FROM {table}")
+            ).scalar()
     except Exception as e:
-        logging.error(f"Database query failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
-    return {"records": df.to_json(), "count": len(df)}
+        logging.error("Failed to fetch max date from %s: %s", table, e)
+        raise HTTPException(status_code=500, detail="Database error fetching date range.")
+
+    if max_date is None:
+        # No rows in the table
+        logging.info("Table %s is empty; returning zero records.", table)
+        return {"records": {}, "count": 0}
+
+    # 3) Compute start_date = max_date - n days
+    start_date = max_date - timedelta(days=n)
+    logging.info(
+        "Date window on %s: from %s through %s",
+        table,
+        start_date,      # no .date()
+        max_date         # no .date()
+    )
+
+    # 4) Query rows in that window
+    sql = f"""
+        SELECT
+          sale_date,
+          product_name,
+          total_quantity
+        FROM {table}
+        WHERE sale_date >= :start
+        ORDER BY sale_date DESC;
+    """
+    try:
+        df = pd.read_sql(
+            text(sql),
+            pool,
+            params={"start": start_date}
+        )
+        logging.info("Query returned %d rows", len(df))
+    except Exception as e:
+        logging.error("Database query failed: %s", e)
+        raise HTTPException(status_code=500, detail="Database query failed.")
+
+    # 5) Return
+    return {
+        "records": df.to_json(date_unit="ms"),
+        "count": len(df)
+    }
 
 @app.get("/get-stats", dependencies=[Depends(verify_token)])
 def get_stats():
@@ -455,7 +487,7 @@ async def get_prediction(request: PredictRequest):
     # 2) Check PREDICT table for existing predictions
     try:
         df_existing = pd.read_sql(
-            text("SELECT sale_date, product_name, prediction FROM PREDICT "
+            text("SELECT sale_date, product_name, total_quantity FROM PREDICT "
                  "WHERE sale_date BETWEEN :start AND :end ;"),
             engine,
             params={"start": start_date, "end": end_date}
@@ -513,49 +545,62 @@ async def get_prediction(request: PredictRequest):
 @app.post("/validate_excel", dependencies=[Depends(verify_token)])
 async def validate_excel(file: UploadFile = File(...)):
     logging.info(f"Received /validate_excel request with file: {file.filename}")
-    ext = file.filename.rsplit('.', 1)[-1].lower()
+
+    # 1. Validate extension
+    ext = file.filename.rsplit(".", 1)[-1].lower()
     if ext not in ("xls", "xlsx"):
         logging.error("Invalid file type for validate_excel.")
         raise HTTPException(status_code=400, detail="Invalid file type. Only .xls or .xlsx files are allowed.")
-    
+
+    # 2. Enforce 50 MB size limit
     file.file.seek(0, io.SEEK_END)
-    file_size = file.file.tell()
-    if file_size > 50 * 1024 * 1024:
+    if file.file.tell() > 50 * 1024 * 1024:
         logging.error("File too large in validate_excel.")
         raise HTTPException(status_code=400, detail="File too large. Maximum allowed size is 50MB.")
     file.file.seek(0)
     logging.info("File pointer reset successfully in validate_excel.")
-    
+
+    # 3. Read into DataFrame
     try:
         if ext == "xls":
             df = pd.read_excel(file.file, engine="xlrd")
         else:
             df = pd.read_excel(file.file, engine="openpyxl")
-        logging.info(f"Excel file read in validate_excel. Rows: {df.shape[0]}")
+        logging.info(f"Excel file read. Rows: {df.shape[0]} Columns: {df.columns.tolist()}")
     except Exception as e:
-        logging.error(f"Failed to read Excel file in validate_excel: {e}")
-        raise HTTPException(status_code=400, detail="Failed to read the Excel file. Ensure it is a valid .xls or .xlsx file.")
-    
-    def canonicalize(col):
+        logging.error(f"Failed to read Excel file: {e}")
+        raise HTTPException(status_code=400, detail="Failed to read the Excel file. Ensure it is valid .xls or .xlsx.")
+
+    # 4. Canonicalize and validate headers
+    def canonicalize(col: str) -> str:
         return col.strip().lower().replace(" ", "_")
-    expected_columns = ['date', 'unit_price', 'transaction_id', 'quantity', 'producer_id', 'store_location', 'product_name']
-    actual_columns_original = df.columns.tolist()
-    actual_canonical = [canonicalize(col) for col in actual_columns_original]
-    
-    if Counter(actual_canonical) != Counter(expected_columns):
-        logging.error("Excel header validation failed in validate_excel.")
+
+    expected_columns = [
+        "date", "unit_price", "transaction_id",
+        "quantity", "producer_id", "store_location", "product_name"
+    ]
+    original_cols = df.columns.tolist()
+    canon_cols = [canonicalize(c) for c in original_cols]
+
+    if Counter(canon_cols) != Counter(expected_columns):
+        logging.error("Excel header validation failed.")
         raise HTTPException(
-            status_code=400, 
-            detail=f"Invalid Excel header. Expected columns (any order): {expected_columns}. Found (canonicalized): {actual_canonical}"
+            status_code=400,
+            detail=(
+                f"Invalid Excel header. Expected (any order): {expected_columns}. "
+                f"Found (canonicalized): {canon_cols}"
+            )
         )
-    
-    mapping = {orig: canonicalize(orig) for orig in actual_columns_original}
-    df.rename(columns=mapping, inplace=True)
-    logging.info("Excel columns canonicalized successfully in validate_excel.")
-    
+
+    # rename columns in-place
+    rename_map = {orig: canonicalize(orig) for orig in original_cols}
+    df.rename(columns=rename_map, inplace=True)
+    logging.info(f"Columns canonicalized to: {df.columns.tolist()}")
+
+    # 5. Fetch existing products from DB
     try:
         def getconn():
-            conn = connector.connect(
+            return connector.connect(
                 conn_name,
                 "pymysql",
                 user=user,
@@ -563,25 +608,30 @@ async def validate_excel(file: UploadFile = File(...)):
                 db=database,
                 ip_type="PRIVATE"
             )
-            return conn
 
-        pool = sqlalchemy.create_engine(
-            "mysql+pymysql://",
-            creator=getconn,
-        )
-        db_query = "SELECT DISTINCT product_name FROM SALES"
+        pool = sqlalchemy.create_engine("mysql+pymysql://", creator=getconn)
+        db_query = "SELECT DISTINCT product_name FROM PRODUCT;"
         with pool.connect() as conn:
             result = conn.execute(sqlalchemy.text(db_query))
-            db_products = set([row[0] for row in result])
-        logging.info(f"Fetched {len(db_products)} unique product names from database.")
-    except Exception as e:
-        logging.error(f"Database query in validate_excel failed: {e}")
-        raise HTTPException(status_code=500, detail="Database error occurred while fetching products.")
+            raw_db = {row[0] for row in result if row[0] is not None}
 
-    excel_products = set(df["product_name"].dropna().unique().tolist())
-    new_products = list(excel_products.difference(db_products))
-    logging.info(f"Identified {len(new_products)} new products in Excel file.")
-    
+        # normalize DB names
+        db_products = {p.strip().lower() for p in raw_db}
+        logging.info(f"DB products (normalized): {db_products}")
+    except Exception as e:
+        logging.error(f"Database query failed: {e}")
+        raise HTTPException(status_code=500, detail="Database error fetching products.")
+
+    # 6. Normalize Excel product names
+    raw_excel = set(df["product_name"].dropna().astype(str).tolist())
+    excel_products = {p.strip().lower() for p in raw_excel}
+    logging.info(f"Excel products (normalized): {excel_products}")
+
+    # 7. Compute new products
+    missing = excel_products - db_products
+    new_products = [p for p in raw_excel if p.strip().lower() in missing]
+    logging.info(f"Identified {len(new_products)} new products: {new_products}")
+
     return {"new_products": new_products}
 
 
