@@ -2040,7 +2040,7 @@ def main():
         logger.info("Step 11: Building model with tuned hyperparameters")
         model = build_model(input_shape, tuned_hyperparams)
         
-        # 9. Train model
+        # 9. Train model 
         logger.info("Step 11: Training model")
         model_path = os.path.join(output_dir, 'lstm_model.keras')
         
