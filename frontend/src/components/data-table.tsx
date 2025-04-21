@@ -371,12 +371,12 @@ export default function DataTable() {
               <SelectValue placeholder="Number of records" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="5">Last 5 records</SelectItem>
-              <SelectItem value="10">Last 10 records</SelectItem>
-              <SelectItem value="50">Last 50 records</SelectItem>
-              <SelectItem value="100">Last 100 records</SelectItem>
-              <SelectItem value="1000">Last 1000 records</SelectItem>
-              <SelectItem value="custom">Custom count</SelectItem>
+              <SelectItem value="5">Last 5 days</SelectItem>
+              <SelectItem value="10">Last 10 days</SelectItem>
+              <SelectItem value="50">Last 50 days</SelectItem>
+              <SelectItem value="100">Last 100 days</SelectItem>
+              <SelectItem value="1000">Last 1000 days</SelectItem>
+              <SelectItem value="custom">Custom days</SelectItem>
             </SelectContent>
           </Select>
 
@@ -584,6 +584,7 @@ export default function DataTable() {
                         return date.toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
+                          year: "numeric",
                         });
                       }}
                     />
@@ -601,6 +602,7 @@ export default function DataTable() {
                             return new Date(value).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
+                              year: "numeric",
                             });
                           }}
                           indicator="dot"
