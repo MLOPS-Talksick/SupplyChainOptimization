@@ -7,7 +7,7 @@ from tensorflow.keras.models import load_model
 from google.cloud import storage
 from dotenv import load_dotenv
 from flask_cors import CORS
-from utils import get_latest_data_from_cloud_sql, upsert_df
+from utils import get_latest_data_from_cloud_sql, upsert_df, predict_future_demand, correct_prediction_bias, load_preprocessing_objects, generate_future_features, create_features, apply_log_transform, apply_rounding_strategy
 
 from datetime import datetime
 
@@ -68,10 +68,12 @@ def predict():
         data = request.get_json()
         # latest_date = pd.to_datetime(data.get('date', pd.Timestamp.today()))
         days = data.get('days') 
+        time_steps = 5
 
         scaler_X_path = load_from_gcs("model_training_1", 'scaler_X.pkl')
         scaler_y_path = load_from_gcs("model_training_1",'scaler_y.pkl')
         label_encoder_path = load_from_gcs("model_training_1",'label_encoder.pkl')
+        log_transformed_path = load_from_gcs("model_training_1",'transform_info.pkl')
 
            
         if not os.path.exists(scaler_X_path) or not os.path.exists(scaler_y_path) or not os.path.exists(label_encoder_path):
@@ -85,6 +87,12 @@ def predict():
         
         with open(label_encoder_path, 'rb') as f:
             label_encoder = pickle.load(f)
+
+        # Load transformation flag
+        with open(log_transformed_path, 'rb') as f:
+            transform_info = pickle.load(f)
+            log_transformed = transform_info.get('log_transformed', False)
+        
         
         print("Preprocessors loaded successfully")
 
@@ -111,173 +119,72 @@ def predict():
         df['Date'] = pd.to_datetime(df['Date'])
         latest_date = df['Date'].max()
         # Get the current date
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++
         current_date = datetime.now().date()
         days_difference = (current_date - latest_date.date()).days
 
         days = days + days_difference
-        df_copy = df.copy()
-        # Process each product
-        for product_name in unique_products:
-            try:
-                print(f"Processing product: {product_name}")
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++
 
-                df = df_copy[df_copy['Product Name'] == product_name].copy()
-                
+        df = df[
+            df['Date'] >= latest_date - pd.Timedelta(days=60)
+        ]
 
-                # Filter the DataFrame to get only the last 60 days from the latest date
-                df = df[df['Date'] >= (latest_date - pd.Timedelta(days=60))]
-                
-                # Convert data types
-                df['Total Quantity'] = df['Total Quantity'].astype(int)
-                
-                # Sort data by date
-                df = df.sort_values('Date')
-        
-                # Extract date features
-                df['year'] = df['Date'].dt.year
-                df['month'] = df['Date'].dt.month
-                df['day'] = df['Date'].dt.day
-                df['dayofweek'] = df['Date'].dt.dayofweek
-                df['dayofyear'] = df['Date'].dt.dayofyear
-                df['quarter'] = df['Date'].dt.quarter
 
-                logging.info("Extracted date features")
-        
-                # Calculate rolling statistics for the product
-                df = df.sort_values(['Product Name', 'Date'])
-                df['rolling_mean_7d'] = df.groupby('Product Name')['Total Quantity'].transform(
-                    lambda x: x.rolling(window=7, min_periods=1).mean())
-                df['rolling_std_7d'] = df.groupby('Product Name')['Total Quantity'].transform(
-                    lambda x: x.rolling(window=7, min_periods=1).std().fillna(0))
-                
-                # Create lag features
-                for lag in [1, 2, 3, 7]:
-                    df[f'lag_{lag}d'] = df.groupby('Product Name')['Total Quantity'].shift(lag)
-                
-                # Fill NaN values
-                df = df.fillna(0)
+        feature_df, _ = create_features(df)
+        feature_df, log_transformed = apply_log_transform(feature_df)
 
-                # Encode product name
-                try:
-                    product_idx = label_encoder.transform([product_name])[0]
-                    df['product_encoded'] = product_idx
-                except ValueError:
-                    print(f"Product '{product_name}' not found in the training data, skipping")
-                    continue
-                
-                # Define features (must match what was used for training)
-                features = ['year', 'month', 'day', 'dayofweek', 'dayofyear', 'quarter', 
-                            'product_encoded', 'rolling_mean_7d', 'rolling_std_7d',
-                            'lag_1d', 'lag_2d', 'lag_3d', 'lag_7d']
-        
-                product_data = df[df['product_encoded'] == product_idx].sort_values('Date')
 
-                logging.info("Extracted Product Data")
-                
-                if len(product_data) < 5:  # Need at least time_steps data points (assuming 5 time steps)
-                    raise ValueError(f"Not enough historical data for product '{product_name}'")
+        # ——— pick your feature list ———
+        features = [
+            'year', 'month', 'day', 'dayofyear',
+            'product_encoded', 'is_weekend',
+            'rolling_mean_7d', 'rolling_std_7d', 'rolling_min_7d',
+            'lag_1d', 'lag_2d', 'lag_3d', 'lag_7d', 'lag_14d',
+            'product_mean', 'product_median', 'product_std',
+        ]
+        available_features = [f for f in features if f in feature_df.columns]
 
-                future_dates = pd.date_range(start=latest_date + pd.Timedelta(days=1), periods=days)
-                
-                # Get the features from the most recent data
-                # Assuming time_steps=5 as in the original code
-                time_steps = 5
-                
-                # Extract the features for the last time_steps periods
-                recent_data = product_data.iloc[-time_steps:][features].values
-                
-                # Scale the input
-                recent_data_scaled = scaler_X.transform(recent_data)
-                
-                # Reshape for LSTM [samples, time_steps, features]
-                current_sequence = recent_data_scaled.reshape(1, time_steps, len(features))
-                
-                predictions = []
-                current_sequence = current_sequence[0]  # Get the sequence as a 2D array\
+        # ——— generate only the FUTURE feature rows ———
+        future_data = generate_future_features(
+            feature_df, days_to_predict=days, features=available_features
+        )
 
-                logging.info(f"Started prediction loop for {product_name}....")
-                
-                for i in range(days):
-                    # Reshape for prediction
-                    current_sequence_reshaped = current_sequence.reshape(1, time_steps, len(features))
-                    
-                    # Predict next day
-                    next_pred_scaled = model.predict(current_sequence_reshaped, verbose=0)
-                    next_pred = scaler_y.inverse_transform(next_pred_scaled)[0][0]
-                    predictions.append(next_pred)
-                    
-                    # Create features for the next day
-                    next_date = future_dates[i]
-                    next_features = np.zeros(len(features))
-                    
-                    # Update date features
-                    next_features[0] = next_date.year
-                    next_features[1] = next_date.month
-                    next_features[2] = next_date.day
-                    next_features[3] = next_date.dayofweek
-                    next_features[4] = next_date.dayofyear
-                    next_features[5] = next_date.quarter
-                    
-                    # Product feature remains the same
-                    next_features[6] = product_idx  # product_encoded
-                    
-                    # Update lag features based on predictions
-                    if i == 0:
-                        # For the first prediction, use values from the dataset
-                        next_features[7] = product_data['rolling_mean_7d'].iloc[-1]  # rolling_mean_7d
-                        next_features[8] = product_data['rolling_std_7d'].iloc[-1]   # rolling_std_7d
-                        next_features[9] = product_data['Total Quantity'].iloc[-1]   # lag_1d
-                        next_features[10] = product_data['Total Quantity'].iloc[-2] if len(product_data) > 1 else 0  # lag_2d
-                        next_features[11] = product_data['Total Quantity'].iloc[-3] if len(product_data) > 2 else 0  # lag_3d
-                        next_features[12] = product_data['Total Quantity'].iloc[-7] if len(product_data) > 6 else 0  # lag_7d
-                    else:
-                        # For subsequent predictions, use the predicted values
-                        if i >= 7:
-                            next_features[7] = np.mean(predictions[i-7:i])  # rolling_mean_7d
-                            next_features[8] = np.std(predictions[i-7:i]) if len(predictions[i-7:i]) > 1 else 0  # rolling_std_7d
-                        else:
-                            # For the first few days, use a mix of historical and predicted
-                            historical = list(product_data['Total Quantity'].iloc[-(7-i):])
-                            predicted = predictions[:i]
-                            combined = historical + predicted
-                            next_features[7] = np.mean(combined)  # rolling_mean_7d
-                            next_features[8] = np.std(combined) if len(combined) > 1 else 0  # rolling_std_7d
-                        
-                        next_features[9] = predictions[i-1]  # lag_1d
-                        next_features[10] = predictions[i-2] if i >= 2 else product_data['Total Quantity'].iloc[-1]  # lag_2d
-                        next_features[11] = predictions[i-3] if i >= 3 else product_data['Total Quantity'].iloc[-2]  # lag_3d
-                        next_features[12] = predictions[i-7] if i >= 7 else product_data['Total Quantity'].iloc[-6]  # lag_7d
-                    
-                    # Scale the features
-                    next_features_scaled = scaler_X.transform(next_features.reshape(1, -1))
-                    
-                    # Update the sequence for the next iteration
-                    current_sequence = np.vstack([current_sequence[1:], next_features_scaled])
-                
-                # Create a DataFrame with the predictions
-                future_df = pd.DataFrame({
-                    'sale_date': future_dates,
-                    'product_name': product_name,
-                    'total_quantity': [max(1, int(round(pred))) for pred in predictions]
-                })
+        # ——— grab the last `time_steps` historical feature‐rows per product ———
+        seed_history = (
+            feature_df
+            .sort_values('Date')
+            .groupby('Product Name')
+            .tail(time_steps)
+            [['Date', 'Product Name'] + available_features]
+        )
 
-                logging.info(f"Completed {product_name} predictions")
+        # ——— combine the seed + future frames ———
+        combined = pd.concat([seed_history, future_data], ignore_index=True)
+        combined = combined.sort_values(['Product Name','Date']).reset_index(drop=True)
 
-                # Append to combined dataframe
-                all_predictions_df = pd.concat([all_predictions_df, future_df], ignore_index=True)
-                
-            except Exception as e:
-                print(f"Error processing product '{product_name}': {str(e)}")
-                continue
+        # ——— finally forecast *every* one of those future days ———
+        predictions_df = predict_future_demand(
+            model,
+            combined,
+            available_features,
+            scaler_X,
+            scaler_y,
+            time_steps=time_steps,
+            bias_correction_func=None,
+            log_transformed=log_transformed
+        )
+
+        predictions_df = apply_rounding_strategy(predictions_df, safety_stock=1)
         
         # Make prediction using the loaded model
         # Return error if no predictions were made
-        if len(all_predictions_df) == 0:
+        if len(predictions_df) == 0:
             return jsonify({"preds": "No predictions could be generated for any product"}), 500
         
         logging.info("Adding data to SQL..")
-        upsert_df(all_predictions_df, 'PREDICT')
-        df_json = all_predictions_df.to_dict(orient='records')
+        upsert_df(predictions_df, 'PREDICT')
+        df_json = predictions_df.to_dict(orient='records')
 
         return jsonify({"preds": df_json})
     
