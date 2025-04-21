@@ -110,7 +110,37 @@ Navigate to your GitHub repository's **Settings** → **Secrets and variables** 
 
 ---
 
-### 5. Troubleshooting & Support
+### 5. Cloudflare Configuration
+
+1. **Add your site to Cloudflare**  
+   - Log in to the [Cloudflare dashboard](https://dash.cloudflare.com/) and click **Add site**.  
+   - Enter your domain (e.g. `example.com`) and choose a plan.
+
+2. **Create DNS records**  
+   - Navigate to **DNS** for your site.  
+   - Click **Add record** and configure:  
+     - **Type:** `A`  
+     - **Name:** `www` (or your website’s hostname)  
+     - **IPv4 address:** `<LOAD_BALANCER_IP>`  
+     - **TTL:** `Auto`  
+     - **Proxy status:** **Proxied** (orange cloud)  
+   - Click **Save**.  
+   - Click **Add record** again and configure your API endpoint:  
+     - **Type:** `A`  
+     - **Name:** `api`  
+     - **IPv4 address:** `<LOAD_BALANCER_IP>`  
+     - **TTL:** `Auto`  
+     - **Proxy status:** **DNS only** (grey cloud)  
+   - Click **Save**.
+
+3. **Verify DNS propagation**  
+   ```bash
+   dig +short www.<your-domain>.com
+   dig +short api.<your-domain>.com
+
+
+
+### 6. Troubleshooting & Support
 
 - Double-check that all secrets are correctly added and up to date.
 - Review GitHub Actions logs for any errors.

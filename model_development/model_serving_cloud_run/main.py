@@ -181,7 +181,7 @@ def predict():
         # Return error if no predictions were made
         if len(predictions_df) == 0:
             return jsonify({"preds": "No predictions could be generated for any product"}), 500
-        
+         
         logging.info("Adding data to SQL..")
         upsert_df(predictions_df, 'PREDICT')
         df_json = predictions_df.to_dict(orient='records')

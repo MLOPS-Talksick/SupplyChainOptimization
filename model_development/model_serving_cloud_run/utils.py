@@ -21,7 +21,7 @@ logger = logging.getLogger('model_serving_utils')
 load_dotenv()
 
 host = os.getenv("MYSQL_HOST")
-user = os.getenv("MYSQL_USER")
+user = os.getenv("MYSQL_USER") 
 password = os.getenv("MYSQL_PASSWORD")
 database = os.getenv("MYSQL_DATABASE")
 instance = os.getenv("INSTANCE_CONN_NAME", "primordial-veld-450618-n4:us-central1:mlops-sql")
