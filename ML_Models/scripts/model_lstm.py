@@ -11,24 +11,22 @@ from tensorflow.keras import losses
 import tensorflow as tf
 import keras_tuner as kt
 import shap
-from sqlalchemy import text
 import pickle
 import os
+from google.cloud import aiplatform
 from tensorflow.keras.models import load_model
 from Data_Pipeline.scripts.logger import logger
-from Data_Pipeline.scripts.utils import send_email, setup_gcp_credentials
+from Data_Pipeline.scripts.utils import send_email
 from google.cloud import storage
-from ML_Models.scripts.utils import get_latest_data_from_cloud_sql, get_cloud_sql_connection
-from dotenv import load_dotenv
+from ML_Models.scripts.utils import get_latest_data_from_cloud_sql
 
 logger.info("Starting LSTM model training script")
 # Set random seed for reproducibility
 np.random.seed(42)
 tf.random.set_seed(42)
 
-# email = "talksick530@gmail.com"
-email = "svarunanusheel@gmail.com"
-setup_gcp_credentials()
+email = "talksick530@gmail.com"
+# email = "svarunanusheel@gmail.com"
 
 query = """
         SELECT 
@@ -265,7 +263,7 @@ try:
     tuner = kt.BayesianOptimization(
         hypermodel,
         objective='val_loss',
-        max_trials=15,
+        max_trials=20,
         directory='keras_tuner_dir',
         project_name='lstm_demand_forecasting'
     )
@@ -428,6 +426,7 @@ def save_artifacts(model, model_name = "lstm_model.keras"):
         upload_to_gcs("scaler_y.pkl", "model_training_1")
         upload_to_gcs("label_encoder.pkl", "model_training_1")
         upload_to_gcs("scaler_X.pkl", "model_training_1")
+        upload_to_gcs(f"hyperparameter_results_{current_datetime}.txt", "model_training_1")
         upload_to_gcs(f'training_history_{current_datetime}.png', "model_training_1")
         upload_to_gcs(f'prediction_results_{current_datetime}.png', "model_training_1")
 
@@ -446,47 +445,13 @@ print("Best model saved as 'lstm_model.keras'")
 # Save the hyperparameter tuning results
 try:
     logger.info("saving hyperparameter tuning results")
-    values = best_hps.values
-
-    data = {
-        "model_type": "LSTM",
-        "model_training_date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        "units_1": values.get("units_1"),
-        "dropout_1": values.get("dropout_1"),
-        "activation_1": values.get("activation_1"),
-        "units_2": values.get("units_2"),
-        "dropout_2": values.get("dropout_2"),
-        "activation_2": values.get("activation_2"),
-        "dense_units": values.get("dense_units"),
-        "dense_activation": values.get("dense_activation"),
-        "learning_rate": values.get("learning_rate"),
-        "optimizer": values.get("optimizer"),
-        "train_loss": train_loss,
-        "test_loss": test_loss,
-        "rmse": rmse
-    }
-
-    pool = get_cloud_sql_connection()
-
-    # Insert into table
-    with pool.connect() as conn:
-        insert_stmt = text("""
-            INSERT INTO MODEL_CONFIG (
-                model_type, model_training_date, units_1, dropout_1, activation_1,
-                units_2, dropout_2, activation_2,
-                dense_units, dense_activation,
-                learning_rate, optimizer,
-                train_loss, test_loss, rmse
-            ) VALUES (
-                :model_type, :model_training_date, :units_1, :dropout_1, :activation_1,
-                :units_2, :dropout_2, :activation_2,
-                :dense_units, :dense_activation,
-                :learning_rate, :optimizer,
-                :train_loss, :test_loss, :rmse
-            )
-        """)
-        conn.execute(insert_stmt, data)
-        conn.commit()
+    with open('hyperparameter_results.txt', 'w') as f:
+        f.write("Best hyperparameters:\n")
+        for param, value in best_hps.values.items():
+            f.write(f"{param}: {value}\n")
+        f.write(f"\nTrain Loss: {train_loss:.4f}\n")
+        f.write(f"Test Loss: {test_loss:.4f}\n")
+        f.write(f"RMSE: {rmse:.4f}\n")
 except Exception as e:
     print(f"Error saving hyperparameter tuning results: {e}")
     send_email(
@@ -498,7 +463,8 @@ except Exception as e:
 
 try:
     logger.info("Deleting temporary files")
-    file_paths = ["scaler_y.pkl", "label_encoder.pkl", "scaler_X.pkl",
+    file_paths = ["scaler_y.pkl", "label_encoder.pkl", "scaler_X.pkl", 
+                  f"hyperparameter_results_{current_datetime}.txt", 
                   f'training_history_{current_datetime}.png', 
                   f'prediction_results_{current_datetime}.png']
 
@@ -525,241 +491,3 @@ send_email(
     body=f"Successfully trained and saved the LSTM model. \n\n"
     f"Train Loss: {train_loss:.4f}\n",
 )
-
-
-
-###################################
-# Alternative to SHAP for LSTM Model
-###################################
-
-# Create a feature importance analyzer for LSTM models
-class LSTMFeatureImportance:
-    def __init__(self, model, X_data, feature_names, time_steps):
-        self.model = model
-        self.X_data = X_data
-        self.feature_names = feature_names
-        self.time_steps = time_steps
-        self.predictions = model.predict(X_data)
-        
-    def permutation_importance(self, num_repeats=10):
-        """
-        Calculate feature importance using permutation importance.
-        This method shuffles each feature and measures the change in prediction error.
-        """
-        # Baseline score
-        baseline_pred = self.model.predict(self.X_data)
-        baseline_error = np.mean((baseline_pred - self.model.predict(self.X_data)) ** 2)
-        
-        # Initialize importance scores
-        importances = np.zeros((len(self.feature_names), self.time_steps))
-        
-        # For each feature and time step
-        for feat_idx, feature in enumerate(self.feature_names):
-            for t in range(self.time_steps):
-                importance_samples = []
-                
-                for _ in range(num_repeats):
-                    # Create a copy of the data
-                    X_permuted = self.X_data.copy()
-                    
-                    # Shuffle the values for this feature at this time step
-                    np.random.shuffle(X_permuted[:, t, feat_idx])
-                    
-                    # Predict with the permuted feature
-                    perm_pred = self.model.predict(X_permuted)
-                    
-                    # Calculate permutation error
-                    perm_error = np.mean((perm_pred - baseline_pred) ** 2)
-                    
-                    # The importance is the increase in error
-                    importance = perm_error - baseline_error
-                    importance_samples.append(importance)
-                
-                # Average importance across repeats
-                importances[feat_idx, t] = np.mean(importance_samples)
-        
-        return importances
-    
-    def create_feature_importance_df(self, importances):
-        """
-        Create a DataFrame with feature importance results.
-        """
-        # Flatten importances
-        feature_time_importance = []
-        
-        for feat_idx, feature in enumerate(self.feature_names):
-            for t in range(self.time_steps):
-                time_step_label = f"t-{self.time_steps-t}"
-                feature_time_importance.append({
-                    'Feature': feature,
-                    'Time_Step': time_step_label,
-                    'Importance': importances[feat_idx, t]
-                })
-        
-        importance_df = pd.DataFrame(feature_time_importance)
-        
-        # Also create a grouped importance by feature
-        grouped_importance = importance_df.groupby('Feature')['Importance'].sum().reset_index()
-        grouped_importance = grouped_importance.sort_values('Importance', ascending=False)
-        
-        return importance_df, grouped_importance
-    
-    def plot_importance(self, importances):
-        """
-        Plot feature importance.
-        """
-        # Create dataframes
-        importance_df, grouped_importance = self.create_feature_importance_df(importances)
-        
-        # Plot grouped importance
-        plt.figure(figsize=(12, 8))
-        plt.barh(grouped_importance['Feature'], grouped_importance['Importance'])
-        plt.xlabel('Feature Importance')
-        plt.title('Feature Importance (Summed across time steps)')
-        plt.tight_layout()
-        plt.show()
-        
-        # Plot feature importance by time step (top features only)
-        top_features = grouped_importance['Feature'].head(8).tolist()
-        time_importance = importance_df[importance_df['Feature'].isin(top_features)]
-        
-        plt.figure(figsize=(14, 10))
-        for feature in top_features:
-            feature_data = time_importance[time_importance['Feature'] == feature]
-            plt.plot(feature_data['Time_Step'], feature_data['Importance'], marker='o', label=feature)
-        
-        plt.xlabel('Time Step')
-        plt.ylabel('Importance')
-        plt.title('Feature Importance by Time Step')
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
-        
-        return importance_df, grouped_importance
-
-# Run permutation importance
-print("\nCalculating feature importance using permutation importance...")
-time_steps = 5  # Number of time steps used in the model
-feature_names = features.copy()
-
-feature_importance_analyzer = LSTMFeatureImportance(best_model, X_test[:100], feature_names, time_steps)
-importances = feature_importance_analyzer.permutation_importance(num_repeats=5)
-importance_by_time, importance_grouped = feature_importance_analyzer.plot_importance(importances)
-
-print("\nTop 10 Features by Overall Importance:")
-print(importance_grouped.head(10))
-
-# Function to analyze feature importance for specific products
-def analyze_product_importance(product_name, num_samples=50):
-    product_idx = label_encoder.transform([product_name])[0]
-    product_data = df[df['product_encoded'] == product_idx].sort_values('Date')
-    
-    # Create sequences for this product
-    product_indices = product_data.index
-    product_X = X_scaled[product_indices]
-    product_y = y_scaled[product_indices]
-    
-    if len(product_X) <= time_steps:
-        return f"Not enough data for product {product_name}"
-    
-    X_seq_product, y_seq_product = create_sequences(product_X, product_y, time_steps=time_steps)
-    
-    # Use only a subset for analysis
-    if len(X_seq_product) > num_samples:
-        X_seq_product = X_seq_product[:num_samples]
-    
-    # Run permutation importance for this product
-    product_analyzer = LSTMFeatureImportance(best_model, X_seq_product, feature_names, time_steps)
-    product_importances = product_analyzer.permutation_importance(num_repeats=3)
-    _, product_importance_grouped = product_analyzer.create_feature_importance_df(product_importances)
-    
-    print(f"\nTop features for predicting {product_name}:")
-    print(product_importance_grouped.head(10))
-    
-    # Plot importance
-    plt.figure(figsize=(10, 6))
-    plt.barh(product_importance_grouped['Feature'].head(10), 
-             product_importance_grouped['Importance'].head(10))
-    plt.xlabel('Feature Importance')
-    plt.title(f'Feature Importance for {product_name}')
-    plt.tight_layout()
-    plt.show()
-    
-    return product_importance_grouped
-
-# Analyze a specific product
-sample_product = products[0]
-product_importance = analyze_product_importance(sample_product)
-
-###################################
-# Feature Contribution Analysis
-###################################
-
-def analyze_feature_contribution(model, X_sample, feature_names, time_steps=5):
-    """
-    Analyze how individual features contribute to predictions by varying their values.
-    """
-    # Get baseline prediction
-    baseline_pred = model.predict(X_sample)[0][0]
-    
-    # Initialize contribution results
-    contributions = {}
-    
-    # For each feature
-    for feat_idx, feature in enumerate(feature_names):
-        # Test different values for this feature
-        test_values = np.linspace(0, 1, 10)  # Try 10 different values
-        predictions = []
-        
-        for value in test_values:
-            # Create a copy of the data
-            X_modified = X_sample.copy()
-            
-            # Set all time steps for this feature to the test value
-            for t in range(time_steps):
-                X_modified[0, t, feat_idx] = value
-            
-            # Get prediction with modified feature
-            pred = model.predict(X_modified)[0][0]
-            predictions.append(pred)
-        
-        # Calculate slope of prediction change
-        slope = np.polyfit(test_values, predictions, 1)[0]
-        
-        # Store contribution
-        contributions[feature] = {
-            'slope': slope,
-            'values': test_values,
-            'predictions': predictions
-        }
-    
-    # Sort contributions by absolute slope
-    sorted_contributions = sorted(contributions.items(), 
-                                  key=lambda x: abs(x[1]['slope']), 
-                                  reverse=True)
-    
-    # Plot top contributing features
-    plt.figure(figsize=(14, 8))
-    for i, (feature, data) in enumerate(sorted_contributions[:6]):  # Top 6 features
-        plt.subplot(2, 3, i+1)
-        plt.plot(data['values'], data['predictions'])
-        plt.title(f"{feature} (slope: {data['slope']:.2f})")
-        plt.xlabel('Feature Value')
-        plt.ylabel('Prediction')
-        plt.axhline(y=baseline_pred, color='r', linestyle='--', alpha=0.5)
-        plt.grid(True)
-    
-    plt.tight_layout()
-    plt.show()
-    
-    return sorted_contributions
-
-# Analyze feature contribution for a sample
-print("\nAnalyzing how features contribute to predictions...")
-sample_idx = np.random.randint(0, len(X_test))
-feature_contributions = analyze_feature_contribution(best_model, X_test[sample_idx:sample_idx+1], feature_names)
-
-print("\nTop features by contribution magnitude:")
-for feature, data in feature_contributions[:10]:
-    print(f"{feature}: slope = {data['slope']:.4f}")
